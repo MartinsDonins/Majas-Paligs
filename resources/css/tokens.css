@@ -1,0 +1,104 @@
+/*
+ * Mājas Palīgs design tokens (BRAIN/docs/DESIGN-SYSTEM.md §2). Imported by app.css and both Filament themes.
+ * Components use only the semantic aliases (--color-bg, --color-surface, --color-fg, --color-fg-muted,
+ * --color-line, --color-accent).
+ */
+:root {
+    /* Brand — petrol (deliberately not blue: never collides with the "cold" heating colour) */
+    --color-primary-700: #0b4f55;
+    --color-primary-600: #0e6169;
+    --color-primary-500: #13808a;
+    --color-primary-100: #d7eeef;
+    --color-primary-50: #eef7f7;
+
+    /* Neutrals (warm stone) */
+    --color-bg: #f7f6f3;
+    --color-surface: #ffffff;
+    --color-surface-2: #f0eee9;
+    --color-line: #dad6ce;
+    --color-fg: #1c1a17;
+    --color-fg-muted: #57534e;
+
+    /* Semantic */
+    --color-accent: var(--color-primary-700);
+    --color-accent-hover: var(--color-primary-600);
+    --color-accent-ink: #ffffff;
+    --color-accent-soft: var(--color-primary-100);
+    --color-focus: var(--color-primary-500);
+    --color-success: #1e7a46;
+    --color-warning: #a15c00;
+    --color-danger: #b42318;
+    --color-info: #0b4f55;
+
+    /* Heating & outage status palette (Okabe-Ito, CVD-safe) */
+    --heat-cold: #0072b2;
+    --heat-cold-ink: #ffffff;
+    --heat-lukewarm: #f0e442;
+    --heat-lukewarm-ink: #1c1a17;
+    --heat-warm: #e69f00;
+    --heat-warm-ink: #1c1a17;
+    --heat-overheated: #a3195b;
+    --heat-overheated-ink: #ffffff;
+    --heat-nodata-border: #a8a29e;
+
+    /* Radius, shadow, motion */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-cell: 6px;
+    --radius-lg: 20px;
+    --shadow-1: 0 1px 2px rgb(28 26 23 / 0.06), 0 1px 1px rgb(28 26 23 / 0.04);
+    --shadow-2: 0 8px 24px rgb(28 26 23 / 0.12);
+    --motion-fast: 150ms;
+    --motion-base: 220ms;
+
+    /* Shell */
+    --topbar-h: 56px;
+    --bottomnav-h: 64px;
+
+    color-scheme: light;
+}
+
+/* Dark mode: system preference unless the user chose "Gaišs" */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --color-bg: #141312;
+        --color-surface: #1e1c1a;
+        --color-surface-2: #2a2724;
+        --color-line: #3a3632;
+        --color-fg: #f2efea;
+        --color-fg-muted: #b5afa6;
+        --color-accent: #4fb3bc;
+        --color-accent-hover: #6cc3cb;
+        --color-accent-ink: #0f1514;
+        --color-accent-soft: #173a3d;
+        --color-focus: #4fb3bc;
+        --color-success: #4cc27f;
+        --color-warning: #e3a24a;
+        --color-danger: #f0776c;
+        --heat-lukewarm: #d9cd3a;
+        --shadow-1: none;
+        --shadow-2: 0 0 0 1px var(--color-line);
+        color-scheme: dark;
+    }
+}
+
+:root[data-theme="dark"] {
+    --color-bg: #141312;
+    --color-surface: #1e1c1a;
+    --color-surface-2: #2a2724;
+    --color-line: #3a3632;
+    --color-fg: #f2efea;
+    --color-fg-muted: #b5afa6;
+    --color-accent: #4fb3bc;
+    --color-accent-hover: #6cc3cb;
+    --color-accent-ink: #0f1514;
+    --color-accent-soft: #173a3d;
+    --color-focus: #4fb3bc;
+    --color-success: #4cc27f;
+    --color-warning: #e3a24a;
+    --color-danger: #f0776c;
+    --heat-lukewarm: #d9cd3a;
+    --shadow-1: none;
+    --shadow-2: 0 0 0 1px var(--color-line);
+    color-scheme: dark;
+}

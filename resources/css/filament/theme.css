@@ -1,0 +1,18 @@
+/* Shared Filament theme for the `platform` and `manage` panels — same tokens + Inter as the resident app. */
+@import '../../../vendor/filament/filament/resources/css/theme.css';
+@import "@fontsource-variable/inter/index.css";
+@import '../tokens.css';
+
+@source '../../../app/Filament/**/*';
+@source '../../../resources/views/filament/**/*';
+@source '../../../resources/views/components/ui/**/*';
+
+.fi-body {
+    font-family: "Inter Variable", system-ui, sans-serif;
+}
+
+.fi-sidebar-header .fi-logo,
+.fi-topbar .fi-logo {
+    color: var(--color-primary-700);
+    font-weight: 700;
+}
