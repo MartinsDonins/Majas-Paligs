@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Gdpr;
+
+/**
+ * Formula-injection-safe CSV (OWASP): cells starting with = + - @ TAB CR are prefixed with an apostrophe.
+ */
+final class CsvWriter
+{
+    /**
+     * @param  list<list<scalar|null>>  $rows
+     */
+    public static function toString(array $rows): string
+    {
+        $handle = fopen('php://temp', 'r+');
+        if ($handle === false) {
+            return '';
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM for spreadsheet apps (Latvian diacritics, Cyrillic)
+
+        foreach ($rows as $row) {
+            fputcsv($handle, array_map(self::safe(...), $row), ',', '"', '');
+        }
+
+        rewind($handle);
+        $csv = (string) stream_get_contents($handle);
+        fclose($handle);
+
+        return $csv;
+    }
+
+    public static function safe(mixed $value): string
+    {
+        $value = $value === null ? '' : (string) $value;
+
+        if ($value !== '' && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+            return "'".$value;
+        }
+
+        return $value;
+    }
+}
