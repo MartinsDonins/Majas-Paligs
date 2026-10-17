@@ -1,0 +1,108 @@
+# Mājas Palīgs CI (MVP-SPEC A.3, ADR 0002): a red main never deploys.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      pgsql:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci
+      DB_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Personal-data guard (DOC/ never tracked, no phone numbers)
+        run: |
+          if git ls-files | grep -E '^DOC/'; then echo "DOC/ must never be committed"; exit 1; fi
+          # Latvian mobile numbers: +371 and 8 digits starting with 2 (the invite alphabet is whitelisted).
+          if git grep -nE '\+371[ ]?[0-9]{8}|(^|[^0-9])2[0-9]{7}([^0-9]|$)' -- ':!*.lock' ':!*.svg' ':!*.woff2' ':!public/' ':!resources/data/' \
+             | grep -v '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; then
+            echo "Possible phone number in tracked files"; exit 1; fi
+
+      - name: VERSION changed (pull requests)
+        if: github.event_name == 'pull_request'
+        run: git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qx VERSION || (echo "Bump VERSION"; exit 1)
+
+      - name: Bootstrap roles (same roles.sql as production)
+        run: |
+          for db in majas majas_test; do
+            psql -v ON_ERROR_STOP=1 -d postgres -v dbname=$db -v owner_password=owner-dev-only \
+              -v app_password=app-dev-only -v retention_password=retention-dev-only -v owner_createdb=CREATEDB \
+              -f database/sql/roles.sql
+          done
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql, redis, gd, exif, bcmath, sodium, zip, pcntl
+          coverage: none
+
+      - name: Composer install
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Pint
+        run: vendor/bin/pint --test
+
+      - name: Larastan (level 6)
+        run: vendor/bin/phpstan analyse --memory-limit=2G --no-progress
+
+      - name: Pest (PostgreSQL majas_test, migrated as majas_owner)
+        run: vendor/bin/pest
+
+      - name: Fresh-cluster bootstrap check (AC 20)
+        run: sh scripts/bootstrap-check.sh
+        env:
+          DB_OWNER_PASSWORD: owner-dev-only
+
+      - name: Composer audit
+        run: composer audit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: npm ci + build
+        run: npm ci && npm run build
+
+      - name: npm audit
+        run: npm audit --omit=dev
+
+      - name: Lang key parity (lv vs ru)
+        run: node scripts/lang-parity.mjs
+
+      - name: Docker build (prod target)
+        run: docker build --target prod -t majas-paligs:ci .
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify deploy (only after a green main)
+        run: |
+          curl -fsS -X GET "${{ secrets.COOLIFY_WEBHOOK }}" -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"

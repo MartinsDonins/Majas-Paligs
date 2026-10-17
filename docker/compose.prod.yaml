@@ -1,0 +1,116 @@
+# Mājas Palīgs — Coolify "Docker Compose" resource (MVP-SPEC A.2). One image, four services.
+# Postgres 18 and Redis 8 are separate Coolify resources. Each service gets ONLY its own DB credentials:
+#   migrate   → DB_OWNER_*   (majas_owner, one-shot)
+#   web/worker→ DB_*         (majas_app)
+#   scheduler → DB_* + DB_RETENTION_* (prune commands only)
+# Shared env (set in Coolify): APP_KEY, APP_PREVIOUS_KEYS, APP_URL, INVITE_KEY, PLATE_ENC_KEY, PLATE_INDEX_KEY,
+# DB_HOST, DB_PORT, DB_DATABASE, REDIS_HOST, MAIL_*, SENTRY_LARAVEL_DSN, PLATFORM_ALERT_EMAIL.
+name: majas-paligs
+
+x-app: &app
+  image: ${MAJAS_IMAGE:-ghcr.io/coredigify/majas-paligs:latest}
+  environment: &env
+    APP_ENV: production
+    APP_DEBUG: "false"
+    APP_URL: ${APP_URL:-https://kaimini.coredigify.com}
+    APP_TIMEZONE: UTC
+    APP_KEY: ${APP_KEY}
+    APP_PREVIOUS_KEYS: ${APP_PREVIOUS_KEYS:-}
+    INVITE_KEY: ${INVITE_KEY}
+    PLATE_ENC_KEY: ${PLATE_ENC_KEY}
+    PLATE_INDEX_KEY: ${PLATE_INDEX_KEY}
+    SESSION_DRIVER: redis
+    SESSION_COOKIE: __Host-mp_session
+    SESSION_SECURE_COOKIE: "true"
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    REDIS_HOST: ${REDIS_HOST}
+    REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+    DB_CONNECTION: pgsql
+    DB_HOST: ${DB_HOST}
+    DB_PORT: ${DB_PORT:-5432}
+    DB_DATABASE: ${DB_DATABASE:-majas}
+    DB_SSLMODE: ${DB_SSLMODE:-prefer}
+    MAIL_MAILER: ${MAIL_MAILER:-smtp}
+    MAIL_HOST: ${MAIL_HOST}
+    MAIL_PORT: ${MAIL_PORT:-587}
+    MAIL_USERNAME: ${MAIL_USERNAME}
+    MAIL_PASSWORD: ${MAIL_PASSWORD}
+    MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
+    SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
+    PLATFORM_ALERT_EMAIL: ${PLATFORM_ALERT_EMAIL:-}
+    LOG_CHANNEL: stderr
+    TRUSTED_PROXY: cloudflare
+  logging: &logging
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "5"
+
+services:
+  migrate:
+    <<: *app
+    command: ["php", "/var/www/html/artisan", "migrate", "--database=pgsql_owner", "--force", "--isolated", "--no-interaction"]
+    restart: "no"
+    environment:
+      <<: *env
+      DB_OWNER_USERNAME: majas_owner
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+    exclude_from_hc: true
+
+  web:
+    <<: *app
+    environment:
+      <<: *env
+      DB_USERNAME: majas_app
+      DB_PASSWORD: ${DB_PASSWORD}
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION: "false"
+      AUTORUN_LARAVEL_STORAGE_LINK: "false"
+    volumes:
+      - private-storage:/var/www/html/storage/app/private
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    <<: *app
+    command: ["php", "/var/www/html/artisan", "horizon"]
+    environment:
+      <<: *env
+      DB_USERNAME: majas_app
+      DB_PASSWORD: ${DB_PASSWORD}
+      AUTORUN_ENABLED: "false"
+    volumes:
+      - private-storage:/var/www/html/storage/app/private
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "healthcheck-horizon"]
+
+  scheduler:
+    <<: *app
+    command: ["php", "/var/www/html/artisan", "schedule:work"]
+    environment:
+      <<: *env
+      DB_USERNAME: majas_app
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_RETENTION_USERNAME: majas_retention
+      DB_RETENTION_PASSWORD: ${DB_RETENTION_PASSWORD}
+      AUTORUN_ENABLED: "false"
+    volumes:
+      - private-storage:/var/www/html/storage/app/private
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "healthcheck-schedule"]
+
+volumes:
+  private-storage:

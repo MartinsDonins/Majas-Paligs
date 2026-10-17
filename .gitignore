@@ -6,6 +6,7 @@ DOC/
 .env
 .env.*
 !.env.example
+/auth.json
 
 # Laravel
 /vendor/
@@ -13,18 +14,30 @@ DOC/
 /public/build/
 /public/hot
 /public/storage
+# Published by composer post-autoload-dump (Livewire CSP/non-CSP bundles, Filament assets)
+/public/vendor/
+/public/js/filament/
+/public/css/filament/
+/public/fonts/filament/
+/public/fonts-manifest.dev.json
 /storage/*.key
-/storage/app/*
-/storage/framework/cache/*
-/storage/framework/sessions/*
-/storage/framework/views/*
-/storage/logs/*
-/bootstrap/cache/*.php
+/storage/pail
 .phpunit.result.cache
+# storage/ and bootstrap/cache/ are handled by their nested .gitignore files
+/.phpunit.cache
 /coverage/
+*.log
+_ide_helper.php
+.phpactor.json
+Homestead.json
+Homestead.yaml
 
 # IDE / OS
 .idea/
 .vscode/
+/.codex
+/.cursor/
+/.nova
+/.zed
 .DS_Store
 Thumbs.db

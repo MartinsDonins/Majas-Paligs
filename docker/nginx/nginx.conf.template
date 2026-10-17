@@ -1,0 +1,51 @@
+# Mājas Palīgs nginx main config (replaces the serversideup template; processed by envsubst at start).
+# Privacy (PLANNING §4.1, MVP-SPEC A.2/A.6a): the access log never contains query strings ($request,
+# $request_uri, $args), the referer or full client IPs. IPv4 is truncated to /24, IPv6 to /48.
+worker_processes  auto;
+
+error_log  $NGINX_ERROR_LOG $LOG_OUTPUT_LEVEL;
+pid        /var/run/nginx.pid;
+daemon off;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    server_tokens $NGINX_SERVER_TOKENS;
+
+    map $remote_addr $mp_ip {
+        "~^(?P<v4>\d+\.\d+\.\d+)\.\d+$"                                  "${v4}.0";
+        "~^(?P<v6>[0-9a-fA-F]{0,4}:[0-9a-fA-F]{0,4}:[0-9a-fA-F]{0,4})"     "${v6}::";
+        default                                                          "-";
+    }
+
+    # Original request path WITHOUT the query string (never logged); legacy token paths are redacted.
+    map $request_uri $mp_path_raw {
+        "~^(?P<p>[^?#]*)"  $p;
+        default            "-";
+    }
+    map $mp_path_raw $mp_path {
+        "~^/login/confirm/"  "/login/confirm/[redacted]";
+        default              $mp_path_raw;
+    }
+
+    log_format mp_noargs '$mp_ip - [$time_iso8601] "$request_method $mp_path" $status $body_bytes_sent $request_time';
+
+    # Do not log the health check endpoint
+    map $mp_path_raw $loggable {
+        $HEALTHCHECK_PATH 0;
+        default 1;
+    }
+
+    access_log  $NGINX_ACCESS_LOG mp_noargs if=$loggable;
+
+    client_max_body_size $NGINX_CLIENT_MAX_BODY_SIZE;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    include /etc/nginx/conf.d/*.conf;
+}
