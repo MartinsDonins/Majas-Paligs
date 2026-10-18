@@ -72,14 +72,39 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 
-    /** Bottom sheet with focus trap, Esc and a visible "Aizvērt" button. */
+    /**
+     * Bottom sheet with Esc and a visible "Aizvērt" button. `data-open="1"` opens it on load (e.g. Home tile
+     * "Ziņot par siltumu" → /heating?report=1). Focus moves into the sheet when it opens and back on close.
+     */
     Alpine.data('sheet', () => ({
         open: false,
+        opener: null,
+        init() {
+            if (this.$el.dataset.open === '1') {
+                this.open = true;
+                this.$nextTick(() => this.focusFirst());
+            }
+            window.addEventListener('mp-sheet-close', () => {
+                this.open = false;
+            });
+        },
         show() {
+            this.opener = document.activeElement;
             this.open = true;
+            this.$nextTick(() => this.focusFirst());
         },
         hide() {
             this.open = false;
+            if (this.opener && this.opener.focus) {
+                this.opener.focus();
+            }
+        },
+        focusFirst() {
+            const panel = this.$el.querySelector('[role="dialog"]');
+            const target = panel && panel.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (target) {
+                target.focus();
+            }
         },
         toggle() {
             this.open = !this.open;
@@ -128,6 +153,15 @@ document.addEventListener('alpine:init', () => {
             const rows = Array.from(this.$el.querySelectorAll('[role="row"]'));
             const ci = cells.indexOf(cell);
             const ri = rows.indexOf(row);
+            // Enter / Space on a focused cell opens its column summary (the inner button is not in the tab order).
+            if ((event.key === 'Enter' || event.key === ' ') && event.target === cell) {
+                const action = cell.querySelector('button');
+                if (action) {
+                    event.preventDefault();
+                    action.click();
+                }
+                return;
+            }
             let next = null;
             if (event.key === 'ArrowRight') next = cells[ci + 1];
             if (event.key === 'ArrowLeft') next = cells[ci - 1];
@@ -139,6 +173,57 @@ document.addEventListener('alpine:init', () => {
                 next.setAttribute('tabindex', '0');
                 next.focus();
             }
+        },
+    }));
+
+    /**
+     * One of several panels (riser summary sheets per grid column). Triggers carry data-key; panels call
+     * isOpen('<key>'). Esc / "Aizvērt" close it and return focus to the trigger.
+     */
+    Alpine.data('panelSwitch', () => ({
+        current: null,
+        opener: null,
+        open(event) {
+            this.opener = event.currentTarget;
+            this.current = String(event.currentTarget.dataset.key);
+        },
+        close() {
+            this.current = null;
+            if (this.opener && this.opener.focus) {
+                this.opener.focus();
+            }
+        },
+        isOpen(key) {
+            return this.current === String(key);
+        },
+        get anyOpen() {
+            return this.current !== null;
+        },
+        onKeydown(event) {
+            if (event.key === 'Escape') {
+                this.close();
+            }
+        },
+    }));
+
+    /** Visible countdown for the undo window ("Atsaukt (8)"); hides itself at zero. */
+    Alpine.data('countdown', () => ({
+        left: 0,
+        timer: null,
+        init() {
+            this.left = parseInt(this.$el.dataset.seconds || '8', 10);
+            this.timer = setInterval(() => {
+                this.left = Math.max(0, this.left - 1);
+                if (this.left === 0) {
+                    clearInterval(this.timer);
+                }
+            }, 1000);
+        },
+        get active() {
+            return this.left > 0;
+        },
+        destroy() {
+            clearInterval(this.timer);
         },
     }));
 

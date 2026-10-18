@@ -9,6 +9,7 @@ use App\Http\Controllers\DataExportDownloadController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InviteLetterController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\ManagerReportDownloadController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PwaController;
 use App\Livewire\Auth\EmailLogin;
@@ -16,6 +17,7 @@ use App\Livewire\Auth\PinLogin;
 use App\Livewire\Auth\SetNewPin;
 use App\Livewire\Auth\StepUp;
 use App\Livewire\Elder\Panel as ElderPanel;
+use App\Livewire\Heating\Grid as HeatingGrid;
 use App\Livewire\Home\Dashboard;
 use App\Livewire\Me\Apartment as MeApartment;
 use App\Livewire\Me\Privacy as MePrivacy;
@@ -24,6 +26,7 @@ use App\Livewire\Onboarding\ChooseAccess;
 use App\Livewire\Onboarding\ChooseRole;
 use App\Livewire\Onboarding\LanguagePick;
 use App\Livewire\Onboarding\RedeemInvite;
+use App\Livewire\Outage\Detail as OutageDetail;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -81,4 +84,16 @@ Route::prefix('/b/{building:slug}')
         Route::get('/files/exports/{export}', BuildingExportDownloadController::class)
             ->middleware(['role:building_admin', 'step-up', 'signed'])
             ->name('building.exports.download');
+
+        // ---- Package B: heating & outages (MVP-SPEC B.3) ----
+        Route::get('/heating', HeatingGrid::class)->middleware('module:heating')->defaults('mode', 'heating')->name('building.heating');
+        Route::get('/water', HeatingGrid::class)->middleware('module:outages')->defaults('mode', 'outage')->name('building.water');
+        Route::get('/incidents/{incident}', OutageDetail::class)->middleware('module:outages')
+            ->where('incident', '[0-9a-z]{26}')
+            ->name('building.incident');
+        // Signed 10-min download; ManagerReportPolicy::download (building_admin, or elder when section_ids ⊆ own).
+        Route::get('/reports/{report}.{format}', ManagerReportDownloadController::class)
+            ->middleware(['module:heating,outages', 'step-up', 'signed'])
+            ->where(['report' => '[0-9a-z]{26}', 'format' => 'pdf|csv'])
+            ->name('building.manager-report');
     });

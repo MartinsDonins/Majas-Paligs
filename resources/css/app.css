@@ -1,6 +1,7 @@
 @import "@fontsource-variable/inter/index.css";
 @import "tailwindcss";
 @import "./tokens.css";
+@import "./heating.css";
 
 @source "../views";
 @source "../../app/Livewire";

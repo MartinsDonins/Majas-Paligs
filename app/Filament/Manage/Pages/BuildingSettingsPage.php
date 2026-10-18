@@ -184,6 +184,15 @@ final class BuildingSettingsPage extends Page
         }
 
         $oldSettings = $building->settings->toArray();
+
+        // Manager-sharing flags (heating floors / apartment numbers): building_admin + fresh step-up, own audit row.
+        $sharingChanged = $settings->shareWithManager !== $building->settings->shareWithManager;
+        if ($sharingChanged && ! Gate::allows('updateSharing', $building)) {
+            Notification::make()->danger()->title(__('admin.settings.sharing_step_up'))->send();
+
+            return;
+        }
+
         $building->forceFill([
             'settings' => $settings,
             'manager_name' => $data['manager_name'] ?? null,
@@ -197,6 +206,13 @@ final class BuildingSettingsPage extends Page
             ARRAY_FILTER_USE_BOTH,
         ));
         AuditLogger::record('settings.update', $building, data: ['changed' => $changed]);
+
+        if ($sharingChanged) {
+            AuditLogger::record('settings.sharing', $building, reasonText: $settings->shareWithManager['decided_ref'], data: [
+                'heating_floors' => $settings->shareWithManager['heating_floors'],
+                'apartment_numbers' => $settings->shareWithManager['apartment_numbers'],
+            ]);
+        }
 
         CoreGateMonitor::afterChange($building, $before);
 

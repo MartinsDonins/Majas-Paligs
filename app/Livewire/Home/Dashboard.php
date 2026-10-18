@@ -9,6 +9,7 @@ use App\Models\Apartment;
 use App\Models\ApartmentMembership;
 use App\Models\User;
 use App\Services\Buildings\BuildingGrid;
+use App\Services\Heating\HeatingGridQuery;
 use App\Tenancy\CurrentBuilding;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
@@ -23,7 +24,7 @@ use Livewire\Component;
 #[Layout('layouts::app')]
 final class Dashboard extends Component
 {
-    public function render(BuildingGrid $grids): View
+    public function render(BuildingGrid $grids, HeatingGridQuery $heatingQuery): View
     {
         $building = CurrentBuilding::get();
         /** @var User $user */
@@ -46,6 +47,9 @@ final class Dashboard extends Component
         }
 
         $section = $apartment !== null ? ($grids->forCurrentBuilding([$apartment->section->number])['sections'][0] ?? null) : null;
+        $heatingOn = $building->settings->moduleEnabled('heating');
+        // Mini map of my stairwell with the column aggregates (resident read model — counts only).
+        $heatingView = $apartment !== null && $heatingOn ? $heatingQuery->residentSection($apartment->section) : null;
         $deadline = CarbonImmutable::parse('2027-01-01', 'Europe/Riga');
 
         session()->put('mp.last_building', $building->slug);
@@ -58,7 +62,8 @@ final class Dashboard extends Component
             'isElder' => $isElder,
             'isAdmin' => $isAdmin,
             'pendingForMe' => $pendingForMe,
-            'heating' => $building->settings->moduleEnabled('heating'),
+            'heating' => $heatingOn,
+            'heatingView' => $heatingView,
             'outages' => $building->settings->moduleEnabled('outages'),
             'parking' => $building->settings->moduleEnabled('parking'),
             'daysToDeadline' => max(0, (int) now('Europe/Riga')->startOfDay()->diffInDays($deadline, false)),

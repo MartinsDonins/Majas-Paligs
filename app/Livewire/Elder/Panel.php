@@ -17,16 +17,55 @@ use Livewire\Component;
 #[Layout('layouts::app')]
 final class Panel extends Component
 {
+    private const ICONS = [
+        'approvals' => 'list-checks',
+        'assisted' => 'hand-helping',
+        'pin' => 'key-round',
+        'proxy' => 'phone-call',
+        'notice' => 'megaphone',
+        'digest' => 'message-square-share',
+    ];
+
     #[Url(as: 'tab', except: 'approvals')]
     public string $tab = 'approvals';
 
     public function show(string $tab): void
     {
-        $this->tab = in_array($tab, ['approvals', 'assisted', 'pin'], true) ? $tab : 'approvals';
+        $this->tab = in_array($tab, $this->tabs(), true) ? $tab : 'approvals';
     }
 
     public function render(): View
     {
-        return view('livewire.elder.panel', ['building' => CurrentBuilding::get()])->title(__('elder.title'));
+        if (! in_array($this->tab, $this->tabs(), true)) {
+            $this->tab = 'approvals';
+        }
+
+        return view('livewire.elder.panel', [
+            'building' => CurrentBuilding::get(),
+            'tabs' => array_intersect_key(self::ICONS, array_flip($this->tabs())),
+        ])->title(__('elder.title'));
+    }
+
+    /**
+     * Available tabs: Package A tools always; proxy report + digest with the heating module, notices with outages.
+     *
+     * @return list<string>
+     */
+    private function tabs(): array
+    {
+        $settings = CurrentBuilding::get()->settings;
+        $tabs = ['approvals', 'assisted', 'pin'];
+
+        if ($settings->moduleEnabled('heating')) {
+            $tabs[] = 'proxy';
+        }
+        if ($settings->moduleEnabled('outages')) {
+            $tabs[] = 'notice';
+        }
+        if ($settings->moduleEnabled('heating')) {
+            $tabs[] = 'digest';
+        }
+
+        return $tabs;
     }
 }

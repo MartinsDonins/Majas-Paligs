@@ -5,19 +5,25 @@
 
     <section aria-labelledby="home-h" class="stack">
         <h1 id="home-h" class="sr-only">{{ __('nav.home') }}</h1>
-        <div class="banner" role="status">
-            <x-lucide-circle-check class="mt-0.5 size-5 shrink-0 text-(--color-success)" aria-hidden="true" />
-            <p>{{ __('home.status_calm') }}</p>
-        </div>
+        @if ($outages)
+            <livewire:outage.banner :calm-line="true" />
+        @else
+            <div class="banner" role="status">
+                <x-lucide-circle-check class="mt-0.5 size-5 shrink-0 text-(--color-success)" aria-hidden="true" />
+                <p>{{ __('home.status_calm') }}</p>
+            </div>
+        @endif
     </section>
 
     @if ($heating || $outages || $parking)
         <section aria-label="{{ __('home.actions') }}" class="grid grid-cols-2 gap-3">
             @if ($heating)
-                <x-ui.big-action icon="thermometer" :label="__('home.action.heating')" :disabled="$membership?->isPending()" />
+                <x-ui.big-action icon="thermometer" :label="__('home.action.heating')" :href="route('building.heating', $building).($membership?->isApproved() ? '?report=1' : '')"
+                                 :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
             @endif
             @if ($outages)
-                <x-ui.big-action icon="droplet-off" :label="__('home.action.water')" :disabled="$membership?->isPending()" />
+                <x-ui.big-action icon="droplet-off" :label="__('home.action.water')" :href="route('building.water', $building).($membership?->isApproved() ? '?report=1' : '')"
+                                 :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
             @endif
             @if ($parking)
                 <x-ui.big-action icon="car" :label="__('home.action.check_car')" />
@@ -29,6 +35,10 @@
             <p class="font-semibold">{{ __('home.modules_soon_title') }}</p>
             <p class="text-sm">{{ __('home.modules_soon_body') }}</p>
         </x-ui.banner>
+    @endif
+
+    @if ($heating && ! $largeText)
+        <livewire:heating.round-card />
     @endif
 
     @if (($isElder || $isAdmin) && ! $largeText)
@@ -64,8 +74,15 @@
                 <h2 id="map-h" class="text-lg">{{ __('home.my_stairwell', ['n' => $section['number']]) }}</h2>
                 <span class="chip tnum">{{ $section['first'] }}–{{ $section['last'] }}</span>
             </div>
-            <x-ui.building-grid :section="$section" :highlight="$apartment?->number" />
-            <p class="text-sm muted">{{ __('home.map_hint') }}</p>
+            @if ($heatingView)
+                <a href="{{ route('building.heating', $building) }}" class="block no-underline text-(--color-fg)" aria-label="{{ __('home.map_open') }}" wire:navigate>
+                    <x-ui.building-grid :section="$section" :highlight="$apartment?->number" :compact="true" :interactive="false" :columns="$heatingView->columns" />
+                </a>
+                <p class="text-sm muted">{{ __('home.map_heating_hint') }}</p>
+            @else
+                <x-ui.building-grid :section="$section" :highlight="$apartment?->number" />
+                <p class="text-sm muted">{{ __('home.map_hint') }}</p>
+            @endif
         </section>
     @endif
 

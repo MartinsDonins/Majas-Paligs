@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace App\Filament\Manage\Resources;
 
+use App\Enums\RiserCheckResult;
 use App\Enums\RiserConfidence;
 use App\Enums\RiserKind;
 use App\Filament\Manage\Resources\RiserResource\Pages;
 use App\Models\Riser;
+use App\Models\RiserCheck;
 use App\Models\Section;
+use App\Models\User;
+use App\Services\Heating\RiserReviewService;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -20,6 +27,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Risers with confidence (hypothesis → resident/manager/drawing confirmed) and their links.
@@ -79,7 +87,25 @@ final class RiserResource extends Resource
                     ->options(fn () => Section::query()->orderBy('number')->pluck('number', 'id')->map(fn ($n) => __('admin.section.short', ['n' => $n]))->all()),
                 SelectFilter::make('confidence')->label(__('admin.riser.confidence'))->options(RiserConfidence::options()),
             ])
-            ->recordActions([EditAction::make()]);
+            ->recordActions([
+                EditAction::make(),
+                // "Pārbaudīts" (HEAT-007): building_admin records a technician check; optional confidence upgrade.
+                Action::make('check')
+                    ->label(__('admin.riser.check'))
+                    ->icon(Heroicon::OutlinedWrenchScrewdriver)
+                    ->visible(fn (Riser $record): bool => Gate::allows('record', [RiserCheck::class, $record]))
+                    ->schema([
+                        Select::make('result')->label(__('admin.riser.check_result'))->options(RiserCheckResult::options())->required(),
+                        Textarea::make('note')->label(__('admin.riser.check_note'))->maxLength(500),
+                        Toggle::make('confirm_links')->label(__('admin.riser.check_confirm_links'))->helperText(__('admin.riser.check_confirm_links_help')),
+                    ])
+                    ->action(function (Riser $record, array $data): void {
+                        /** @var User $user */
+                        $user = auth()->user();
+                        app(RiserReviewService::class)->check($user, $record, RiserCheckResult::from((string) $data['result']), $data['note'] ?? null, (bool) ($data['confirm_links'] ?? false));
+                        Notification::make()->success()->title(__('admin.riser.check_saved'))->send();
+                    }),
+            ]);
     }
 
     public static function getPages(): array
