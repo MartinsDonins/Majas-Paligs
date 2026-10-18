@@ -38,7 +38,7 @@
             @foreach ($rooms as $room)
                 <fieldset class="room-row" wire:key="proxy-room-{{ $room->code }}">
                     <legend class="px-1 font-semibold">{{ $room->getTranslation('label', app()->getLocale()) }}</legend>
-                    <div class="mt-2 grid grid-cols-4 gap-2">
+                    <div class="status-grid mt-2">
                         @foreach ($statuses as $s)
                             <label class="status-option">
                                 <input type="radio" name="proxy-{{ $room->code }}" value="{{ $s->value }}" wire:model="states.{{ $room->code }}">

@@ -42,7 +42,8 @@
         <livewire:heating.round-card />
     @endif
 
-    @if (($isElder || $isAdmin) && ! $largeText)
+    {{-- Kept in large-text mode too (one row; elderly elders use large text — review fix). --}}
+    @if ($isElder || $isAdmin)
         <section class="card stack" aria-labelledby="tools-h">
             <h2 id="tools-h" class="text-lg">{{ __('home.tools.title') }}</h2>
             <a href="{{ route('building.elder', $building) }}" class="list-row no-underline text-(--color-fg)">

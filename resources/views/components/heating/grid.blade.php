@@ -53,25 +53,35 @@
                                     $tone = $column->tone()?->value;
                                     $class = 'heat-'.$state.($state === 'unconfirmed' && $tone ? ' heat-tone-'.$tone : '');
                                     $badge = $column->checked && ! in_array($state, ['none', 'disputed', 'unconfirmed'], true);
-                                    $label = $cell ? __('grid.cell_label', ['number' => $cell['number'], 'floor' => $floor]).'. '.trans_choice('heating.cell.resident', $column->distinctApartments, ['state' => __('heating.state.'.$state), 'count' => $column->distinctApartments]) : __('grid.empty');
+                                    $label = $cell ? __('grid.cell_label', ['number' => $cell['number'], 'floor' => $floor]).'. '.\App\Support\Copy::count('heating.cell.resident', $column->distinctApartments, ['state' => __('heating.state.'.$state), 'count' => $column->distinctApartments]) : __('grid.empty');
                                 }
                             @endphp
                             <td role="gridcell" tabindex="{{ $first ? '0' : '-1' }}" class="heat-cell {{ $class }} {{ $isMine ? 'heat-mine' : '' }}"
                                 aria-label="{{ $label }}{{ $isMine ? ', '.__('grid.yours') : '' }}" @if ($isMine) aria-current="true" @endif>
                                 @if ($cell)
+                                    @php
+                                        // Never colour alone (DESIGN-SYSTEM 2.3): an unconfirmed column shows its tone's OWN icon
+                                        // plus "?", a mixed one "!"; the number + icon of a mixed cell sit on a surface pill.
+                                        $iconKey = $state === 'unconfirmed' && $tone ? $tone : $state;
+                                        $flag = $state === 'unconfirmed' ? '?' : ($state === 'mixed' ? '!' : null);
+                                    @endphp
                                     @if ($isMine)<span class="heat-mine-tag" aria-hidden="true">{{ __('grid.you') }}</span>@endif
                                     <button type="button" tabindex="-1" data-key="col-{{ $p }}" x-on:click="open" aria-hidden="true">
-                                        <span class="tnum">{{ $cell['number'] }}</span>
                                         @if ($mode === 'outage')
+                                            <span class="tnum">{{ $cell['number'] }}</span>
                                             <span class="flex gap-0.5">
                                                 @foreach ($kinds as $k)
                                                     {{ svg('lucide-'.$kindIcons[$k], 'outage-icon-'.$k) }}
                                                 @endforeach
                                             </span>
                                         @else
-                                            {{ svg('lucide-'.($icons[$state] ?? 'circle-dashed')) }}
+                                            <span class="heat-content">
+                                                <span class="tnum">{{ $cell['number'] }}</span>
+                                                {{ svg('lucide-'.($icons[$iconKey] ?? 'circle-dashed')) }}
+                                            </span>
                                         @endif
                                     </button>
+                                    @if ($flag)<span class="heat-flag" aria-hidden="true">{{ $flag }}</span>@endif
                                     @if ($badge)<span class="heat-badge" aria-hidden="true"><x-lucide-check /></span>@endif
                                 @endif
                             </td>
@@ -87,7 +97,7 @@
                         @for ($p = 1; $p <= $cols; $p++)
                             @php $column = $heating->column($p); @endphp
                             <td class="px-0.5 pt-1">
-                                <button type="button" data-key="col-{{ $p }}" x-on:click="open" class="w-full rounded-(--radius-sm) px-1 py-1 text-left hover:bg-(--color-surface-2)"
+                                <button type="button" data-key="col-{{ $p }}" x-on:click="open" class="flex min-h-12 w-full items-center rounded-(--radius-sm) px-1 py-1 text-left hover:bg-(--color-surface-2)"
                                         aria-label="{{ __('heating.column.open', ['n' => $p, 'covered' => $column->floorsCovered, 'total' => $column->floorsTotal]) }}">
                                     <x-heating.coverage :covered="$column->floorsCovered" :total="$column->floorsTotal" />
                                 </button>
@@ -103,7 +113,7 @@
     <div x-show="anyOpen" x-cloak class="sheet-backdrop" x-on:click="close"></div>
     @for ($p = 1; $p <= $cols; $p++)
         @php $risers = $heating->risersAt($p); $column = $heating->column($p); @endphp
-        <div x-show="isOpen('col-{{ $p }}')" x-cloak role="dialog" aria-modal="true" aria-labelledby="col-h-{{ $p }}" class="sheet">
+        <div x-show="isOpen('col-{{ $p }}')" x-cloak x-trap.noscroll.inert="isOpen('col-{{ $p }}')" data-panel="col-{{ $p }}" role="dialog" aria-modal="true" aria-labelledby="col-h-{{ $p }}" class="sheet">
             <div class="mx-auto max-w-[40rem] space-y-3">
                 <div class="sheet-handle" aria-hidden="true"></div>
                 <div class="flex items-start justify-between gap-3">
@@ -119,7 +129,7 @@
                     @forelse ($hits as $incident)
                         <a href="{{ route('building.incident', [\App\Tenancy\CurrentBuilding::get(), $incident->id]) }}" class="list-row no-underline text-(--color-fg)">
                             <span class="flex items-center gap-2"><x-dynamic-component :component="'lucide-'.$incident->kind->icon()" class="size-5 outage-icon-{{ $incident->kind->value }}" aria-hidden="true" /> {{ $incident->kind->label() }}</span>
-                            <span class="text-sm muted">{{ trans_choice('outage.reports', (int) $incident->confirmations_count, ['count' => (int) $incident->confirmations_count]) }}</span>
+                            <span class="text-sm muted">{{ \App\Support\Copy::count('outage.reports', (int) $incident->confirmations_count, ['count' => (int) $incident->confirmations_count]) }}</span>
                         </a>
                     @empty
                         <p class="muted">{{ __('outage.column.clear') }}</p>

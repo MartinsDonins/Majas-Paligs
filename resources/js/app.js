@@ -74,7 +74,9 @@ document.addEventListener('alpine:init', () => {
 
     /**
      * Bottom sheet with Esc and a visible "Aizvērt" button. `data-open="1"` opens it on load (e.g. Home tile
-     * "Ziņot par siltumu" → /heating?report=1). Focus moves into the sheet when it opens and back on close.
+     * "Ziņot par siltumu" → /heating?report=1). Focus moves into the sheet when it opens and back on close; the
+     * dialog carries x-trap.noscroll.inert (Livewire bundles the Alpine focus plugin), so it is a real modal.
+     * Listens for `mp-sheet-open` with detail.id === data-sheet-id (e.g. "Mainīt auto" from the delete warning).
      */
     Alpine.data('sheet', () => ({
         open: false,
@@ -86,6 +88,12 @@ document.addEventListener('alpine:init', () => {
             }
             window.addEventListener('mp-sheet-close', () => {
                 this.open = false;
+            });
+            window.addEventListener('mp-sheet-open', (event) => {
+                const id = this.$el.dataset.sheetId;
+                if (id && event.detail && String(event.detail.id) === id) {
+                    this.show();
+                }
             });
         },
         show() {
@@ -113,6 +121,23 @@ document.addEventListener('alpine:init', () => {
             if (event.key === 'Escape') {
                 this.hide();
             }
+        },
+    }));
+
+    /**
+     * Opens another bottom sheet by its data-sheet-id (CSP-safe: no object literal in the template).
+     * Usage: <button x-data="sheetOpener" data-sheet="change-12" x-on:click="openSheet">
+     */
+    Alpine.data('sheetOpener', () => ({
+        openSheet() {
+            window.dispatchEvent(new CustomEvent('mp-sheet-open', { detail: { id: this.$el.dataset.sheet } }));
+        },
+    }));
+
+    /** Moves focus to a confirmation block when it appears (tabindex="-1" on the element). */
+    Alpine.data('focusOnShow', () => ({
+        init() {
+            this.$nextTick(() => this.$el.focus());
         },
     }));
 
@@ -186,6 +211,14 @@ document.addEventListener('alpine:init', () => {
         open(event) {
             this.opener = event.currentTarget;
             this.current = String(event.currentTarget.dataset.key);
+            // Move focus into the dialog (x-trap keeps it there): its visible "Aizvērt" button first.
+            this.$nextTick(() => {
+                const panel = this.$el.querySelector(`[data-panel="${this.current}"]`);
+                const close = panel && panel.querySelector('button');
+                if (close) {
+                    close.focus();
+                }
+            });
         },
         close() {
             this.current = null;

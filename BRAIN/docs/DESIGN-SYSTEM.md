@@ -255,10 +255,13 @@ confidence, survey rounds, incidents, manager reports, permits & vehicles (maske
   reason, and re-enables on reconnect. No "will be sent later" promise anywhere.
 
 ## 8. Print templates (same design language, black-and-white safe)
-- **Invite letter A5:** LV left / RU right (or RU first for RU-speaking stairwells), apartment number huge, code
+- **Invite letter A4 (folds to DL for the mailbox; was A5 until 0.0.14 — at ≥ 16 pt the content no longer fits A5,
+  and even the old 12 pt A5 version spilled onto a second sheet):** LV front / RU back (or RU first for RU-speaking
+  stairwells), one page per language (InviteLetterTest checks the page count), apartment number huge, code
   `XXXXX-XXXXX` in mono, short URL, QR (encodes `/join#c=…` — fragment, never a query string), 3 steps, elder
   contact placeholder entered by the elder at print time, controller name + privacy-notice short URL line,
-  "Neizlieciet šo kodu publiski", detachable "Mans PIN" card. Min 16–18 pt. Printable only once gate L-core is open.
+  "Neizlieciet šo kodu publiski", detachable "Mans PIN" card. Body / steps / URL 16–18 pt, warning ≥ 14 pt, labels
+  12 pt; only the controller / privacy legal line may be 9.5 pt. Printable only once gate L-core is open.
 - **Manager report A4:** report number, building, period, method + coverage disclaimer, riser table (incl.
   "viss stāvads auksts" triage count), column-level grid snapshot with icons/hatch (per-floor snapshot only when the
   house enabled `heating_floors`), sharing-flags line ("Stāvi: nav kopīgoti · Dzīvokļu numuri: nav kopīgoti"),

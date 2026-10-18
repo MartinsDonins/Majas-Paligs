@@ -15,6 +15,7 @@ use App\Models\RiserDispute;
 use App\Models\RiserStatus;
 use App\Services\Heating\HeatingGridQuery;
 use App\Services\Heating\RiserReviewService;
+use App\Support\Copy;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
@@ -35,7 +36,7 @@ it('reports a cold kitchen in ≤4 taps and shows the riser count (AC 1)', funct
         ->call('save')                               // tap 3
         ->assertSet('confirmedCount', 2)
         ->assertSee(__('heating.report.thanks'))
-        ->assertSee(trans_choice('heating.report.thanks_count', 2, ['count' => 2])));
+        ->assertSee(Copy::count('heating.report.thanks_count', 2, ['count' => 2])));
 
     expect(inBuilding($this->b, fn () => HeatingReport::query()->where('apartment_id', apartment($this->b, 1)->id)->count()))->toBe(1);
 });

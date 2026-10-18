@@ -43,12 +43,20 @@
                             @if($mine) aria-current="true" @endif
                             class="{{ $cellH }} rounded-[var(--radius-cell)] border text-center align-middle tnum
                                    {{ $state !== null ? 'heat-cell '.$heatClass.($mine ? ' heat-mine' : '') : ($mine ? 'border-(--color-accent) bg-(--color-accent-soft) outline-3 outline-(--color-accent)' : 'border-(--color-line) bg-(--color-surface)') }}
-                                   {{ $compact ? 'text-[11px] font-semibold' : 'text-[15px] font-semibold' }}"
+                                   {{ $compact ? 'text-[0.6875rem] font-semibold' : 'text-sm font-semibold' }}"
                             @if ($state !== null && $compact) style="min-height: 28px" @endif>
                             @if ($cell)
-                                <span class="block leading-tight">{{ $cell['number'] }}</span>
+                                @php $iconKey = $state === 'unconfirmed' && $tone ? $tone : $state; @endphp
+                                @if ($state !== null && $compact)
+                                    {{-- Compact (Home mini map): a 12px state icon next to the number, never colour alone. --}}
+                                    <span class="inline-flex items-center justify-center gap-0.5 leading-tight">
+                                        {{ $cell['number'] }}{{ svg('lucide-'.($icons[$iconKey] ?? 'circle-dashed'), 'size-3 shrink-0', ['aria-hidden' => 'true']) }}@if ($state === 'unconfirmed')<span aria-hidden="true">?</span>@endif
+                                    </span>
+                                @else
+                                    <span class="block leading-tight">{{ $cell['number'] }}</span>
+                                @endif
                                 @if ($state !== null && ! $compact)
-                                    {{ svg('lucide-'.($icons[$state] ?? 'circle-dashed'), 'mx-auto size-4', ['aria-hidden' => 'true']) }}
+                                    {{ svg('lucide-'.($icons[$iconKey] ?? 'circle-dashed'), 'mx-auto size-4', ['aria-hidden' => 'true']) }}
                                 @elseif (! $compact && $mine)
                                     <span class="block text-xs font-bold text-(--color-accent)">{{ __('grid.you') }}</span>
                                 @elseif (! $compact && $merged)

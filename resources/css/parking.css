@@ -65,7 +65,7 @@
         padding-bottom: 3px;
         background: #003399;
         color: #ffffff;
-        font-size: 10px;
+        font-size: 0.625rem;
         letter-spacing: 0;
     }
 
@@ -83,7 +83,7 @@
 
     .reason-chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .reason-chips > button {
-        min-height: 44px;
+        min-height: 48px; /* §2.6 tap target */
         padding: 8px 14px;
         border-radius: 999px;
         border: 1px solid var(--color-line);

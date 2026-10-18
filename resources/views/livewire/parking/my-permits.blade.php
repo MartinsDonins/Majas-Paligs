@@ -42,7 +42,7 @@
                         @endif
                     </div>
                     @if ($permit->type->value === 'main' && $canDeclare)
-                        <x-ui.bottom-sheet id="change-{{ $permit->id }}" :title="__('parking.change.title')">
+                        <x-ui.bottom-sheet id="change-{{ $permit->id }}" data-sheet-id="change-{{ $permit->id }}" :title="__('parking.change.title')">
                             <x-slot:trigger>
                                 <button type="button" x-on:click="show" class="btn btn-block">
                                     <x-lucide-repeat class="size-5" aria-hidden="true" /> {{ __('parking.change.open') }}
@@ -108,8 +108,15 @@
                             @if ($boundPermit)
                                 <p>{{ __('parking.vehicle.remove_bound', ['number' => $boundPermit->number]) }}</p>
                                 <div class="grid gap-2 sm:grid-cols-2">
-                                    <a href="#change-{{ $boundPermit->id }}-h" class="btn btn-primary" wire:click="cancelRemove">{{ __('parking.change.open') }}</a>
+                                    @if ($canDeclare)
+                                        {{-- Recommended path (§6.7): close this warning and open the permit's "Mainīt auto" sheet. --}}
+                                        <button type="button" class="btn btn-primary" wire:click="cancelRemove"
+                                                x-data="sheetOpener" data-sheet="change-{{ $boundPermit->id }}" x-on:click="openSheet">
+                                            <x-lucide-repeat class="size-5" aria-hidden="true" /> {{ __('parking.change.open') }}
+                                        </button>
+                                    @endif
                                     <button type="button" wire:click="remove" class="btn btn-danger">{{ __('parking.vehicle.remove_anyway') }}</button>
+                                    <button type="button" wire:click="cancelRemove" class="btn sm:col-span-2">{{ __('common.cancel') }}</button>
                                 </div>
                             @else
                                 <div class="grid gap-2 sm:grid-cols-2">

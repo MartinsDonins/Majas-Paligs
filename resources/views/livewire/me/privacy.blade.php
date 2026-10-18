@@ -28,11 +28,12 @@
         @if (! $confirmDelete)
             <button type="button" wire:click="askDelete" class="btn btn-danger btn-block"><x-lucide-trash-2 class="size-5" aria-hidden="true" /> {{ __('privacy.delete.button') }}</button>
         @else
-            <form wire:submit="delete" class="stack" role="alertdialog" aria-labelledby="del-confirm-h">
+            <form wire:submit="delete" class="stack" role="alertdialog" aria-labelledby="del-confirm-h" tabindex="-1" x-data="focusOnShow">
                 <p id="del-confirm-h" class="font-semibold">{{ __('privacy.delete.confirm_title') }}</p>
                 <x-ui.field id="deleteWord" :label="__('privacy.delete.type_word', ['word' => mb_strtoupper(__('privacy.delete.word'))])" :error="$errors->first('deleteWord')">
                     <input id="deleteWord" wire:model="deleteWord" class="input" autocomplete="off" autocapitalize="characters">
                 </x-ui.field>
+                <button type="button" wire:click="cancelDelete" class="btn btn-block">{{ __('common.cancel') }}</button>
                 <button type="submit" class="btn btn-danger btn-block">{{ __('privacy.delete.confirm') }}</button>
             </form>
         @endif

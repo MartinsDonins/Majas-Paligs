@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Invite letters (AUTH-002.1, DESIGN-SYSTEM §8): A5 LV + RU per apartment, QR to `/join#c=…` (fragment), code
+ * Invite letters (AUTH-002.1, DESIGN-SYSTEM §8): A4 (folds to DL) LV + RU per apartment, one page per language, QR to `/join#c=…` (fragment), code
  * XXXXX-XXXXX, controller + notice line, "NAV BIS / NAV RNP", detachable "Mans PIN" card.
  *
  * Plaintext codes exist ONLY in memory while the PDF renders: printing a batch creates new invites (HMAC only)
@@ -124,7 +124,7 @@ final class InviteLetterService
             'joinUrl' => $host.'/join',
             'privacyUrl' => $host.'/privacy/'.$building->slug,
             'validUntil' => now('Europe/Riga')->addDays((int) config('majas.invites.valid_days', 60))->format('d.m.Y'),
-        ])->setPaper('a5', 'portrait');
+        ])->setPaper('a4', 'portrait');
 
         $filename = 'uzaicinajumi-'.$building->slug.'-'.now('Europe/Riga')->format('Ymd-Hi').'.pdf';
 

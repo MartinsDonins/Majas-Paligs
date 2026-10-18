@@ -62,3 +62,19 @@ it('rejects unsigned or foreign requests', function (): void {
     $url = URL::temporarySignedRoute('building.invite-letters', now()->addMinutes(10), ['building' => 'letter-c', 'batch' => '01JABCDEFGHJKMNPQRSTVWXYZ0']);
     $this->actingAs($resident)->get($url)->assertForbidden();
 });
+
+it('keeps each language of a letter on ONE page at the senior-friendly type sizes (16 pt+)', function (): void {
+    $b = makeBuilding('letter-pages', 1, 1, open: true);
+    $admin = makeUser('letter-pages@example.test');
+    grantRole($admin, $b, BuildingRoleType::BuildingAdmin);
+    steppedUp($admin);
+
+    $one = inBuilding($b, fn () => [Apartment::query()->orderBy('number')->value('id')]);
+    $batch = inBuilding($b, fn () => app(InviteLetterService::class)->prepare($admin, $one, 'Dz. 3, vakaros, zvaniet pie durvīm', 'lv'));
+    $url = URL::temporarySignedRoute('building.invite-letters', now()->addMinutes(10), ['building' => 'letter-pages', 'batch' => $batch]);
+
+    $pdf = (string) $this->actingAs($admin)->get($url)->assertOk()->getContent();
+
+    // LV front + RU back: exactly two pages for one apartment (a third page would break duplex printing).
+    expect(preg_match_all('#/Type\s*/Page[^s]#', $pdf))->toBe(2);
+});

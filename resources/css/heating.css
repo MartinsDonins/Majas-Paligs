@@ -31,13 +31,13 @@
         background: transparent;
         color: inherit;
         font: inherit;
-        font-size: 15px;
+        font-size: var(--text-sm);
         font-weight: 600;
         line-height: 1.1;
         cursor: pointer;
     }
 
-    .heat-cell svg { width: 18px; height: 18px; }
+    .heat-cell svg { width: 1.125rem; height: 1.125rem; }
 
     .heat-cold { background: var(--heat-cold); color: var(--heat-cold-ink); border-color: transparent; }
     .heat-lukewarm { background: var(--heat-lukewarm); color: var(--heat-lukewarm-ink); border-color: transparent; }
@@ -50,11 +50,40 @@
         border-color: transparent;
     }
 
+    /* Mixed: diagonal split; number + icon sit on a surface pill (white on the orange half was ~2.1:1). */
     .heat-mixed {
         background: linear-gradient(135deg, var(--heat-cold) 0 50%, var(--heat-warm) 50% 100%);
-        color: #fff;
+        color: var(--color-fg);
         border-color: transparent;
-        text-shadow: 0 1px 2px rgb(0 0 0 / 0.55);
+    }
+
+    .heat-mixed .heat-content {
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: var(--color-surface);
+        color: var(--color-fg);
+    }
+
+    .heat-content { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+
+    /* "?" (unconfirmed) / "!" (mixed) corner flag: the state is readable without colour (DESIGN-SYSTEM 2.3). */
+    .heat-flag {
+        position: absolute;
+        bottom: 3px;
+        left: 3px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1rem;
+        height: 1rem;
+        padding: 0 3px;
+        border-radius: 999px;
+        border: 1px solid var(--color-line);
+        background: var(--color-surface);
+        color: var(--color-fg);
+        font-size: 0.6875rem;
+        font-weight: 800;
+        line-height: 1;
     }
 
     .heat-none {
@@ -90,9 +119,9 @@
         z-index: 1;
         padding: 0 6px;
         border-radius: 999px;
-        font-size: 11px;
+        font-size: 0.6875rem;
         font-weight: 700;
-        line-height: 18px;
+        line-height: 1.125rem;
         background: var(--color-accent);
         color: var(--color-accent-ink);
     }
@@ -179,7 +208,7 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
-        min-height: 44px;
+        min-height: 48px; /* §2.6 tap target */
         padding: 6px 8px;
         border: 0;
         border-radius: var(--radius-sm);
@@ -212,6 +241,14 @@
     /* Room rows in the report sheet: one 4-option status control per room. */
     .room-row { border: 1px solid var(--color-line); border-radius: var(--radius-md); padding: 12px; }
 
+    /* 4 states: 2 × 2 on phones (a 360–390px sheet leaves ~60px per column — "Pārkurināts" / "Перегрев" clipped),
+       one row of 4 from 30rem up (review fix, DESIGN-SYSTEM §1.7 "RU must wrap cleanly at 320px"). */
+    .status-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+    @media (min-width: 30rem) {
+        .status-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+
     .status-option { position: relative; display: block; }
     .status-option input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
 
@@ -226,13 +263,16 @@
         border-radius: var(--radius-sm);
         border: 2px solid var(--color-line);
         background: var(--color-surface);
-        font-size: 13px;
+        /* ≥ 15px and allowed to break: "Pārkurināts" / "Перегрев" never clip (2×2 below 420px, report-sheet). */
+        font-size: var(--text-sm);
         font-weight: 700;
         line-height: 1.15;
         text-align: center;
+        overflow-wrap: anywhere;
+        hyphens: auto;
     }
 
-    .status-option span svg { width: 22px; height: 22px; }
+    .status-option span svg { width: 1.375rem; height: 1.375rem; flex: none; }
     .status-option input:focus-visible + span { outline: 3px solid var(--color-focus); outline-offset: 2px; }
     .status-option input:checked + span { border-color: var(--color-fg); }
     .status-option input:checked + span.opt-cold { background: var(--heat-cold); color: var(--heat-cold-ink); border-color: var(--heat-cold); }
@@ -282,12 +322,14 @@
         display: grid;
         grid-template-columns: repeat(var(--mm-pos, 4), minmax(0, 1fr));
         gap: 2px;
-        padding: 6px 6px 4px;
+        min-height: 48px; /* §2.6 tap target */
+        align-content: center;
+        padding: 10px 6px 8px;
         border-radius: var(--radius-sm);
         border: 1px solid var(--color-line);
         background: var(--color-surface);
         color: var(--color-fg);
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: 700;
         cursor: pointer;
     }
@@ -295,5 +337,13 @@
     .mini-map > button[aria-pressed="true"] { outline: 3px solid var(--color-accent); outline-offset: 1px; }
     .mini-map i { display: block; height: 12px; border-radius: 3px; }
     .mini-map i.heat-none { border-width: 1px; }
+    /* Per-state patterns on the 12px mini-map cells (deuteranopes, sunlight): cold = solid, lukewarm = dots,
+       warm = stripes, overheated = cross-hatch, unconfirmed = ring, mixed = split. */
+    .mini-map i.heat-lukewarm { background-image: radial-gradient(circle, rgb(0 0 0 / 0.45) 1px, transparent 1.6px); background-size: 4px 4px; }
+    .mini-map i.heat-warm { background-image: repeating-linear-gradient(135deg, rgb(0 0 0 / 0.35) 0 1.5px, transparent 1.5px 4px); }
+    .mini-map i.heat-overheated {
+        background-image: repeating-linear-gradient(45deg, rgb(255 255 255 / 0.5) 0 1px, transparent 1px 4px),
+            repeating-linear-gradient(135deg, rgb(255 255 255 / 0.5) 0 1px, transparent 1px 4px);
+    }
     .mini-map span { grid-column: 1 / -1; text-align: center; margin-top: 2px; }
 }

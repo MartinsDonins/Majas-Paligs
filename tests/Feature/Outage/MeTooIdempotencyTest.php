@@ -7,6 +7,7 @@ use App\Livewire\Outage\MeTooButton;
 use App\Livewire\Outage\ReportSheet;
 use App\Models\IncidentConfirmation;
 use App\Services\Outages\IncidentService;
+use App\Support\Copy;
 use Livewire\Livewire;
 
 /*
@@ -56,7 +57,7 @@ it('reports via the "Vai ir ūdens?" sheet and shows the shared count', function
         ->call('setSince', 'hour')
         ->call('submit')
         ->assertSet('apartments', 2)
-        ->assertSee(trans_choice('outage.report.joined', 2, ['count' => 2])));
+        ->assertSee(Copy::count('outage.report.joined', 2, ['count' => 2])));
 });
 
 it('asks the room question only when several risers of the kind serve the apartment', function (): void {

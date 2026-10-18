@@ -21,7 +21,7 @@
 
     @if ($riser->distinctApartments > 0)
         <p class="text-sm">
-            {{ trans_choice('heating.riser.apartments', $riser->distinctApartments, ['count' => $riser->distinctApartments, 'total' => $riser->coverageTotal]) }}
+            {{ \App\Support\Copy::count('heating.riser.apartments', $riser->distinctApartments, ['count' => $riser->distinctApartments, 'total' => $riser->coverageTotal]) }}
         </p>
         <p class="text-sm muted tnum">{{ __('heating.riser.counts', ['cold' => $c['cold'], 'lukewarm' => $c['lukewarm'], 'warm' => $c['warm'], 'overheated' => $c['overheated']]) }}</p>
     @else

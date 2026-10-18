@@ -52,8 +52,9 @@
     --motion-base: 220ms;
 
     /* Shell */
-    --topbar-h: 56px;
-    --bottomnav-h: 64px;
+    /* rem so the shell grows with senior mode / the browser font size (68 / 56 px at the default root). */
+    --topbar-h: 3.5rem;
+    --bottomnav-h: 4.25rem;
 
     color-scheme: light;
 }

@@ -1,6 +1,6 @@
 <div x-data="sheet" x-on:keydown="onKeydown" class="relative">
     <button type="button" x-on:click="toggle" x-bind:aria-expanded="open" aria-haspopup="dialog"
-            class="flex min-h-11 max-w-[60vw] items-center gap-2 rounded-full border border-(--color-line) bg-(--color-surface) px-3 text-sm font-bold text-(--color-fg)">
+            class="flex min-h-12 max-w-[60vw] items-center gap-2 rounded-full border border-(--color-line) bg-(--color-surface) px-3 text-sm font-bold text-(--color-fg)">
         <x-lucide-building-2 class="size-4 shrink-0 text-(--color-accent)" aria-hidden="true" />
         <span class="truncate">
             {{ $building?->shortLabel() }}@if($current) · {{ __('shell.section_short', ['n' => $current->sectionNumber]) }}@endif

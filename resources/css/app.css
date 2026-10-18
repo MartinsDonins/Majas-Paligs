@@ -12,27 +12,32 @@
 @theme {
     --font-sans: "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-    --text-xs: 13px;
-    --text-sm: 15px;
-    --text-base: 17px;
+    /* rem, never px (review fix): the whole scale follows the root size, so senior mode (html[data-density=large])
+       and the browser's own default font size enlarge every button, chip, label and grid number, not just body text.
+       At the default 16px root: 13 / 15 / 17 / 20 / 24 / 30 / 36 px. */
+    --text-xs: 0.8125rem;
+    --text-sm: 0.9375rem;
+    --text-base: 1.0625rem;
     --text-base--line-height: 1.55;
-    --text-lg: 20px;
-    --text-xl: 24px;
-    --text-2xl: 30px;
-    --text-3xl: 36px;
+    --text-lg: 1.25rem;
+    --text-xl: 1.5rem;
+    --text-2xl: 1.875rem;
+    --text-3xl: 2.25rem;
     /* Colours are NOT mapped into the Tailwind theme (same names would be self-referential): use the token
        variables directly, e.g. bg-(--color-surface) text-(--color-fg-muted), or the component classes below. */
 }
 
 @layer base {
     html {
-        font-size: 16px;
+        /* 100 % = the user's browser setting (16px by default) — respected, never overridden with px. */
+        font-size: 100%;
         -webkit-text-size-adjust: 100%;
         scroll-padding-bottom: calc(var(--bottomnav-h) + env(safe-area-inset-bottom) + 16px);
     }
 
+    /* Senior mode (DESIGN-SYSTEM §2.4): ×1.1875 → 19px root, base text ≈ 20px, every rem-based size scales. */
     html[data-density="large"] {
-        font-size: 19px;
+        font-size: 118.75%;
     }
 
     body {
@@ -47,7 +52,7 @@
     }
 
     html[data-density="large"] body {
-        font-size: 1.25rem;
+        font-size: var(--text-base);
     }
 
     :focus-visible {

@@ -11,7 +11,7 @@
                         </span>
                         <span class="block text-sm">
                             {{ app(\App\Services\Outages\IncidentPresenter::class)->scope($incident) }}
-                            · {{ trans_choice('outage.reports', (int) $incident->confirmations_count, ['count' => (int) $incident->confirmations_count]) }}
+                            · {{ \App\Support\Copy::count('outage.reports', (int) $incident->confirmations_count, ['count' => (int) $incident->confirmations_count]) }}
                             · {{ $incident->started_at->locale(app()->getLocale())->diffForHumans() }}
                         </span>
                         @if ($incident->origin->value === 'notice' && $incident->getTranslation('reason', app()->getLocale()))
@@ -25,7 +25,7 @@
                 </a>
             @endforeach
             @if ($more > 0)
-                <p class="text-sm muted">{{ trans_choice('outage.banner.more', $more, ['count' => $more]) }}</p>
+                <p class="text-sm muted">{{ \App\Support\Copy::count('outage.banner.more', $more, ['count' => $more]) }}</p>
             @endif
         </section>
     @elseif ($calmLine)
@@ -33,7 +33,7 @@
             <x-lucide-circle-check class="mt-0.5 size-5 shrink-0 text-(--color-success)" aria-hidden="true" />
             <p>
                 {{ __('home.status_calm') }}
-                @if ($lastDays !== null) <span class="muted">· {{ trans_choice('outage.banner.last', $lastDays, ['count' => $lastDays]) }}</span> @endif
+                @if ($lastDays !== null) <span class="muted">· {{ \App\Support\Copy::count('outage.banner.last', $lastDays, ['count' => $lastDays]) }}</span> @endif
             </p>
         </div>
     @endif

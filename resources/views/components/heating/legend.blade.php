@@ -1,7 +1,7 @@
 @props(['mode' => 'heating'])
 {{-- Sticky collapsible legend (DESIGN-SYSTEM §6.3). --}}
 <details class="card" {{ $attributes }}>
-    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-2 font-semibold">
+    <summary class="flex min-h-12 cursor-pointer items-center justify-between gap-2 font-semibold">
         <span class="flex items-center gap-2"><x-lucide-info class="size-5 text-(--color-accent)" aria-hidden="true" /> {{ __('heating.legend.title') }}</span>
         <x-lucide-chevron-down class="size-5" aria-hidden="true" />
     </summary>

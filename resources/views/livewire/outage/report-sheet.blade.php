@@ -4,7 +4,7 @@
     @elseif ($apartments !== null)
         <div class="space-y-4 text-center" role="status">
             <x-lucide-users-round class="mx-auto size-12 text-(--color-accent)" aria-hidden="true" />
-            <p class="text-xl font-bold">{{ trans_choice('outage.report.joined', $apartments, ['count' => $apartments]) }}</p>
+            <p class="text-xl font-bold">{{ \App\Support\Copy::count('outage.report.joined', $apartments, ['count' => $apartments]) }}</p>
             <p>{{ __($joinedNotice ? 'outage.report.notice_known' : 'outage.report.not_only_you') }}</p>
             @foreach ($incidentIds as $id)
                 <a href="{{ route('building.incident', [$building, $id]) }}" class="btn btn-block" wire:navigate>{{ __('outage.report.see_status') }}</a>

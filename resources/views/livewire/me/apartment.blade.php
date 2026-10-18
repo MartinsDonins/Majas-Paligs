@@ -5,6 +5,35 @@
         <x-ui.banner variant="info" icon="circle-check">{{ __('me.devices.forgotten') }}</x-ui.banner>
     @endif
 
+    @if ($isHelper || $canManage)
+        <section class="card stack" aria-labelledby="tools-me-h">
+            <h2 id="tools-me-h" class="text-lg">{{ __('home.tools.title') }}</h2>
+            @if ($isHelper)
+                <a href="{{ route('building.elder', $building) }}" class="list-row no-underline text-(--color-fg)">
+                    <span class="flex items-center gap-3">
+                        <x-lucide-hand-helping class="size-6 text-(--color-accent)" aria-hidden="true" />
+                        <span class="font-semibold">{{ __('home.tools.helper') }}</span>
+                    </span>
+                    <span class="flex items-center gap-2">
+                        @if ($pendingForMe > 0)
+                            <span class="chip chip-warning tnum">{{ trans_choice('home.tools.pending', $pendingForMe, ['count' => $pendingForMe]) }}</span>
+                        @endif
+                        <x-lucide-chevron-right class="size-5" aria-hidden="true" />
+                    </span>
+                </a>
+            @endif
+            @if ($canManage)
+                <a href="{{ url('/manage/'.$building->slug) }}" class="list-row no-underline text-(--color-fg)">
+                    <span class="flex items-center gap-3">
+                        <x-lucide-building-2 class="size-6 text-(--color-accent)" aria-hidden="true" />
+                        <span class="font-semibold">{{ __('home.tools.admin') }}</span>
+                    </span>
+                    <x-lucide-chevron-right class="size-5" aria-hidden="true" />
+                </a>
+            @endif
+        </section>
+    @endif
+
     <section class="card stack" aria-labelledby="apt-h">
         <h2 id="apt-h" class="text-lg">{{ __('me.apartment.title') }}</h2>
         @if ($apartment)
@@ -104,9 +133,10 @@
             @if (! $confirmLeave)
                 <button type="button" wire:click="askLeave" class="btn btn-danger btn-block">{{ __('me.leave.button') }}</button>
             @else
-                <div class="card stack" role="alertdialog" aria-labelledby="leave-h">
+                <div class="card stack" role="alertdialog" aria-labelledby="leave-h" tabindex="-1" x-data="focusOnShow">
                     <h2 id="leave-h" class="text-lg">{{ __('me.leave.confirm_title') }}</h2>
                     <p class="muted">{{ __('me.leave.confirm_body') }}</p>
+                    <button type="button" wire:click="cancelLeave" class="btn btn-block">{{ __('common.cancel') }}</button>
                     <button type="button" wire:click="leave" class="btn btn-danger btn-block">{{ __('me.leave.confirm') }}</button>
                 </div>
             @endif

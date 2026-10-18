@@ -30,7 +30,7 @@
                 <dd class="font-semibold tnum">{{ $incident->resolved_at->setTimezone('Europe/Riga')->format('d.m.Y H:i') }}</dd>
             @endif
             <dt class="muted">{{ __('outage.detail.reports') }}</dt>
-            <dd class="font-semibold">{{ trans_choice('outage.reports', (int) $incident->confirmations_count, ['count' => (int) $incident->confirmations_count]) }}</dd>
+            <dd class="font-semibold">{{ \App\Support\Copy::count('outage.reports', (int) $incident->confirmations_count, ['count' => (int) $incident->confirmations_count]) }}</dd>
         </dl>
 
         @if ($reason)

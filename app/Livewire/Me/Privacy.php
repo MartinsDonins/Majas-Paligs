@@ -54,6 +54,12 @@ final class Privacy extends Component
         $this->confirmDelete = true;
     }
 
+    public function cancelDelete(): void
+    {
+        $this->confirmDelete = false;
+        $this->deleteWord = '';
+    }
+
     public function delete(AccountEraser $eraser): void
     {
         $expected = mb_strtoupper(__('privacy.delete.word'));

@@ -57,6 +57,11 @@ final class Apartment extends Component
         $this->confirmLeave = true;
     }
 
+    public function cancelLeave(): void
+    {
+        $this->confirmLeave = false;
+    }
+
     public function leave(): void
     {
         $building = CurrentBuilding::get();
@@ -94,11 +99,22 @@ final class Apartment extends Component
             ? ApartmentMembership::query()->active()->where('apartment_id', $apartment->id)->orderBy('id')->get(['id', 'user_id', 'role', 'status'])
             : collect();
 
-        $roles = $user->rolesIn($building)->map(fn ($r) => [
+        $current = $user->rolesIn($building);
+        $roles = $current->map(fn ($r) => [
             'role' => $r->role,
             'section' => $r->section_id,
             'expires' => $r->expires_at,
         ]);
+
+        // Elder / admin tools are reachable from "Vairāk" too (review fix): the Home tools card was the only way in.
+        $isAdmin = $current->contains(fn ($r) => $r->role === BuildingRoleType::BuildingAdmin);
+        $isElder = $current->contains(fn ($r) => $r->role === BuildingRoleType::SectionElder);
+        $canManage = $isAdmin || $current->contains(fn ($r) => $r->role === BuildingRoleType::ParkingOfficer);
+        $pendingForMe = ($isAdmin || $isElder)
+            ? ApartmentMembership::query()->pending()
+                ->when(! $isAdmin, fn ($q) => $q->whereIn('apartment_id', ApartmentModel::query()->whereIn('section_id', $user->elderSectionIds($building))->select('id')))
+                ->count()
+            : 0;
 
         return view('livewire.me.apartment', [
             'building' => $building,
@@ -107,7 +123,10 @@ final class Apartment extends Component
             'apartment' => $apartment,
             'members' => $members,
             'roles' => $roles,
-            'elevated' => $user->rolesIn($building)->contains(fn ($r) => in_array($r->role, [BuildingRoleType::BuildingAdmin, BuildingRoleType::SectionElder, BuildingRoleType::ParkingOfficer], true)),
+            'elevated' => $current->contains(fn ($r) => in_array($r->role, [BuildingRoleType::BuildingAdmin, BuildingRoleType::SectionElder, BuildingRoleType::ParkingOfficer], true)),
+            'isHelper' => $isAdmin || $isElder,
+            'canManage' => $canManage,
+            'pendingForMe' => $pendingForMe,
         ])->title(__('me.title'));
     }
 }
