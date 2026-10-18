@@ -43,7 +43,9 @@
 - **Audit**: `AuditLogger::record(action, subject, subjectUserIds[], reason?, data[])` — never plaintext PII
   in `data`.
 - **Tests**: Pest 5 against real PostgreSQL (`majas_test`), `--parallel`. Synthetic data only (plates like
-  `AB1234` flagged as examples); CI grep guard fails on `DOC/` tracked or `+371`/8-digit phone patterns.
+  `AB1234` flagged as examples); CI guard (`scripts/personal-data-guard.sh`, self-tested) fails on `DOC/` tracked,
+  `+371` numbers in any grouping (WhatsApp "+371 NN NNN NNN"), bare 2xxxxxxx / 6xxxxxxx numbers and plate shapes in
+  docs/BRAIN.
 - **Definition of done (every task)**: Pint clean, Larastan level 6 clean, tests green, LV+RU strings
   present, 320px layout checked, VERSION bumped (patch), BRAIN/TASK.md status updated.
 
@@ -501,7 +503,8 @@ Footer: version + privacy link.
   byte-identical before/after, chain verifies, WhoViewed of others still renders "Dzēsts lietotājs"),
   `Feature/Gdpr/WhoViewedTest`, `Feature/Gdpr/BuildingExportTest` (AC 13: no personal fields; fixture with both
   sharing flags on and a manager report whose snapshot holds per-floor rows and apartment numbers → ZIP contains
-  neither; step-up, audit).
+  neither; step-up, audit). *Implementation note (0.0.15):* these four live as separate `it()` cases in
+  `Feature/Gdpr/GdprTest.php`; the parking export oracle cases are in `Feature/Parking/RegistrationOracleTest.php`.
 - `Feature/Building/MergedApartmentTest` (cells, riser links, retired numbers).
 - `Feature/Audit/AppendOnlyTest` (trigger), `Feature/I18n/LangParityTest`, `Feature/Health/VersionTest`.
 - `Feature/Livewire/LockedPropertiesTest` (tampering an ID → 403).

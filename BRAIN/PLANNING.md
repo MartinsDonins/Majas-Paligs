@@ -11,6 +11,12 @@
 > alert-only, secrets out of URLs/logs, audit-table grants, DB bootstrap, vehicle removal flow, registration
 > oracles, sighting quotas, no offline queue in MVP, section_ids integrity, export stripping, ext-sodium,
 > log retention, WSL2 UID mapping, owner sign-offs).
+> Revision 4 (2026-10-18, 0.0.12–0.0.15): review fixes (karena / drošība / dizains) — MFA (TOTP) step-up for
+> building_admin / parking_officer, session epoch, platform-only DPA record, oracle-free lookup log and export,
+> plate-free staff lists, per-section elder scope, client IP from nginx realip only, Redis AUTH + DB TLS guard,
+> CI pushes the tested image to GHCR (ADR 0002), rem type scale / senior mode, A4 invite letter, LV/RU plurals.
+> Governance: build-order item closed as superseded; wave-1 limit and the `kaimini` host are PROPOSALS, not owner
+> decisions (§1.1, §4.1, MANUAL-TODO).
 > Detailed specs: `BRAIN/docs/MVP-SPEC.md` (build packages A/B/C), `BRAIN/docs/DESIGN-SYSTEM.md`,
 > `BRAIN/docs/BUSINESS.md`. Tasks: `BRAIN/TASK.md`. Human blockers: `BRAIN/MANUAL-TODO.md`.
 
@@ -37,9 +43,10 @@ Positioning rules (from the manager, critic and security personas):
   cadastre designation 01000710114001, land parcel likely 0100 071 0114 plus a second parcel
   (stairwells 4–5 on one parcel, 1–3 on another), year ~1987 (unverified), energy class F,
   central heating from Rīgas Siltums. Manager: SIA "Rīgas namu pārvaldnieks" (RNP).
-- **Scope = whole building** (owner decision 2026-10-17). All 180 apartments are generated and
-  invite codes printed for all; **active outreach wave 1 = stairwell 5**, waves 2–3 = other stairwells
-  as soon as each has an elder or floor captain.
+- **Scope = whole building** (owner decision 2026-10-17: "pilots visai mājai"). All 180 apartments are generated
+  and invite codes printed for all. **Architect proposal, not yet confirmed by the owner:** active outreach wave 1 =
+  stairwell 5 (the chat that produced the brief), waves 2–3 = other stairwells as soon as each has an elder or
+  floor captain (MANUAL-TODO "Jāapstiprina īpašniekam").
 
 ### 1.2 Product goal
 Multi-building SaaS sellable to any Latvian building. The **building series catalogue** is the
@@ -120,7 +127,9 @@ Google Fonts/Maps, SMS, native apps, paid analytics.
   its own credentials.
 - **Deploy gate:** CI (GitHub Actions) runs tests then calls the Coolify deploy webhook — still
   "auto-deploy from main", but a red main never ships (ADR 0002).
-- **Working host:** `kaimini.coredigify.com` (path-based tenancy `/b/{building-slug}/…`). No
+- **Working host (proposal):** the owner decided "a subdomain under coredigify.com"; the name `kaimini` is an
+  architect proposal awaiting confirmation (alternative matching the product name: `majaspaligs.coredigify.com`).
+  Configured via `APP_URL` only. Path-based tenancy `/b/{building-slug}/…`). No
   per-building subdomains. Because coredigify.com hosts client WordPress sites, the session cookie is
   `__Host-mp_session`, `SESSION_DOMAIN` unset, Secure, SameSite=Lax (anti cookie-tossing). The remember
   cookie is renamed to `__Host-mp_remember` (custom guard recaller name) and the `XSRF-TOKEN` cookie is
@@ -422,11 +431,12 @@ Language picked on the first screen (two big buttons). WCAG 2.2 AA minimum, 48px
 Build order **A → B → C** (lead recommendation): the heating season has started (2026-10), and Package C
 needs human/legal prerequisites (controller, DPA, permit issuer list, house rule) that run **in parallel**
 while A and B are built. Packages are independent; the owner may swap B and C.
-**Pending owner sign-off (explicit, required before Package B starts; Package A proceeds regardless):** the
-original brief ranked parking 1st and heating 2nd. Rationale for A → B → C: heating season is live, parking
-gate L1 needs a signed DPA before any plate is stored, and since the 2026-06 law change the police no longer
-need a plate list. Recorded as 🎯 in `BRAIN/MANUAL-TODO.md` — if the owner keeps parking first, swap 1a/1b
-(Package A is identical either way). Wave 1 additionally needs gate **L-core** (controller + DPA + notice, §5).
+**Build-order sign-off — superseded (2026-10-18):** the plan required an explicit owner "jā/nē" on A → B → C
+before Package B (the brief ranked parking first). Packages B and C were both built without that recorded gate,
+so the question is moot; the governance slip is acknowledged here and the MANUAL-TODO item is closed as
+superseded. Rationale kept for the record: heating season is live, parking gate L1 needs a signed DPA before any
+plate is stored, and since the 2026-06 law change the police no longer need a plate list. Wave 1 additionally
+needs gate **L-core** (controller + DPA + notice, §5).
 
 | Phase | Content | Target |
 |---|---|---|
@@ -459,7 +469,14 @@ outreach before building Phase 2.
   associations; RNP and big managers are a long cycle.
 
 ## 8. Open questions / human blockers
-- Owner sign-off on build order A → B → C (brief said parking first) — needed before Package B starts.
+- ~~Owner sign-off on build order A → B → C~~ — superseded: B and C are built (see §6).
+- **House plans — web search (owner asked, 2026-10-18):** searched for floor plans / riser layout of Pūces iela 51
+  and of the 602 series (LV, RU and EN queries, incl. likumi.lv, vestnesis.lv, real-estate listings). Result:
+  **no public plans for this address**, and no public 602-series apartment / riser drawings. Only a general series
+  description was found (neighborhood.lv: 602 built ~mid-1970s to early 1980s from a 1967 Leningrad prototype,
+  succeeded by 119 — https://neighborhood.lv/?p=14647). A likumi.lv hit for "Purvciema iela 51" is a different
+  building. Sources that do hold plans: BIS "mājas lieta" (manager / owners' access), the Rīga City Architect's
+  archive, the manager RNP. Until one of them is obtained, the 602 risers stay `hypothesis`.
 - Data controller for the pilot (house-authorised person / association) + DPA (scope core, heating, outages,
   parking) + published building notice → blocks **gate L-core = wave 1** (any join / invite print); DPA scope
   `parking` → parking gate L1 (any plate storage, incl. the permit-list import); DPIA-lite + notice + mandate →
