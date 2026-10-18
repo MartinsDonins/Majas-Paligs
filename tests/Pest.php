@@ -201,8 +201,13 @@ function makeInvite(Building $building, int $apartmentNumber, array $attributes 
 /**
  * Mark the session as freshly stepped-up (method: email|totp).
  */
-function steppedUp(User $user, string $method = 'email'): void
+/**
+ * A fresh step-up in the test session. Default method = what the user's roles need (TOTP for building_admin /
+ * parking_officer / platform_admin — StepUpService::requiresMfa, e-mail code otherwise).
+ */
+function steppedUp(User $user, ?string $method = null): void
 {
+    $method ??= app(StepUpService::class)->requiresMfa($user) ? 'totp' : 'email';
     test()->withSession([StepUpService::SESSION_KEY => ['user' => $user->id, 'at' => now()->getTimestamp(), 'method' => $method]]);
 }
 

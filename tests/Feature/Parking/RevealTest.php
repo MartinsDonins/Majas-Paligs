@@ -34,6 +34,8 @@ it('allows reveals only to parking_officer / building_admin with a fresh step-up
     inBuilding($this->b, function () use ($elder): void {
         expect(Gate::forUser($this->officer)->allows('reveal', $this->car))->toBeFalse(); // no step-up yet
         app(StepUpService::class)->markFresh($this->officer, 'email');
+        expect(Gate::forUser($this->officer)->allows('reveal', $this->car))->toBeFalse(); // e-mail code is not MFA
+        app(StepUpService::class)->markFresh($this->officer, 'totp');
         expect(Gate::forUser($this->officer)->allows('reveal', $this->car))->toBeTrue();
 
         app(StepUpService::class)->markFresh($elder, 'email');
@@ -87,8 +89,27 @@ it('requires a text for "other" and caps reveals at 10 a day', function (): void
     });
 });
 
-it('masks plates in the vehicle list and the reveal action needs step-up in Filament', function (): void {
+it('shows no plate data at all in the staff lists — not even a 2-character fragment', function (): void {
     steppedUp($this->officer);
-    $this->get('/manage/reveal-house/vehicles')->assertOk()->assertSee('AB••34')->assertDontSee('AB1234');
+    $alias = __('admin.parking.vehicle.alias', ['ref' => strtoupper(substr((string) $this->car->id, -4))]);
+    $visible = static function (string $html) use ($alias): string {
+        $html = (string) preg_replace('#<(script|style|template)\b[^>]*>.*?</\1>#si', ' ', $html);
+        $html = (string) preg_replace('#<[^>]+>#', ' ', $html); // tags incl. wire:snapshot attributes
+
+        return str_replace($alias, ' ', html_entity_decode($html));
+    };
+
+    $vehicles = $this->get('/manage/reveal-house/vehicles')->assertOk()->assertSee($alias)->getContent();
+    $permits = $this->get('/manage/reveal-house/permits')->assertOk()->getContent();
+
+    foreach ([$vehicles, $permits] as $page) {
+        $text = $visible((string) $page);
+        // No mask ("AB••34"), no fragment glued to a mask bullet, no full plate — the old 4-of-6 mask is gone.
+        expect($text)->not->toContain('•')->not->toContain('AB1234');
+        foreach (['AB', 'B1', 'AB1', 'B12', '1234'] as $fragment) {
+            expect($text)->not->toMatch('/(^|\s)'.$fragment.'(\s|$)/');
+        }
+    }
+
     expect(inBuilding($this->b, fn () => Vehicle::query()->count()))->toBe(1);
 });

@@ -7,6 +7,7 @@ namespace App\Livewire\Onboarding;
 use App\Auth\LoginHandleGenerator;
 use App\Auth\MagicLinkService;
 use App\Auth\PinAuthService;
+use App\Auth\SessionEpoch;
 use App\Auth\WeakPinRule;
 use App\Models\User;
 use App\Services\Onboarding\JoinCompleter;
@@ -158,6 +159,7 @@ final class ChooseAccess extends Component
 
         Auth::guard('web')->login($user, $this->remember);
         session()->regenerate();
+        SessionEpoch::sync($user);
         $user->forceFill(['last_login_at' => now()])->save();
 
         $this->createdHandle = $user->login_handle;

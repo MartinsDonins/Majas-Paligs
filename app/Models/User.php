@@ -37,6 +37,7 @@ use Illuminate\Support\Collection;
  * @property string|null $login_handle
  * @property string|null $pin_hash
  * @property int $pin_failed_count
+ * @property int $auth_epoch
  * @property CarbonImmutable|null $pin_locked_until
  * @property bool $pin_must_change
  * @property string|null $pin_temp_code_hash
@@ -83,6 +84,7 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
             'pin_temp_code_expires_at' => 'immutable_datetime',
             'pin_must_change' => 'boolean',
             'pin_failed_count' => 'integer',
+            'auth_epoch' => 'integer',
             'locale' => Locale::class,
             'platform_role' => PlatformRole::class,
             'text_size' => TextSize::class,

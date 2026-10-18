@@ -25,6 +25,7 @@ final class LoginCompleter
 
         Auth::guard('web')->login($user, $remember);
         session()->regenerate();
+        SessionEpoch::sync($user);
 
         if ($user->email !== null && $user->email_verified_at === null && str_starts_with($method, 'email')) {
             $user->forceFill(['email_verified_at' => now()]);

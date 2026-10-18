@@ -62,7 +62,8 @@ final class VehicleRegistry
         $bidx = $this->vault->currentBidx($building, $plate);
         $activeElsewhere = Vehicle::query()->active()->withBidx($bidx)->where('apartment_id', '!=', $apartment->id)->exists();
 
-        $retry = $this->quota->record($user, $bidx, LookupReason::Declaration, $activeElsewhere);
+        // NULL result: "active in another apartment" must not be readable from the log or the GDPR export.
+        $retry = $this->quota->record($user, $bidx, LookupReason::Declaration, null);
         if ($retry !== null) {
             return new DeclarationResult(DeclarationResult::RATE_LIMITED, $retry);
         }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Providers\Filament;
 
 use App\Http\Middleware\EnsurePinChanged;
+use App\Http\Middleware\EnsureSessionEpoch;
 use App\Http\Middleware\PreventRequestForgery;
 use App\Http\Middleware\SetLocale;
 use Filament\FontProviders\LocalFontProvider;
@@ -52,6 +53,7 @@ final class PanelDefaults
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
                 AuthenticateSession::class,
+                EnsureSessionEpoch::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
                 SubstituteBindings::class,

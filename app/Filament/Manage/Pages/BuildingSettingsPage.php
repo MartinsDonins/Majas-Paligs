@@ -30,8 +30,10 @@ use Illuminate\Support\Facades\Gate;
 use InvalidArgumentException;
 
 /**
- * Building settings (building_admin + step-up): house controller, DPA (ref/date/scope), DPIA, mandate, modules,
- * manager-sharing flags, manager contact — with the gate status L-core / L1 / L2 and its missing conditions.
+ * Building settings (building_admin + step-up): house controller, DPIA, mandate, modules, manager-sharing flags,
+ * manager contact — with the gate status L-core / L1 / L2 and its missing conditions. The DPA fields (date, ref,
+ * scope) are READ-ONLY here: CoreDigify is the processor and party to the Art. 28 DPA, so only the platform panel
+ * (platform_admin + TOTP, PlatformBuildingContext, platform-chain audit) records them (review fix).
  * Every save is audited; gate transitions alert and audit (CoreGateMonitor).
  *
  * @property-read Schema $form
@@ -116,13 +118,15 @@ final class BuildingSettingsPage extends Page
                         TextInput::make('controller_basis_ref')->label(__('admin.settings.controller_basis'))->maxLength(200),
                     ]),
                 Section::make(__('admin.settings.dpa'))
+                    ->description(__('admin.settings.dpa_platform_only'))
                     ->columns(2)
                     ->schema([
-                        DatePicker::make('dpa_signed_at')->label(__('admin.settings.dpa_signed_at'))->native(false)->displayFormat('d.m.Y'),
-                        TextInput::make('dpa_ref')->label(__('admin.settings.dpa_ref'))->maxLength(120),
+                        DatePicker::make('dpa_signed_at')->label(__('admin.settings.dpa_signed_at'))->native(false)->displayFormat('d.m.Y')
+                            ->disabled()->dehydrated(false),
+                        TextInput::make('dpa_ref')->label(__('admin.settings.dpa_ref'))->disabled()->dehydrated(false),
                         CheckboxList::make('dpa_scope')->label(__('admin.settings.dpa_scope'))
                             ->options(collect(BuildingSettings::DPA_SCOPES)->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
-                            ->columns(4),
+                            ->columns(4)->disabled()->dehydrated(false),
                         DatePicker::make('dpia_completed_at')->label(__('admin.settings.dpia'))->native(false)->displayFormat('d.m.Y'),
                         TextInput::make('mandate_ref')->label(__('admin.settings.mandate'))->maxLength(200),
                     ]),
@@ -182,9 +186,6 @@ final class BuildingSettingsPage extends Page
                     'contact' => $data['controller_contact'] ?? null,
                     'basis_ref' => $data['controller_basis_ref'] ?? null,
                 ],
-                'dpa_signed_at' => $data['dpa_signed_at'] ?? null,
-                'dpa_ref' => $data['dpa_ref'] ?? null,
-                'dpa_scope' => array_values((array) ($data['dpa_scope'] ?? [])),
                 'dpia_completed_at' => $data['dpia_completed_at'] ?? null,
                 'mandate_ref' => $data['mandate_ref'] ?? null,
                 'modules' => [

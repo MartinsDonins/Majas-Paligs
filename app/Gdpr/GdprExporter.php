@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Gdpr;
 
 use App\Enums\ExportStatus;
+use App\Enums\LookupReason;
 use App\Models\Apartment;
 use App\Models\ApartmentMembership;
 use App\Models\Building;
@@ -42,6 +43,9 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
     use Dispatchable;
     use InteractsWithQueue;
     use Queueable;
+
+    /** Lookup reasons whose yes/no the user saw on screen — the only ones whose result is exported. */
+    private const SHOWN_RESULT = [LookupReason::Blocking, LookupReason::UnknownCar, LookupReason::OwnCheck, LookupReason::Other];
 
     public int $tries = 2;
 
@@ -135,10 +139,13 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                             'valid_from' => $p->valid_from->toDateString(), 'valid_to' => $p->valid_to?->toDateString(),
                         ])->values()->all(),
                     ])->values()->all(),
+                // `result` only where the user was SHOWN the answer (resident lookup chips). Declarations, sightings and
+                // disputes always export null — they are stored as NULL too — so the export is not a registration
+                // oracle (MVP-SPEC C.5 / C.7 AC 16; RegistrationOracleTest).
                 'plate_lookups' => PlateLookup::query()->where('user_id', $user->id)->orderBy('created_at')->get()
                     ->map(static fn (PlateLookup $l): array => [
                         'reason' => $l->reason_code->value,
-                        'result' => $l->result,
+                        'result' => in_array($l->reason_code, self::SHOWN_RESULT, true) ? $l->result : null,
                         'at' => $l->created_at->toIso8601String(),
                     ])->values()->all(),
                 'sightings_reported' => Sighting::query()->where('reporter_user_id', $user->id)->with('lot:id,name')->orderBy('seen_at')->get()

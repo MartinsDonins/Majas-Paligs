@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Manage\Resources;
 
 use App\Filament\Manage\Resources\ApartmentResource\Pages;
+use App\Filament\Manage\Resources\Concerns\ElderSectionScope;
 use App\Models\Apartment;
 use App\Models\Section;
 use App\Services\Buildings\ApartmentMerger;
@@ -33,6 +34,8 @@ use InvalidArgumentException;
  */
 final class ApartmentResource extends Resource
 {
+    use ElderSectionScope;
+
     protected static ?string $model = Apartment::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSquares2x2;
@@ -138,6 +141,14 @@ final class ApartmentResource extends Resource
             ->pluck('number', 'id')
             ->map(fn ($n) => __('onboarding.role.apartment', ['n' => $n]))
             ->all();
+    }
+
+    /**
+     * Section elders see the apartments of their own stairwells only (review fix, per-section least privilege).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return self::limitToElderSections(parent::getEloquentQuery(), 'section_id');
     }
 
     public static function getPages(): array

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Memberships;
 
 use App\Audit\AuditLogger;
+use App\Auth\SessionEpoch;
 use App\Enums\BuildingRoleType;
 use App\Models\BuildingRole;
 use App\Models\Section;
@@ -70,5 +71,11 @@ final class BuildingRoleService
     {
         $role->forceFill(['revoked_at' => now()])->save();
         AuditLogger::record('role.revoke', $role, [(int) $role->user_id], data: ['role' => $role->role->value], actorUserId: $actor?->id);
+
+        // A revoked role must not survive in an open session (step-up freshness, panel tabs).
+        $holder = User::query()->find($role->user_id);
+        if ($holder !== null) {
+            SessionEpoch::bump($holder);
+        }
     }
 }

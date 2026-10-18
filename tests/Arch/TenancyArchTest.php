@@ -91,6 +91,7 @@ it('calls UserScopedQuery::for only from the allow-listed callers', function ():
         'app/Gdpr/GdprExporter.php',
         'app/Gdpr/AccountEraser.php',
         'app/Auth/PinAuthService.php',
+        'app/Auth/StepUpService.php',
         'app/Http/Controllers/Auth/PostLoginRedirect.php',
         'app/Models/User.php',
     ];

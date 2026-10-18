@@ -43,7 +43,7 @@ final class BuildingPolicy
      */
     public function updateSharing(User $user, Building $building): bool
     {
-        return $this->update($user, $building) && app(StepUpService::class)->hasFresh($user);
+        return $this->update($user, $building) && app(StepUpService::class)->hasFreshFor($user);
     }
 
     /**
@@ -52,7 +52,7 @@ final class BuildingPolicy
      */
     public function updateParkingGate(User $user, Building $building): bool
     {
-        return $this->update($user, $building) && app(StepUpService::class)->hasFresh($user);
+        return $this->update($user, $building) && app(StepUpService::class)->hasFreshFor($user);
     }
 
     private function inContext(Building $building): bool

@@ -58,7 +58,9 @@ final class RiserDisputeResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = RiserDispute::query()->open()->count();
+        /** @var Builder<RiserDispute> $query */
+        $query = self::getEloquentQuery();
+        $count = $query->open()->count();
 
         return $count > 0 ? (string) $count : null;
     }

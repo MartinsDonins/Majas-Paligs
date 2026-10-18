@@ -31,8 +31,10 @@ return [
         'valid_days' => 60,
         'throttle' => [
             'ip_per_15min' => 5,
-            'building_per_hour' => 20,
-            'global_per_hour' => 200,
+            // Sized for a letter drop: a 180-apartment house can redeem a third of its letters in one evening hour.
+            'building_per_hour' => 60,
+            // ALERT-ONLY platform monitor (counts well-formed codes only) — never blocks /join (review fix).
+            'global_alert_per_hour' => 500,
         ],
     ],
 
@@ -41,6 +43,8 @@ return [
         'code_attempts' => 5,
         'per_email_15min' => 3,
         'per_ip_hour' => 10,
+        // Cumulative wrong 6-digit codes per account across tokens (24 h); then only the link works (review fix).
+        'code_failures_per_day' => 10,
     ],
 
     'pin' => [
@@ -49,6 +53,8 @@ return [
         'handle_cooldown_after' => 5,
         'handle_cooldown_minutes' => 15,
         'handle_daily_lock_after' => 10,
+        // Progressive lock (1st / 2nd / 3rd+ lock within 7 days); an elder reset clears it at once.
+        'lock_hours' => [4, 24, 72],
         'ip_per_hour' => 20,
         'building_per_hour' => 100,
         'building_pause_minutes' => 15,

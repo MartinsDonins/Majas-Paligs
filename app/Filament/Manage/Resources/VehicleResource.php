@@ -35,8 +35,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * Vehicles (PARK-001 / PARK-002.1) — parking_officer / building_admin at gate L1. Plates are MASKED ("AB••34");
- * the full plate and "find the apartment of a plate" are Reveal actions: fresh step-up, reason (text for "other"),
+ * Vehicles (PARK-001 / PARK-002.1) — parking_officer / building_admin at gate L1. The list shows NO plate data
+ * (alias from the vehicle ULID + country; nothing is decrypted to render it); the full plate and "find the
+ * apartment of a plate" are Reveal actions: fresh step-up, reason (text for "other"),
  * 10 per day, audited with the apartment's members as data subjects (they see it in "Kas skatīja manus datus") and
  * notified by e-mail. Verify re-checks uniqueness; delete goes through VehicleRemovalService. Global search is off.
  */
@@ -97,8 +98,10 @@ final class VehicleResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->modifyQueryUsing(fn (Builder $query) => $query->with('apartment:id,number'))
             ->columns([
-                TextColumn::make('plate')->label(__('admin.parking.vehicle.plate'))->fontFamily('mono')
-                    ->getStateUsing(fn (Vehicle $record): string => self::maskedPlate($record)),
+                // No plate data in the list (not even a fragment): alias + country only. The plate is shown by the
+                // audited Reveal action (reason, 10/day cap, resident notice, "Kas skatīja manus datus").
+                TextColumn::make('alias')->label(__('admin.parking.vehicle.ref'))->fontFamily('mono')
+                    ->getStateUsing(fn (Vehicle $record): string => self::alias((string) $record->id)),
                 TextColumn::make('country')->label(__('admin.parking.vehicle.country')),
                 TextColumn::make('apartment.number')->label(__('admin.apartment.number'))->sortable(),
                 TextColumn::make('status')->label(__('admin.parking.vehicle.status'))->badge()

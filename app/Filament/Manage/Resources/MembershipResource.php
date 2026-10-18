@@ -6,6 +6,7 @@ namespace App\Filament\Manage\Resources;
 
 use App\Enums\MembershipRole;
 use App\Enums\MembershipStatus;
+use App\Filament\Manage\Resources\Concerns\ElderSectionScope;
 use App\Filament\Manage\Resources\MembershipResource\Pages;
 use App\Models\Apartment;
 use App\Models\ApartmentMembership;
@@ -25,10 +26,12 @@ use Illuminate\Support\Facades\Gate;
 
 /**
  * Memberships: approve / reject / end (shared MembershipService + policy). Residents are shown by apartment,
- * role and account type only — no names; e-mails are not displayed.
+ * role and account type only — no names; e-mails are not displayed. Section elders see their own stairwells only.
  */
 final class MembershipResource extends Resource
 {
+    use ElderSectionScope;
+
     protected static ?string $model = ApartmentMembership::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;
@@ -54,7 +57,9 @@ final class MembershipResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $count = ApartmentMembership::query()->pending()->count();
+        /** @var Builder<ApartmentMembership> $query */
+        $query = self::getEloquentQuery();
+        $count = $query->pending()->count();
 
         return $count > 0 ? (string) $count : null;
     }
@@ -139,10 +144,11 @@ final class MembershipResource extends Resource
     }
 
     /**
-     * Keep the relation query on the current building's apartments (defence in depth on top of the scope).
+     * Keep the relation query on the current building's apartments (defence in depth on top of the scope), and
+     * limit section elders to their own stairwells (building_admin: whole building).
      */
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->whereIn('apartment_id', Apartment::query()->select('id'));
+        return self::limitToElderSections(parent::getEloquentQuery()->whereIn('apartment_id', Apartment::query()->select('id')));
     }
 }

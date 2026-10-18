@@ -15,4 +15,7 @@ enum PlatformPurpose: string
 
     /** Bootstrap the first building_admin of a building (MVP-SPEC A.9 "platform_admin bootstrap"). */
     case RoleBootstrap = 'role_bootstrap';
+
+    /** Record the Art. 28 DPA (date, ref, scope) — CoreDigify is the processor, so only the platform sets it. */
+    case DpaRecord = 'dpa_record';
 }

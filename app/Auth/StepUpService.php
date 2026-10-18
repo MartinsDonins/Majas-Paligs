@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace App\Auth;
 
+use App\Enums\BuildingRoleType;
 use App\Enums\LoginTokenPurpose;
 use App\Models\LoginToken;
 use App\Models\User;
 use App\Notifications\StepUpCode;
 use App\Support\Identifiers;
+use App\Tenancy\Data\RoleData;
+use App\Tenancy\UserScopedQuery;
 use Illuminate\Support\Facades\Cache;
 use PragmaRX\Google2FA\Google2FA;
 
 /**
  * Step-up confirmation for elevated actions (PLANNING §4.5 item 4): approvals, reveals, exports, panels.
- * Valid 2 h. Methods: TOTP (MFA, required for platform_admin) or a 6-digit e-mail code (manage panel /
- * elder actions). Elevated roles therefore need an e-mail.
+ * Valid 2 h. Methods: TOTP (MFA — required for platform_admin, building_admin and parking_officer, and the only
+ * method accepted once an account has an authenticator) or a 6-digit e-mail code (section elders; also the
+ * confirmation before a FIRST authenticator enrolment). Elevated roles therefore need an e-mail.
  */
 class StepUpService
 {
@@ -33,7 +37,13 @@ class StepUpService
 
         $minutes = (int) config('majas.step_up.valid_minutes', 120);
 
-        return (int) ($state['at'] ?? 0) >= now()->subMinutes($minutes)->getTimestamp();
+        if ((int) ($state['at'] ?? 0) < now()->subMinutes($minutes)->getTimestamp()) {
+            return false;
+        }
+
+        // An account with an authenticator only counts a TOTP step-up (an e-mail step-up taken before the
+        // authenticator was enrolled no longer counts either).
+        return ! $user->hasTotp() || ($state['method'] ?? null) === 'totp';
     }
 
     /**
@@ -42,6 +52,30 @@ class StepUpService
     public function hasFreshMfa(User $user): bool
     {
         return $this->hasFresh($user) && (session(self::SESSION_KEY)['method'] ?? null) === 'totp';
+    }
+
+    /**
+     * Roles whose step-up must be a second factor (review fix, PLANNING §5 A07 "MFA for roles"): platform_admin,
+     * and building_admin / parking_officer in any building — they reach reveals, the police export chain, invite
+     * letter printing and membership approvals. A section elder keeps the e-mail code.
+     */
+    public function requiresMfa(User $user): bool
+    {
+        if ($user->isPlatformAdmin()) {
+            return true;
+        }
+
+        return UserScopedQuery::for($user)->roles()->contains(
+            static fn (RoleData $r): bool => in_array($r->role, [BuildingRoleType::BuildingAdmin, BuildingRoleType::ParkingOfficer], true),
+        );
+    }
+
+    /**
+     * The step-up this user needs for elevated actions: TOTP for MFA roles, otherwise any fresh step-up.
+     */
+    public function hasFreshFor(User $user): bool
+    {
+        return $this->requiresMfa($user) ? $this->hasFreshMfa($user) : $this->hasFresh($user);
     }
 
     public function markFresh(User $user, string $method): void
@@ -86,6 +120,11 @@ class StepUpService
 
     public function verifyEmailCode(User $user, #[\SensitiveParameter] string $code): bool
     {
+        // Never an e-mail step-up for an account with an authenticator; shared cumulative wrong-code budget.
+        if ($user->hasTotp() || $user->email === null || MagicLinkService::codeLoginLocked(Identifiers::emailHmac($user->email))) {
+            return false;
+        }
+
         $token = LoginToken::query()
             ->where('user_id', $user->id)
             ->where('purpose', LoginTokenPurpose::StepUp->value)
@@ -107,6 +146,8 @@ class StepUpService
         }
 
         if (! hash_equals((string) $token->code_hash, MagicLinkService::codeHash(preg_replace('/\D/', '', $code) ?? ''))) {
+            MagicLinkService::registerCodeFailure(Identifiers::emailHmac($user->email));
+
             return false;
         }
 

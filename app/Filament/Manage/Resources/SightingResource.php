@@ -10,7 +10,6 @@ use App\Filament\Manage\Resources\SightingResource\Pages;
 use App\Models\PlateSightingStat;
 use App\Models\Sighting;
 use App\Models\User;
-use App\Services\Parking\PlateNormalizer;
 use App\Services\Parking\SightingService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -23,10 +22,9 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
-use Throwable;
 
 /**
- * Unknown-car reports (PARK-003) — parking_officer / building_admin only (L1): masked plate, lot, time,
+ * Unknown-car reports (PARK-003) — parking_officer / building_admin only (L1): plate group ref (no plate data), lot, time,
  * matched_registered, repeat flag (≥ 2 independent apartments in 30 days), photo via a 5-minute signed URL,
  * dismiss / resolve. No reporter identity is shown. Global search is off.
  */
@@ -68,14 +66,10 @@ final class SightingResource extends Resource
             ->columns([
                 TextColumn::make('seen_at')->label(__('admin.parking.sighting.seen'))->dateTime('d.m.Y H:i', 'Europe/Riga')->sortable(),
                 TextColumn::make('lot.name')->label(__('admin.parking.lot.label')),
-                TextColumn::make('plate')->label(__('admin.parking.vehicle.plate'))->fontFamily('mono')
-                    ->getStateUsing(function (Sighting $record): string {
-                        try {
-                            return PlateNormalizer::mask(app(SightingService::class)->plateOf($record));
-                        } catch (Throwable) {
-                            return '••••';
-                        }
-                    }),
+                // No plate data (review fix): a short group ref from a hash of the per-building blind index — the same
+                // plate gets the same ref, so repeats can be grouped, but it can never be matched to the registry by eye.
+                TextColumn::make('plate_group')->label(__('admin.parking.sighting.group'))->fontFamily('mono')
+                    ->getStateUsing(fn (Sighting $record): string => self::groupRef($record)),
                 IconColumn::make('matched_registered')->label(__('admin.parking.sighting.registered'))->boolean(),
                 IconColumn::make('repeat')->label(__('admin.parking.sighting.repeat'))->boolean()
                     ->getStateUsing(fn (Sighting $record): bool => PlateSightingStat::query()
@@ -114,6 +108,13 @@ final class SightingResource extends Resource
                     ->visible(fn (Sighting $record): bool => in_array($record->status, [SightingStatus::Open, SightingStatus::Disputed], true) && Gate::allows('update', $record))
                     ->action(fn (Sighting $record) => self::handle($record, SightingStatus::Dismissed)),
             ]);
+    }
+
+    public static function groupRef(Sighting $sighting): string
+    {
+        $ref = strtoupper(substr(hash('sha256', 'sighting-group:'.$sighting->building_id.':'.bin2hex((string) $sighting->plate_bidx)), 0, 4));
+
+        return __('admin.parking.sighting.group_ref', ['ref' => $ref]);
     }
 
     private static function handle(Sighting $sighting, SightingStatus $status): void

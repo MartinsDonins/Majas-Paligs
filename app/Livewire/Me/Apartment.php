@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Me;
 
 use App\Audit\AuditLogger;
+use App\Auth\SessionEpoch;
 use App\Enums\BuildingRoleType;
 use App\Enums\MembershipStatus;
 use App\Enums\TextSize;
@@ -14,7 +15,6 @@ use App\Models\ApartmentMembership;
 use App\Models\User;
 use App\Tenancy\CurrentBuilding;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -44,9 +44,9 @@ final class Apartment extends Component
     public function forgetDevices(): void
     {
         $user = $this->user();
-        // Rotating the remember token invalidates every "remember this phone" cookie (other open sessions end at
-        // their normal session lifetime); this device stays logged in.
-        $user->forceFill(['remember_token' => Str::random(60)])->save();
+        // Session epoch bump: every "remember this phone" cookie AND every other live session ends at its next
+        // request; this device stays logged in.
+        SessionEpoch::bump($user);
         AuditLogger::record('account.devices_forgotten', $user, [(int) $user->id], platform: true, actorRole: 'self');
         session()->flash('status', 'devices_forgotten');
         $this->redirectRoute('building.me', ['building' => CurrentBuilding::get()->slug]);

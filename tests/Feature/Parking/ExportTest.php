@@ -75,7 +75,7 @@ it('downloads an injection-safe CSV via a signed 10-minute URL, never stored, wi
     $url = inBuilding($this->b, fn () => ParkingExportService::downloadUrl($export));
 
     $this->actingAs($this->admin);
-    app(StepUpService::class)->markFresh($this->admin, 'email');
+    app(StepUpService::class)->markFresh($this->admin, 'totp');
     $response = $this->get($url)->assertOk()->assertHeader('Cache-Control', 'no-store, private');
     $csv = $response->getContent();
 
@@ -91,7 +91,7 @@ it('downloads an injection-safe CSV via a signed 10-minute URL, never stored, wi
     expect($export->generated_at)->not->toBeNull()->and($export->row_count)->toBe(2);
 
     $this->travel(11)->minutes();
-    app(StepUpService::class)->markFresh($this->admin, 'email');
+    app(StepUpService::class)->markFresh($this->admin, 'totp');
     $this->get($url)->assertForbidden();
 });
 
@@ -101,7 +101,7 @@ it('renders the PDF list for the approver', function (): void {
     $url = inBuilding($this->b, fn () => ParkingExportService::downloadUrl($export));
 
     $this->actingAs($this->admin2);
-    app(StepUpService::class)->markFresh($this->admin2, 'email');
+    app(StepUpService::class)->markFresh($this->admin2, 'totp');
     $this->get($url)->assertOk()->assertHeader('Content-Type', 'application/pdf');
 });
 
@@ -110,7 +110,7 @@ it('refuses downloads of unapproved or expired exports and to residents', functi
     $url = inBuilding($this->b, fn () => ParkingExportService::downloadUrl($export));
 
     $this->actingAs($this->admin);
-    app(StepUpService::class)->markFresh($this->admin, 'email');
+    app(StepUpService::class)->markFresh($this->admin, 'totp');
     $this->get($url)->assertForbidden();
 
     $resident = parkingResident($this->b, 1);

@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
  * PIN login for residents without e-mail (PLANNING §4.5, MVP-SPEC A.5/A.6, AUTH-003).
  *
  * Blocking limiters (all must pass), in order: IP (20/h, IPv6 by /64) → handle (5 wrong → 15-min cooldown,
- * 10/day → locked until an elder reset) → building (100/h; alerts at 50% and on hit, then PIN login for that
+ * 10/day → progressive lock 4 h / 24 h / 72 h, an elder reset clears it) → building (100/h; alerts at 50% and on hit, then PIN login for that
  * building pauses 15 min). The global `pin-global` monitor is ALERT-ONLY: it never refuses a login.
  * Unknown handles count against the IP limiter and the global monitor only and run a dummy Argon2id verify.
  */
@@ -82,8 +82,12 @@ class PinAuthService
         $paused = $this->anyBuildingPaused($buildingIds);
 
         if ($locked || $paused || $user->pin_hash === null && $user->pin_temp_code_hash === null) {
+            // Same generic failure, but an attempt against an already locked handle or a paused building never
+            // feeds the handle / building counters again: one known handle cannot keep the whole building paused
+            // (review fix). The IP limiter and the alert-only global monitor still count it.
             $this->hasher->dummyVerify($pin);
-            $this->registerFailure($user, $ipKey, $handleKey, $dayKey, $buildingIds);
+            RateLimiter::hit($ipKey, 3600);
+            $this->monitorGlobal(unknown: false);
 
             return PinLoginResult::failed();
         }
@@ -142,6 +146,9 @@ class PinAuthService
             'pin_temp_code_hash' => null,
             'pin_temp_code_expires_at' => null,
         ])->save();
+
+        // A new PIN ends every other session and "remember this phone" cookie of this account.
+        SessionEpoch::bump($user);
     }
 
     /**
@@ -164,6 +171,10 @@ class PinAuthService
 
         RateLimiter::clear('pin-handle:'.$user->id);
         RateLimiter::clear('pin-handle-day:'.$user->id);
+        Cache::forget(self::lockCountKey($user));
+
+        // Stolen phone: the reset ends the thief's live session and remember cookie.
+        SessionEpoch::bump($user);
 
         return $code;
     }
@@ -214,10 +225,9 @@ class PinAuthService
 
         $user->forceFill(['pin_failed_count' => $user->pin_failed_count + 1])->save();
 
-        if (RateLimiter::attempts($dayKey) >= (int) $cfg['handle_daily_lock_after'] && $user->pin_locked_until === null) {
-            // Locked until an elder reset (issueTempCode clears it).
-            $user->forceFill(['pin_locked_until' => now()->addYears(10)])->save();
-            AuditLogger::record('pin.locked', $user, [(int) $user->id], platform: true, actorRole: 'system', actorUserId: null);
+        if (RateLimiter::attempts($dayKey) >= (int) $cfg['handle_daily_lock_after']
+            && ($user->pin_locked_until === null || $user->pin_locked_until->isPast())) {
+            $this->lock($user, $buildingIds);
         }
 
         foreach (Building::query()->whereIn('id', $buildingIds)->get() as $building) {
@@ -237,6 +247,34 @@ class PinAuthService
         }
 
         $this->monitorGlobal(unknown: false);
+    }
+
+    /**
+     * Progressive lock instead of a permanent one (review fix: a known handle from the "Mans PIN" card must not
+     * lock an elderly resident out until an elder finds time): 1st lock in 7 days 4 h, 2nd 24 h, then 72 h.
+     * An elder reset (issueTempCode) clears it at once. The building's elders + admin get a count-only alert.
+     *
+     * @param  list<int>  $buildingIds
+     */
+    private function lock(User $user, array $buildingIds): void
+    {
+        $steps = (array) config('majas.pin.lock_hours', [4, 24, 72]);
+        $n = (int) Cache::get(self::lockCountKey($user), 0);
+        $hours = (int) ($steps[min($n, count($steps) - 1)] ?? 24);
+        Cache::put(self::lockCountKey($user), $n + 1, now()->addDays(7));
+
+        $user->forceFill(['pin_locked_until' => now()->addHours($hours)])->save();
+        RateLimiter::clear('pin-handle-day:'.$user->id);
+        AuditLogger::record('pin.locked', $user, [(int) $user->id], platform: true, actorRole: 'system', actorUserId: null, data: ['hours' => $hours]);
+
+        foreach (Building::query()->whereIn('id', $buildingIds)->get() as $building) {
+            $this->alerts->building($building, 'pin-handle-lock', 'day', 1, 1);
+        }
+    }
+
+    private static function lockCountKey(User $user): string
+    {
+        return 'pin-handle-locks:'.$user->id;
     }
 
     /**

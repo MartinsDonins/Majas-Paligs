@@ -19,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $building_id
  * @property int|null $user_id
  * @property string $plate_bidx
- * @property bool $result
+ * @property bool|null $result
  * @property LookupReason $reason_code
  * @property CarbonImmutable $created_at
  */

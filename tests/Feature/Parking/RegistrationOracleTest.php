@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 use App\Enums\LookupReason;
 use App\Enums\OfficerTaskKind;
+use App\Livewire\Me\Privacy;
 use App\Livewire\Parking\DeclarationWizard;
 use App\Livewire\Parking\SightingSheet;
+use App\Models\DataExport;
 use App\Models\ParkingLot;
 use App\Models\ParkingOfficerTask;
 use App\Models\PlateLookup;
+use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\Parking\DeclarationResult;
 use App\Services\Parking\VehicleRegistry;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -82,4 +86,58 @@ it('never puts matched_registered or the repeat flag in a reporter payload; each
     expect($strip($component->html()))->toBe($strip($fresh));
 
     expect(inBuilding($this->b, fn () => PlateLookup::query()->where('reason_code', LookupReason::Sighting->value)->count()))->toBe(2);
+});
+
+/**
+ * Parking part of the self-service GDPR export of $user, with timestamps and the user's own typed plates removed
+ * (those legitimately differ between two runs).
+ *
+ * @return array<string, mixed>
+ */
+function parkingExportOf(TestCase $test, User $user): array
+{
+    $test->actingAs($user);
+    Livewire::test(Privacy::class)->call('requestExport');
+    $export = DataExport::query()->where('user_id', $user->id)->latest('created_at')->firstOrFail();
+
+    $zip = new ZipArchive;
+    $zip->open(Storage::disk('local')->path((string) $export->path));
+    $json = json_decode((string) $zip->getFromName('my-data.json'), true);
+    $zip->close();
+
+    $b = $json['buildings'][0];
+    $strip = static fn (array $rows, array $keys): array => array_map(static fn (array $r): array => array_diff_key($r, array_flip($keys)), $rows);
+
+    return [
+        'plate_lookups' => $strip($b['plate_lookups'], ['at']),
+        'vehicles' => $strip($b['vehicles'], ['plate', 'declared_at']),
+        'sightings_reported' => $strip($b['sightings_reported'], ['plate', 'seen_at']),
+    ];
+}
+
+it('keeps the GDPR export identical for a conflicting vs a fresh declaration (no oracle via export)', function (): void {
+    $other = parkingResident($this->b, 2);
+
+    inBuilding($this->b, fn () => app(VehicleRegistry::class)->declare($this->resident, apartment($this->b, 1), 'AB1234')); // active in apt 9
+    inBuilding($this->b, fn () => app(VehicleRegistry::class)->declare($other, apartment($this->b, 2), 'CD5678'));          // fresh
+
+    $conflict = parkingExportOf($this, $this->resident);
+    $fresh = parkingExportOf($this, $other);
+
+    expect($conflict)->toBe($fresh)
+        ->and($conflict['plate_lookups'])->toBe([['reason' => 'declaration', 'result' => null]])
+        ->and(inBuilding($this->b, fn () => PlateLookup::query()->where('reason_code', 'declaration')->whereNotNull('result')->count()))->toBe(0);
+});
+
+it('keeps the GDPR export identical for a matched vs an unmatched sighting', function (): void {
+    $other = parkingResident($this->b, 2);
+
+    inBuilding($this->b, fn () => Livewire::actingAs($this->resident)->test(SightingSheet::class)->call('submit', 'AB1234')->assertSet('state', 'submitted'));
+    inBuilding($this->b, fn () => Livewire::actingAs($other)->test(SightingSheet::class)->call('submit', 'ZZ0000')->assertSet('state', 'submitted'));
+
+    $matched = parkingExportOf($this, $this->resident);
+    $unmatched = parkingExportOf($this, $other);
+
+    expect($matched)->toBe($unmatched)
+        ->and($matched['plate_lookups'])->toBe([['reason' => 'sighting', 'result' => null]]);
 });

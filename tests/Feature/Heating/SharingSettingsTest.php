@@ -26,7 +26,7 @@ it('allows updateSharing only to building_admin with a fresh step-up', function 
     $this->actingAs($this->admin);
     expect(inBuilding($this->b, fn () => Gate::allows('updateSharing', $this->b)))->toBeFalse();
 
-    app(StepUpService::class)->markFresh($this->admin, 'email');
+    app(StepUpService::class)->markFresh($this->admin, 'totp');
     expect(inBuilding($this->b, fn () => Gate::allows('updateSharing', $this->b)))->toBeTrue();
 
     $this->actingAs($this->elder);
@@ -38,7 +38,7 @@ it('saves the flags through the settings page with a dedicated audit entry', fun
     $this->actingAs($this->admin);
     Filament::setCurrentPanel(Filament::getPanel('manage'));
     Filament::setTenant($this->b);
-    app(StepUpService::class)->markFresh($this->admin, 'email');
+    app(StepUpService::class)->markFresh($this->admin, 'totp');
 
     inBuilding($this->b, fn () => Livewire::actingAs($this->admin)->test(BuildingSettingsPage::class)
         ->set('data.share_heating_floors', true)
@@ -65,7 +65,7 @@ it('refuses a sharing change without a fresh step-up and never stores apartment 
         ->call('save'));
     expect($this->b->refresh()->settings->shareWithManager['heating_floors'])->toBeFalse();
 
-    app(StepUpService::class)->markFresh($this->admin, 'email');
+    app(StepUpService::class)->markFresh($this->admin, 'totp');
     inBuilding($this->b, fn () => Livewire::actingAs($this->admin)->test(BuildingSettingsPage::class)
         ->set('data.share_heating_floors', false)
         ->set('data.share_apartment_numbers', true)

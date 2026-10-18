@@ -9,6 +9,7 @@
     @if ($enabled)
         <section class="card stack">
             <x-ui.status-chip status="approved">{{ __('me.security.enabled') }}</x-ui.status-chip>
+            @error('code') <span class="field-error" role="alert">{{ $message }}</span> @enderror
             <button type="button" wire:click="disable" wire:confirm="{{ __('me.security.disable_confirm') }}" class="btn btn-danger btn-block">{{ __('me.security.disable') }}</button>
         </section>
     @elseif ($pending)

@@ -70,6 +70,8 @@ final class AccountEraser
                 'app_authentication_secret' => null,
                 'app_authentication_recovery_codes' => null,
                 'remember_token' => null,
+                // Ends every live session of the erased account (EnsureSessionEpoch).
+                'auth_epoch' => (int) $user->auth_epoch + 1,
                 'notice_version_accepted' => null,
                 'anonymised_at' => now(),
             ])->save();

@@ -105,9 +105,9 @@ final class Grid extends Component
         $user = $this->user();
         Gate::forUser($user)->authorize('generate', [ManagerReport::class, [(int) $section->id]]);
 
-        if (! $stepUp->hasFresh($user)) {
+        if (! $stepUp->hasFreshFor($user)) {
             session()->put('mp.step_up.intended', route($this->mode === 'outage' ? 'building.water' : 'building.heating', CurrentBuilding::get()).'?k='.$section->number);
-            session()->put('mp.step_up.level', 'any');
+            session()->put('mp.step_up.level', $stepUp->requiresMfa($user) ? 'mfa' : 'any');
 
             return $this->redirectRoute('step-up');
         }

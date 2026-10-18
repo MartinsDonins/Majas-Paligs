@@ -69,7 +69,7 @@ final class VehiclePolicy
 
     public function reveal(User $user, ?Vehicle $vehicle = null): bool
     {
-        return $this->isParkingStaff($user) && app(StepUpService::class)->hasFresh($user);
+        return $this->isParkingStaff($user) && app(StepUpService::class)->hasFreshFor($user);
     }
 
     private function ownsVehicle(User $user, Vehicle $vehicle): bool

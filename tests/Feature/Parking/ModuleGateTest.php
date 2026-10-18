@@ -115,7 +115,7 @@ it('L1: the module toggle is refused until L2; at L2 the same page enables it (s
     $this->actingAs($admin);
     Filament::setCurrentPanel(Filament::getPanel('manage'));
     Filament::setTenant($b);
-    app(StepUpService::class)->markFresh($admin, 'email');
+    app(StepUpService::class)->markFresh($admin, 'totp');
 
     inBuilding($b, fn () => Livewire::actingAs($admin)->test(BuildingSettingsPage::class)
         ->set('data.module_parking', true)

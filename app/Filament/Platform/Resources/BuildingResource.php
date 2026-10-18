@@ -4,19 +4,27 @@ declare(strict_types=1);
 
 namespace App\Filament\Platform\Resources;
 
+use App\Audit\AuditLogger;
 use App\Enums\BuildingRoleType;
 use App\Enums\BuildingStatus;
 use App\Filament\Platform\Pages\BuildingGeneratorPage;
 use App\Filament\Platform\Resources\BuildingResource\Pages;
+use App\Gdpr\CoreGate;
+use App\Gdpr\CoreGateMonitor;
+use App\Gdpr\ParkingGate;
+use App\Gdpr\ParkingGateMonitor;
 use App\Models\Building;
 use App\Models\BuildingSeries;
 use App\Models\User;
 use App\Platform\PlatformBuildingContext;
 use App\Platform\PlatformPurpose;
 use App\Services\Memberships\BuildingRoleService;
+use App\Support\BuildingSettings;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -30,7 +38,8 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Buildings (non-tenant columns only). Structure is created by the generator; the first building_admin is
- * bootstrapped here — both inside PlatformBuildingContext (audited platform-chain entry).
+ * bootstrapped here and the Art. 28 DPA (date, ref, scope) is recorded here — all inside PlatformBuildingContext
+ * (platform_admin + fresh TOTP, audited platform-chain entry). The house's own manage panel shows the DPA read-only.
  */
 final class BuildingResource extends Resource
 {
@@ -114,6 +123,27 @@ final class BuildingResource extends Resource
                     ->label(__('admin.generator.open'))
                     ->icon(Heroicon::OutlinedSparkles)
                     ->url(fn (Building $record): string => BuildingGeneratorPage::getUrl(['building' => $record->id])),
+                Action::make('dpa')
+                    ->label(__('admin.building.dpa_record'))
+                    ->icon(Heroicon::OutlinedDocumentCheck)
+                    ->fillForm(fn (Building $record): array => [
+                        'dpa_signed_at' => $record->settings->dpaSignedAt,
+                        'dpa_ref' => $record->settings->dpaRef,
+                        'dpa_scope' => $record->settings->dpaScope,
+                    ])
+                    ->schema([
+                        DatePicker::make('dpa_signed_at')->label(__('admin.settings.dpa_signed_at'))->native(false)->displayFormat('d.m.Y'),
+                        TextInput::make('dpa_ref')->label(__('admin.settings.dpa_ref'))->maxLength(120),
+                        CheckboxList::make('dpa_scope')->label(__('admin.settings.dpa_scope'))
+                            ->options(collect(BuildingSettings::DPA_SCOPES)->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
+                            ->columns(4),
+                    ])
+                    ->requiresConfirmation()
+                    ->modalDescription(__('admin.building.dpa_record_help'))
+                    ->action(function (Building $record, array $data): void {
+                        self::recordDpa($record, $data);
+                        Notification::make()->success()->title(__('admin.settings.saved'))->send();
+                    }),
                 Action::make('bootstrapAdmin')
                     ->label(__('admin.building.bootstrap_admin'))
                     ->icon(Heroicon::OutlinedKey)
@@ -136,6 +166,34 @@ final class BuildingResource extends Resource
                         Notification::make()->success()->title(__('admin.role.granted'))->send();
                     }),
             ]);
+    }
+
+    /**
+     * Platform-only DPA record: the gates (L-core, parking L1) open on CoreDigify's confirmation, never on the
+     * building admin's own say-so. Audited on the building chain (who/what) + the platform chain (context entry).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function recordDpa(Building $building, array $data): void
+    {
+        PlatformBuildingContext::run($building, PlatformPurpose::DpaRecord, function (Building $b) use ($data): void {
+            $before = CoreGate::status($b);
+            $parkingBefore = ParkingGate::status($b);
+
+            $b->forceFill(['settings' => $b->settings->with([
+                'dpa_signed_at' => $data['dpa_signed_at'] ?? null,
+                'dpa_ref' => $data['dpa_ref'] ?? null,
+                'dpa_scope' => array_values((array) ($data['dpa_scope'] ?? [])),
+            ])])->save();
+
+            AuditLogger::record('settings.dpa', $b, data: [
+                'dpa_signed_at' => $b->settings->dpaSignedAt,
+                'dpa_scope' => $b->settings->dpaScope,
+            ], actorRole: 'platform_admin');
+
+            CoreGateMonitor::afterChange($b, $before);
+            ParkingGateMonitor::afterChange($b, $parkingBefore);
+        });
     }
 
     public static function getPages(): array

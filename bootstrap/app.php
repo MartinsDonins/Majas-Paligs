@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureBuildingRole;
 use App\Http\Middleware\EnsureMember;
 use App\Http\Middleware\EnsureModule;
 use App\Http\Middleware\EnsurePinChanged;
+use App\Http\Middleware\EnsureSessionEpoch;
 use App\Http\Middleware\PreventRequestForgery;
 use App\Http\Middleware\RequireStepUp;
 use App\Http\Middleware\SecurityHeaders;
@@ -31,7 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(
-            append: [SetLocale::class, EnsurePinChanged::class],
+            append: [EnsureSessionEpoch::class, SetLocale::class, EnsurePinChanged::class],
             replace: [BasePreventRequestForgery::class => PreventRequestForgery::class],
         );
 
@@ -58,7 +59,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (Request $request) => route('login'));
         $middleware->redirectUsersTo(fn () => route('home.redirect'));
 
-        $middleware->trustProxies(at: '*');
+        // Client IP (review fix): resolved ONCE, by nginx's realip module (serversideup TRUSTED_PROXY=cloudflare —
+        // CF-Connecting-IP accepted only from Cloudflare / Docker ranges) into REMOTE_ADDR. Laravel must never derive
+        // the IP from X-Forwarded-For again: behind Cloudflare → Traefik its right-most entry is a Cloudflare edge,
+        // shared by every visitor, so every IP limiter (pin-ip, invite-ip, magic-ip, login-*) would become one bucket.
+        // Proxies are trusted for the scheme and port only (TLS ends at Traefik); never for the host or the IP.
+        $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Fail-closed tenancy errors never leak details: they render like an unknown building (404).

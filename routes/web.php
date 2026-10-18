@@ -44,6 +44,7 @@ use Illuminate\Support\Facades\Route;
  */
 
 Route::get('/up', HealthController::class)->name('health');
+Route::get('/up/ip', [HealthController::class, 'ip'])->middleware('throttle:locale')->name('health.ip');
 Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
 

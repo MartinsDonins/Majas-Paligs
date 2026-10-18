@@ -82,7 +82,7 @@ final class ParkingOfficerTaskResource extends Resource
                     ->getStateUsing(fn (ParkingOfficerTask $record) => $record->vehicle?->apartment->number ?? $record->permit?->apartment->number),
                 TextColumn::make('permit.number')->label(__('admin.parking.permit.number'))->fontFamily('mono')->placeholder('—'),
                 TextColumn::make('plate')->label(__('admin.parking.vehicle.plate'))->fontFamily('mono')
-                    ->getStateUsing(fn (ParkingOfficerTask $record): string => self::maskedPlate($record->vehicle)),
+                    ->getStateUsing(fn (ParkingOfficerTask $record): string => self::vehicleAlias($record->vehicle)),
                 TextColumn::make('status')->label(__('admin.parking.task.status'))->badge()->formatStateUsing(fn (OfficerTaskStatus $state) => $state->label()),
                 TextColumn::make('created_at')->label(__('admin.parking.task.created'))->dateTime('d.m.Y H:i', 'Europe/Riga')->sortable(),
             ])

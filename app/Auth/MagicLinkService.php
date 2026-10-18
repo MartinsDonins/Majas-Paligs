@@ -7,16 +7,19 @@ namespace App\Auth;
 use App\Enums\LoginTokenPurpose;
 use App\Models\LoginToken;
 use App\Models\User;
+use App\Notifications\Alerts;
 use App\Notifications\MagicLoginLink;
 use App\Support\Identifiers;
 use App\Support\Keys;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * E-mail login (PLANNING §4.5, AUTH-001): a magic link `/login/confirm#t=TOKEN` (fragment — never reaches the
  * server log; GET shows a confirm page, POST logs in so mail scanners cannot burn it) plus a 6-digit code in
  * the same mail (iOS PWA cookie jar). Tokens are hashed, single-use and expire in 15 min. The response for an
- * unknown e-mail is identical (nothing is sent).
+ * unknown e-mail is identical (nothing is sent). Wrong codes are also counted per account across tokens
+ * (10 / 24 h, shared with step-up codes) — after that only the link works.
  */
 class MagicLinkService
 {
@@ -114,8 +117,16 @@ class MagicLinkService
             return null;
         }
 
+        $emailHmac = Identifiers::emailHmac($email);
+
+        // Cumulative failures per account ACROSS tokens (a fresh token no longer means 5 fresh guesses): after
+        // 10 wrong codes in 24 h only the link in the mail works.
+        if (self::codeLoginLocked($emailHmac)) {
+            return null;
+        }
+
         $row = LoginToken::query()
-            ->where('email_hmac', Identifiers::emailHmac($email))
+            ->where('email_hmac', $emailHmac)
             ->where('purpose', LoginTokenPurpose::Login->value)
             ->whereNull('used_at')
             ->where('expires_at', '>', now())
@@ -136,12 +147,40 @@ class MagicLinkService
         }
 
         if (! hash_equals((string) $row->code_hash, self::codeHash($code))) {
+            self::registerCodeFailure($emailHmac);
+
             return null;
         }
 
         $claimed = LoginToken::query()->whereKey($row->id)->whereNull('used_at')->update(['used_at' => now()]);
 
         return $claimed === 1 ? $this->activeUser($row->user_id) : null;
+    }
+
+    /**
+     * True when this account has used up its wrong-code budget (default 10 per 24 h) — shared by e-mail login
+     * codes and step-up codes, so the two paths cannot be combined into a bigger guessing budget.
+     */
+    public static function codeLoginLocked(string $emailHmac): bool
+    {
+        return RateLimiter::tooManyAttempts(self::failureKey($emailHmac), (int) config('majas.magic_link.code_failures_per_day', 10));
+    }
+
+    public static function registerCodeFailure(string $emailHmac): void
+    {
+        $key = self::failureKey($emailHmac);
+        $limit = (int) config('majas.magic_link.code_failures_per_day', 10);
+        RateLimiter::hit($key, 86400);
+
+        if (RateLimiter::attempts($key) === $limit) {
+            // Count-only platform alert (never the e-mail, its HMAC or an IP).
+            app(Alerts::class)->platform('login-code-failures', 'day', $limit, $limit);
+        }
+    }
+
+    private static function failureKey(string $emailHmac): string
+    {
+        return 'login-code-fail:'.$emailHmac;
     }
 
     private function activeUser(?int $id): ?User

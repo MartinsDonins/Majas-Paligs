@@ -14,6 +14,7 @@ use App\Http\Middleware\SetCurrentBuilding;
 use App\Models;
 use App\Policies;
 use App\Support\Identifiers;
+use App\Support\ProductionGuard;
 use App\Tenancy\CurrentBuilding;
 use App\Tenancy\CurrentBuildingState;
 use Carbon\CarbonImmutable;
@@ -41,6 +42,13 @@ final class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Date::use(CarbonImmutable::class);
+
+        // Fail closed on an unauthenticated Redis / downgradable DB TLS — for the long-running services only, so
+        // image build steps (package:discover, filament:assets) still run without production secrets.
+        if ($this->app->isProduction() && (! $this->app->runningInConsole()
+            || $this->app->runningConsoleCommand('horizon', 'schedule:work', 'queue:work', 'migrate'))) {
+            ProductionGuard::assert();
+        }
 
         Model::preventLazyLoading(! $this->app->isProduction());
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());

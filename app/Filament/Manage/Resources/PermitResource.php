@@ -77,7 +77,7 @@ final class PermitResource extends Resource
                 TextColumn::make('type')->label(__('admin.parking.permit.type'))->badge()->formatStateUsing(fn (PermitType $state) => $state->label()),
                 TextColumn::make('apartment.number')->label(__('admin.apartment.number'))->sortable(),
                 TextColumn::make('plate')->label(__('admin.parking.vehicle.plate'))->fontFamily('mono')
-                    ->getStateUsing(fn (Permit $record): string => $record->type === PermitType::Main ? self::maskedPlate($record->vehicle) : '—'),
+                    ->getStateUsing(fn (Permit $record): string => $record->type === PermitType::Main ? self::vehicleAlias($record->vehicle) : '—'),
                 TextColumn::make('valid_from')->label(__('admin.parking.permit.valid_from'))->date('d.m.Y'),
                 TextColumn::make('valid_to')->label(__('admin.parking.permit.valid_to'))->date('d.m.Y')->placeholder('—'),
                 TextColumn::make('status')->label(__('admin.parking.permit.status'))->badge()
@@ -189,7 +189,7 @@ final class PermitResource extends Resource
         return Vehicle::query()->active()->where('apartment_id', (int) $apartmentId)
             ->when($exclude !== null, fn (Builder $q) => $q->whereKeyNot($exclude))
             ->get()
-            ->mapWithKeys(fn (Vehicle $v): array => [(string) $v->id => self::maskedPlate($v).($v->is_company_car ? ' · '.__('parking.vehicle.company') : '')])
+            ->mapWithKeys(fn (Vehicle $v): array => [(string) $v->id => self::vehicleAlias($v).' · '.$v->created_at->format('d.m.Y').($v->is_company_car ? ' · '.__('parking.vehicle.company') : '')])
             ->all();
     }
 

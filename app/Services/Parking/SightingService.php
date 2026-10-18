@@ -91,7 +91,8 @@ final class SightingService
         }
 
         $matched = $this->lookups->isRegistered($bidx);
-        $retry = $this->quota->record($user, $bidx, LookupReason::Sighting, $matched);
+        // The log never stores the match for a sighting (reporters never learn it, not even from their GDPR export).
+        $retry = $this->quota->record($user, $bidx, LookupReason::Sighting, null);
         if ($retry !== null) {
             return new SightingResult(SightingResult::RATE_LIMITED, retryAfter: $retry);
         }
@@ -147,7 +148,8 @@ final class SightingService
         }
 
         $bidx = $this->vault->currentBidx(CurrentBuilding::get(), $plate);
-        $retry = $this->quota->record($user, $bidx, LookupReason::OwnCheck, $this->lookups->isRegistered($bidx));
+        // Dispute: NULL result — the answer is identical whether or not sightings / a registration exist.
+        $retry = $this->quota->record($user, $bidx, LookupReason::OwnCheck, null);
         if ($retry !== null) {
             return LookupResult::limited($retry);
         }

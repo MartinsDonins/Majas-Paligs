@@ -31,8 +31,10 @@ final class LookupQuota
 
     /**
      * Record a row if the quota allows it. Returns null when recorded, otherwise the seconds until the next unit.
+     * `$result` is the yes/no the user was SHOWN (resident lookups); declarations, sightings and disputes pass null
+     * because their answer is deliberately identical (no registration oracle — MVP-SPEC C.5, C.7 AC 16).
      */
-    public function record(User $user, string $bidx, LookupReason $reason, bool $result): ?int
+    public function record(User $user, string $bidx, LookupReason $reason, ?bool $result): ?int
     {
         $building = CurrentBuilding::get();
         $quota = $building->settings->lookupQuota;
