@@ -26,7 +26,8 @@ it('redirects elevated pages to step-up and back after an e-mail code', function
         return true;
     });
 
-    $component->set('code', $code)->call('verify')->assertHasNoErrors()->assertRedirect();
+    // Back to the page that asked (markFresh used to overwrite the nested return URL → Home).
+    $component->set('code', $code)->call('verify')->assertHasNoErrors()->assertRedirect('/b/su-a/help');
     expect(app(StepUpService::class)->hasFresh($elder))->toBeTrue()
         ->and(app(StepUpService::class)->hasFreshMfa($elder))->toBeFalse();
 });

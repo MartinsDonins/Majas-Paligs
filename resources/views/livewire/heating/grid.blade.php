@@ -86,7 +86,7 @@
         <section class="card stack" aria-labelledby="grid-h">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 id="grid-h" class="text-lg">{{ __('heating.grid.title', ['n' => $section->number]) }}</h2>
-                <span class="chip tnum">{{ $structure['first'] }}–{{ $structure['last'] }}</span>
+                <span class="chip tnum shrink-0 whitespace-nowrap">{{ $structure['first'] }}–{{ $structure['last'] }}</span>
             </div>
             <x-heating.grid :structure="$structure" :heating="$heating" :mode="$mode" :mine="$mine" :overlay="$overlay"
                             :my-riser-ids="$myRiserIds" :can-dispute="$canReport" />

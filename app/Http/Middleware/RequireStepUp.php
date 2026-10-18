@@ -35,8 +35,8 @@ final class RequireStepUp
         }
 
         if ($request->isMethod('GET') && ! $request->expectsJson()) {
-            $request->session()->put('mp.step_up.intended', $request->getRequestUri());
-            $request->session()->put('mp.step_up.level', $mfa ? 'mfa' : 'any');
+            $request->session()->put(StepUpService::INTENDED_KEY, $request->getRequestUri());
+            $request->session()->put(StepUpService::LEVEL_KEY, $mfa ? 'mfa' : 'any');
 
             return redirect()->route('step-up');
         }

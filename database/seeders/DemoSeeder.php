@@ -14,6 +14,7 @@ use App\Models\ApartmentMembership;
 use App\Models\Building;
 use App\Models\BuildingPrivacyNotice;
 use App\Models\BuildingRole;
+use App\Models\ParkingLot;
 use App\Models\PrivacyNoticeVersion;
 use App\Models\Section;
 use App\Models\User;
@@ -37,7 +38,7 @@ final class DemoSeeder extends Seeder
             throw new RuntimeException('DemoSeeder runs only with APP_ENV=local.');
         }
 
-        $this->call([Series602Seeder::class, PrivacyNoticeSeeder::class, PucesIela51Seeder::class]);
+        $this->call([Series602Seeder::class, PrivacyNoticeSeeder::class, LegalNoticeSeeder::class, PucesIela51Seeder::class]);
 
         PrivacyNoticeVersion::query()->whereNull('published_at')->update(['published_at' => now()]);
         $template = PrivacyNoticeVersion::query()->where('kind', PrivacyNoticeKind::BuildingTemplate->value)->firstOrFail();
@@ -48,8 +49,12 @@ final class DemoSeeder extends Seeder
                 'controller' => ['name' => 'DEMO biedrība (fiktīva)', 'contact' => 'demo-dati@example.test', 'basis_ref' => 'DEMO'],
                 'dpa_signed_at' => now()->toDateString(),
                 'dpa_ref' => 'DEMO-DPA-1',
-                'dpa_scope' => ['core', 'heating', 'outages'],
-                'modules' => ['heating' => true, 'outages' => true],
+                'dpa_scope' => ['core', 'heating', 'outages', 'parking'],
+                // Parking gate L2 with FICTIONAL demo references, so every resident screen can be clicked through
+                // and audited (scripts/lighthouse/audit.mjs). Never real legal artefacts.
+                'dpia_completed_at' => now()->toDateString(),
+                'mandate_ref' => 'DEMO kopības lēmums (fiktīvs)',
+                'modules' => ['heating' => true, 'outages' => true, 'parking' => true],
             ]),
         ])->save();
 
@@ -60,14 +65,15 @@ final class DemoSeeder extends Seeder
         $codes = [];
 
         PlatformBuildingContext::run($building, PlatformPurpose::Seed, function () use ($template, $admin, $elder, $resident, &$codes): void {
-            if (BuildingPrivacyNotice::current() === null) {
+            if (BuildingPrivacyNotice::current()?->covers(['core', 'heating', 'outages', 'parking']) !== true) {
                 BuildingPrivacyNotice::query()->create([
                     'template_version_id' => $template->id,
                     'controller_snapshot' => ['name' => 'DEMO biedrība (fiktīva)', 'contact' => 'demo-dati@example.test'],
-                    'covers_modules' => ['core', 'heating', 'outages'],
+                    'covers_modules' => ['core', 'heating', 'outages', 'parking'],
                     'published_at' => now(),
                 ]);
             }
+            ParkingLot::query()->firstOrCreate(['name' => 'DEMO pagalms']);
 
             $s5 = Section::query()->where('number', 5)->firstOrFail();
             foreach ([[$admin, BuildingRoleType::BuildingAdmin, null], [$elder, BuildingRoleType::SectionElder, $s5->id]] as [$u, $role, $section]) {

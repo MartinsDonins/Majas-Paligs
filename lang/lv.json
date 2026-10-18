@@ -584,7 +584,7 @@
     "heating.coverage.label": "Dati no :covered no :total stāviem",
     "heating.coverage.short": ":covered/:total stāvi",
     "heating.coverage.title": "Pārklājums",
-    "heating.column.open": "Kolonna :n, dati no :covered no :total stāviem. Atvērt kopsavilkumu.",
+    "heating.column.open": "Kolonna :n, :covered/:total stāvi. Atvērt kopsavilkumu.",
     "heating.column.title": "Kolonna :n · :section. k.t.",
     "heating.column.apartments": "Dzīvokļi no apakšas uz augšu: :list",
     "heating.column.disputed": "Šī kolonna atzīmēta pārbaudei. Krāsa netiek rādīta, līdz administrators to izskatīs.",

@@ -21,7 +21,7 @@
             <p>{{ __('auth.email.sent_body') }}</p>
             <p class="text-sm muted">{{ __('auth.email.same_device') }}</p>
         </section>
-        <form method="POST" action="{{ route('login.code') }}" class="card stack">
+        <form method="POST" action="{{ route('login.code') }}" class="card stack" wire:key="join-code-form">
             @csrf
             <input type="hidden" name="email" value="{{ $email }}">
             <input type="hidden" name="remember" value="{{ $remember ? '1' : '0' }}">

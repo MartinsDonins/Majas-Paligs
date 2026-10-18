@@ -28,7 +28,7 @@ final class StepUp extends Component
         $user = auth()->user();
         $stepUp = app(StepUpService::class);
 
-        $needsMfa = session('mp.step_up.level') === 'mfa';
+        $needsMfa = session(StepUpService::LEVEL_KEY) === 'mfa';
         if ($needsMfa ? $stepUp->hasFreshMfa($user) : $stepUp->hasFresh($user)) {
             $this->redirect($this->intended());
         }
@@ -81,8 +81,8 @@ final class StepUp extends Component
 
     private function intended(): string
     {
-        $target = (string) session()->pull('mp.step_up.intended', route('home.redirect'));
-        session()->forget('mp.step_up.level');
+        $target = (string) session()->pull(StepUpService::INTENDED_KEY, route('home.redirect'));
+        session()->forget(StepUpService::LEVEL_KEY);
 
         return str_starts_with($target, '/') && ! str_starts_with($target, '//') ? $target : route('home.redirect');
     }
@@ -95,7 +95,7 @@ final class StepUp extends Component
         return view('livewire.auth.step-up', [
             'hasTotp' => $user->hasTotp(),
             'hasEmail' => $user->email !== null,
-            'needsMfa' => session('mp.step_up.level') === 'mfa',
+            'needsMfa' => session(StepUpService::LEVEL_KEY) === 'mfa',
         ])->title(__('auth.step_up.title'));
     }
 }

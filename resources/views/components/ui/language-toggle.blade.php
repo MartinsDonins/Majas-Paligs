@@ -1,5 +1,5 @@
 {{-- "LV | RU" text buttons (no flags). Plain POST forms: work without JavaScript, CSRF-protected. --}}
-<div class="flex items-center rounded-full border border-(--color-line) bg-(--color-surface) p-1" role="group" aria-label="{{ __('shell.language') }}">
+<div class="flex shrink-0 items-center rounded-full border border-(--color-line) bg-(--color-surface) p-1" role="group" aria-label="{{ __('shell.language') }}">
     @foreach (['lv' => 'LV', 'ru' => 'RU'] as $code => $label)
         <form method="POST" action="{{ route('locale.set', $code) }}">
             @csrf

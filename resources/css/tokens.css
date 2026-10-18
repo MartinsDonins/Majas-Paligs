@@ -26,7 +26,7 @@
     --color-accent-soft: var(--color-primary-100);
     --color-focus: var(--color-primary-500);
     --color-success: #1e7a46;
-    --color-warning: #a15c00;
+    --color-warning: #935300; /* ≥ 5:1 on surface-2 (axe: #a15c00 was 4.48:1 at 15px) */
     --color-danger: #b42318;
     --color-info: #0b4f55;
 

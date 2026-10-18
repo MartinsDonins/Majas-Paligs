@@ -26,6 +26,8 @@ Windows: keep the working copy on WSL2 ext4 for speed, or keep `VITE_POLLING=1` 
 | Task | Command |
 |---|---|
 | Tests (PostgreSQL `majas_test`) | `scripts/dev.sh pest` |
+| Real-browser tests (Chromium, Mailpit; `tests/Browser`) | `scripts/dev.sh browser` — screenshots in `tests/Browser/Screenshots/` |
+| Lighthouse mobile a11y (AC 16, demo build) | `scripts/dev.sh lighthouse` — reports in `storage/app/lighthouse/` |
 | Code style | `scripts/dev.sh pint` |
 | Static analysis (level 6) | `scripts/dev.sh stan` |
 | Migrations (as `majas_owner`) | `scripts/dev.sh migrate` |

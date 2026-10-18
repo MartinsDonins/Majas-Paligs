@@ -74,11 +74,14 @@
         <section class="card stack" aria-labelledby="map-h">
             <div class="flex items-center justify-between gap-2">
                 <h2 id="map-h" class="text-lg">{{ __('home.my_stairwell', ['n' => $section['number']]) }}</h2>
-                <span class="chip tnum">{{ $section['first'] }}–{{ $section['last'] }}</span>
+                <span class="chip tnum shrink-0 whitespace-nowrap">{{ $section['first'] }}–{{ $section['last'] }}</span>
             </div>
             @if ($heatingView)
-                <a href="{{ route('building.heating', $building) }}" class="block no-underline text-(--color-fg)" aria-label="{{ __('home.map_open') }}" wire:navigate>
-                    <x-ui.building-grid :section="$section" :highlight="$apartment?->number" :compact="true" :interactive="false" :columns="$heatingView->columns" />
+                {{-- Name from the sr-only text, the mini grid hidden from AT (an aria-label that does not contain the visible
+                     grid text failed WCAG 2.5.3 label-in-name in Lighthouse). --}}
+                <a href="{{ route('building.heating', $building) }}" class="block no-underline text-(--color-fg)" wire:navigate>
+                    <span class="sr-only">{{ __('home.map_open') }}</span>
+                    <div aria-hidden="true"><x-ui.building-grid :section="$section" :highlight="$apartment?->number" :compact="true" :interactive="false" :columns="$heatingView->columns" /></div>
                 </a>
                 <p class="text-sm muted">{{ __('home.map_heating_hint') }}</p>
             @else
@@ -110,7 +113,7 @@
             <p class="text-sm muted">{{ __('home.my_house.requests') }}</p>
         </section>
 
-        <section class="card flex items-center justify-between gap-3" aria-labelledby="deadline-h">
+        <section class="card flex flex-wrap items-center justify-between gap-3" aria-labelledby="deadline-h">
             <div>
                 <h2 id="deadline-h" class="text-base font-bold">{{ __('home.deadline.water_title') }}</h2>
                 <p class="text-sm muted">{{ __('home.deadline.water_body') }}</p>

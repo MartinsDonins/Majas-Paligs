@@ -45,6 +45,10 @@
 - 🎯 Atrast **dzimtās krievu valodas recenzentu** UI tekstiem (0.0.14 izlaboti daudzskaitļi un stāvokļu formas, bet
   dzimtās valodas pārbaude nav notikusi). Blocks: wave 1 launch (RU strings), UI-001 stays 🔍.
 - 🆕 RNP kontakts siltuma pārskata formātam (pirmo pārskatu prezentēt klātienē).
+- 🎯 **Reālas ierīces pārbaude (UI-002.1)** — automātiskā daļa gatava 0.0.16 (Chromium testi, Lighthouse a11y 100,
+  320px / 200 %). Cilvēkam: lēts Android telefons (Chrome + TalkBack) un iPhone (Safari + VoiceOver) — pieteikšanās,
+  ziņojums par siltumu, numura pārbaude, **HEIC foto ar pogu «Fotografēt» uz iPhone**; viena ielūguma vēstule
+  izdrukāta A4. Blocks: wave 1 launch.
 
 ## Mājas dati
 - 🆕 Noskaidrot **istabu sastāvu (layout preset) katrai kāpņu telpai** (1-/2-/3-istabu sadalījums pa pozīcijām) un vai ir

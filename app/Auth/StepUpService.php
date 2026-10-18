@@ -25,6 +25,15 @@ class StepUpService
 {
     public const SESSION_KEY = 'mp.step_up';
 
+    /**
+     * Where to return after the step-up, and which level it needs. Deliberately NOT nested under SESSION_KEY:
+     * markFresh() replaces that whole array, which used to wipe the return URL (found by the real-browser
+     * Browser/OnboardingSmokeTest — the elder landed on Home instead of the help panel).
+     */
+    public const INTENDED_KEY = 'mp.step_up_intended';
+
+    public const LEVEL_KEY = 'mp.step_up_level';
+
     public function __construct(private readonly Google2FA $google2fa) {}
 
     public function hasFresh(User $user): bool

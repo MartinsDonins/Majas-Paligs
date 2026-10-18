@@ -584,7 +584,7 @@
     "heating.coverage.label": "Данные с :covered из :total этажей",
     "heating.coverage.short": ":covered/:total эт.",
     "heating.coverage.title": "Охват",
-    "heating.column.open": "Колонна :n, данные с :covered из :total этажей. Открыть сводку.",
+    "heating.column.open": "Колонна :n, :covered/:total эт. Открыть сводку.",
     "heating.column.title": "Колонна :n · :section-й подъезд",
     "heating.column.apartments": "Квартиры снизу вверх: :list",
     "heating.column.disputed": "Эта колонна отмечена для проверки. Цвет не показывается, пока администратор её не рассмотрит.",

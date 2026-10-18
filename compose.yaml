@@ -46,6 +46,24 @@ services:
     command: ["php", "/var/www/html/artisan", "schedule:work"]
     profiles: ["workers"]
 
+  # Real-browser tests (tests/Browser, pest-plugin-browser + Playwright Chromium) and Lighthouse mobile audits.
+  # scripts/dev.sh browser [pest args] | scripts/dev.sh lighthouse. Own node_modules volume (glibc binaries).
+  browser:
+    <<: *app
+    build:
+      context: .
+      target: browser
+      args:
+        USER_ID: ${USER_ID:-1000}
+        GROUP_ID: ${GROUP_ID:-1000}
+        PLAYWRIGHT_VERSION: 1.63.0
+    image: majas-paligs-browser:local
+    volumes:
+      - .:/var/www/html
+      - vendor:/var/www/html/vendor
+      - node_modules_browser:/var/www/html/node_modules
+    profiles: ["browser"]
+
   vite:
     image: node:24-alpine
     working_dir: /app
@@ -98,4 +116,5 @@ services:
 volumes:
   vendor:
   node_modules:
+  node_modules_browser:
   pgsql:

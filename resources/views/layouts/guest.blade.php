@@ -8,7 +8,7 @@
         </div>
     </div>
 
-    <header class="mx-auto flex w-full max-w-[40rem] items-center justify-between gap-3 px-4 pt-4">
+    <header class="mx-auto flex w-full max-w-[40rem] flex-wrap items-center justify-between gap-3 px-4 pt-4">
         <a href="{{ route('landing') }}" class="flex items-center gap-2 font-bold text-(--color-fg) no-underline">
             <x-brand-mark class="size-8" />
             <span>{{ __('common.app_name') }}</span>

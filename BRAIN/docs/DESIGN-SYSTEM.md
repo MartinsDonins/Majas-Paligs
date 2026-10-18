@@ -30,7 +30,7 @@
 | `--color-fg` | `#1C1A17` | body text |
 | `--color-fg-muted` | `#57534E` | secondary text (7.1:1) |
 | `--color-success` | `#1E7A46` | registered, done |
-| `--color-warning` | `#A15C00` | expiring soon (text-safe amber) |
+| `--color-warning` | `#935300` | expiring soon (text-safe amber) |
 | `--color-danger` | `#B42318` | errors, destructive only |
 | `--color-info` | `#0B4F55` | info |
 

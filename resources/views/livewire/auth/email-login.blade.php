@@ -9,7 +9,7 @@
             <p class="lead">{{ __('auth.email.lead') }}</p>
         </section>
 
-        <form wire:submit="send" class="card stack" novalidate>
+        <form wire:submit="send" class="card stack" novalidate wire:key="login-email-form">
             <x-ui.field id="email" :label="__('auth.email.label')" :error="$errors->first('email')">
                 <input id="email" type="email" wire:model="email" class="input" autocomplete="email" inputmode="email" maxlength="254"
                        @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
@@ -27,7 +27,9 @@
             <p>{{ __('auth.email.sent_body_generic') }}</p>
         </section>
 
-        <form method="POST" action="{{ route('login.code') }}" class="card stack" novalidate>
+        {{-- Own wire:key: without it the morph REUSES the wire:submit form element above for this native POST form,
+             and the browser then submitted only the `code` field (no _token / email) — found by the Lighthouse login. --}}
+        <form method="POST" action="{{ route('login.code') }}" class="card stack" novalidate wire:key="login-code-form">
             @csrf
             <input type="hidden" name="email" value="{{ $email }}">
             <input type="hidden" name="remember" value="{{ $remember ? '1' : '0' }}">

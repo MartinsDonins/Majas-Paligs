@@ -36,7 +36,11 @@ use Database\Seeders\PrivacyNoticeSeeder;
 use Database\Seeders\Series602Seeder;
 use Illuminate\Database\Connection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Pest\Browser\Playwright\Client;
+use Pest\Browser\Playwright\Page;
+use Tests\BrowserTestCase;
 use Tests\Support\DbRoles;
 use Tests\TestCase;
 
@@ -44,6 +48,7 @@ use Tests\TestCase;
  * Synthetic data only (MVP-SPEC §0): fictional e-mails @example.test, no real residents, phones or plates.
  */
 pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Feature', 'Unit', 'Arch');
+pest()->extend(BrowserTestCase::class)->use(RefreshDatabase::class)->in('Browser');
 
 /**
  * Run $callback inside a building context (test helper; app code uses the allow-listed classes only).
@@ -366,4 +371,121 @@ function cleanupRetentionBuilding(Connection $owner, int $buildingId): void
         $owner->table($table)->where('building_id', $buildingId)->delete();
     }
     $owner->table('buildings')->where('id', $buildingId)->delete();
+}
+
+/*
+ * ---- Real-browser helpers (tests/Browser, pest-plugin-browser + Playwright Chromium) ----
+ */
+
+/**
+ * Base URL of the Mailpit HTTP API (compose service `mailpit`; CI service on localhost).
+ */
+function mailpitUrl(): string
+{
+    return rtrim((string) (getenv('MAILPIT_URL') ?: 'http://mailpit:8025'), '/');
+}
+
+/**
+ * Send this test's mail through real SMTP into Mailpit instead of the `array` mailer.
+ */
+function useMailpit(): void
+{
+    config([
+        'mail.default' => 'smtp',
+        'mail.mailers.smtp.scheme' => null,
+        'mail.mailers.smtp.host' => getenv('MAILPIT_SMTP_HOST') ?: 'mailpit',
+        'mail.mailers.smtp.port' => (int) (getenv('MAILPIT_SMTP_PORT') ?: 1025),
+        'mail.mailers.smtp.username' => null,
+        'mail.mailers.smtp.password' => null,
+    ]);
+}
+
+/**
+ * A unique synthetic address per run, so Mailpit searches never pick up an older message.
+ */
+function browserEmail(string $who): string
+{
+    return $who.'-'.Str::lower(Str::random(10)).'@example.test';
+}
+
+/**
+ * The 6-digit code ("123 456") from the newest Mailpit message to $to, polling up to $seconds.
+ */
+function mailpitCode(string $to, int $seconds = 15): string
+{
+    $deadline = microtime(true) + $seconds;
+    do {
+        $found = Http::timeout(5)->get(mailpitUrl().'/api/v1/search', ['query' => 'to:"'.$to.'"', 'limit' => 1])->json('messages.0.ID');
+        if (is_string($found)) {
+            $text = (string) Http::timeout(5)->get(mailpitUrl().'/api/v1/message/'.$found)->json('Text');
+            if (preg_match('/(?<!\d)(\d{3}) (\d{3})(?!\d)/', $text, $m) === 1) {
+                return $m[1].$m[2];
+            }
+        }
+        usleep(250_000);
+    } while (microtime(true) < $deadline);
+
+    throw new RuntimeException("No code mail for {$to} in Mailpit (".mailpitUrl().').');
+}
+
+/**
+ * Real network offline/online for the page's browser context (Playwright BrowserContext.setOffline): fires the
+ * window `offline` / `online` events and makes every request fail, exactly like a dead stairwell connection.
+ */
+function browserOffline(object $page, bool $offline): void
+{
+    /** @var Page $playwrightPage */
+    $playwrightPage = $page->page();
+    $context = $playwrightPage->context();
+    $guid = (new ReflectionProperty($context, 'guid'))->getValue($context);
+    iterator_to_array(Client::instance()->execute($guid, 'setOffline', ['offline' => $offline]));
+}
+
+/**
+ * Layout guard for 320px / 200 % text (MVP-SPEC A.11 AC 16): the document never scrolls sideways.
+ */
+function assertNoHorizontalScroll(object $page, string $label = ''): void
+{
+    // Mobile emulation widens the LAYOUT viewport (innerWidth) to fit overflowing content, so the reference is the
+    // device width (clientWidth), not innerWidth.
+    $overflow = $page->script('document.documentElement.scrollWidth - document.documentElement.clientWidth');
+    $offenders = $page->script(<<<'JS'
+        [...document.querySelectorAll('body *')]
+            .filter(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > document.documentElement.clientWidth + 1 && !e.closest('.sr-only, .tabs-scroll, nav.fixed'); })
+            .map(e => e.closest('svg') ? e.closest('svg').parentElement : e).filter((e, i, all) => all.indexOf(e) === i)
+            .slice(0, 6).map(e => e.tagName.toLowerCase() + '.' + String(e.className).trim().split(/\s+/).slice(0, 3).join('.') + ' "' + (e.innerText || '').trim().slice(0, 24) + '" →' + Math.round(e.getBoundingClientRect().right)).join(' | ')
+        JS);
+    expect($overflow)->toBeLessThanOrEqual(0, "Horizontal scroll {$label}: {$overflow}px wider than the device — {$offenders}");
+}
+
+/**
+ * Emulate "system font scaling 200 %" (DESIGN-SYSTEM §2.4): the root size the browser setting would give. Every
+ * size in the app is rem-based, so this is what Android "Font size: max" / iOS Larger Text does to the page.
+ */
+function scaleRootText(object $page, int $percent): void
+{
+    $page->script("document.documentElement.style.fontSize = (parseFloat(getComputedStyle(document.documentElement).fontSize) * {$percent} / 100) + 'px'");
+}
+
+/**
+ * Open $url on a mobile viewport and return the LIVE page. (`visit()->on()->mobile()` is a factory: every further
+ * call on it would open a fresh page, so the first call's result is the page the test keeps using.)
+ */
+function phone(string $url): object
+{
+    return visit($url)->on()->mobile()->assertPathBeginsWith('/');
+}
+
+/**
+ * Poll a JavaScript expression until it is truthy (Page::waitForFunction of the plugin is lazy and never waits).
+ */
+function waitUntil(object $page, string $expression, float $seconds = 5.0): void
+{
+    $deadline = microtime(true) + $seconds;
+    while (! $page->script("!!({$expression})")) {
+        if (microtime(true) > $deadline) {
+            throw new RuntimeException("Timed out after {$seconds}s waiting for: {$expression}");
+        }
+        usleep(100_000);
+    }
 }

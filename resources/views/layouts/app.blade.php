@@ -18,11 +18,13 @@
     </div>
 
     <header class="sticky top-0 z-30 border-b border-(--color-line) bg-(--color-bg)/95 backdrop-blur-sm">
-        <div class="mx-auto flex h-[var(--topbar-h)] w-full max-w-[40rem] items-center justify-between gap-2 px-4">
+        {{-- 320px / senior mode / 200 % text (AC 16): the switcher shrinks (truncates) down to 7rem, then the bar wraps
+             onto two rows instead of pushing the language toggle off-screen (found by Browser/HeatingReportSmokeTest). --}}
+        <div class="mx-auto flex min-h-[var(--topbar-h)] w-full max-w-[40rem] flex-wrap items-center justify-between gap-2 px-4 py-1">
             @if ($building)
                 <livewire:shell.building-switcher />
             @else
-                <a href="{{ route('landing') }}" class="flex items-center gap-2 font-bold text-(--color-fg) no-underline">
+                <a href="{{ route('landing') }}" class="flex min-w-0 items-center gap-2 font-bold text-(--color-fg) no-underline">
                     <x-brand-mark class="size-7" />
                     <span>{{ __('common.app_name') }}</span>
                 </a>

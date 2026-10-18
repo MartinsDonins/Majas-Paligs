@@ -195,7 +195,9 @@
     .segmented {
         display: grid;
         grid-auto-flow: column;
-        grid-auto-columns: 1fr;
+        /* minmax(0, …): at 320px + 200 % text the labels wrap inside their segment instead of widening the page. */
+        grid-auto-columns: minmax(0, 1fr);
+        max-width: 100%;
         gap: 4px;
         padding: 4px;
         border-radius: var(--radius-md);
@@ -208,8 +210,11 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
+        flex-wrap: wrap;
+        min-width: 0;
         min-height: 48px; /* §2.6 tap target */
         padding: 6px 8px;
+        overflow-wrap: anywhere;
         border: 0;
         border-radius: var(--radius-sm);
         background: transparent;

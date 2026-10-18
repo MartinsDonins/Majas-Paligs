@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Mājas Palīgs dev wrapper (MVP-SPEC A.1). Hides `docker compose exec` and Git Bash path conversion.
-# Usage: scripts/dev.sh up|down|init|artisan …|composer …|npm …|pest …|pint …|stan …|psql|sh
+# Usage: scripts/dev.sh up|down|init|artisan …|composer …|npm …|pest …|browser …|lighthouse|pint …|stan …|psql|sh
 set -euo pipefail
 export MSYS_NO_PATHCONV=1
 cd "$(dirname "$0")/.."
@@ -37,9 +37,21 @@ case "$cmd" in
   pest)     exec_app sh -c 'php artisan config:clear >/dev/null && vendor/bin/pest "$@"' -- "$@" ;;
   pint)     exec_app vendor/bin/pint "$@" ;;
   stan)     exec_app vendor/bin/phpstan analyse --memory-limit=1G "$@" ;;
+  # Real-browser tests (tests/Browser) in the `browser` image: Playwright Chromium + fresh Vite build.
+  browser)
+    dc --profile browser run --rm browser sh -c 'npm ls playwright lighthouse >/dev/null 2>&1 || npm ci --no-audit --no-fund; npm run build >/dev/null && php artisan config:clear >/dev/null && vendor/bin/pest --testsuite=Browser "$@"' -- "$@"
+    ;;
+  # Lighthouse mobile accessibility (AC 16) against the LOCAL demo build of Pūces iela 51 (DemoSeeder data).
+  lighthouse)
+    dc --profile browser up -d browser
+    status=0
+    dc exec browser sh -c 'npm ls playwright lighthouse >/dev/null 2>&1 || npm ci --no-audit --no-fund; npm run build >/dev/null       && php artisan migrate --database=pgsql_owner --force       && php artisan db:seed --class=DemoSeeder --database=pgsql_owner --force       && php artisan optimize:clear >/dev/null && node scripts/lighthouse/audit.mjs' || status=$?
+    dc --profile browser stop browser
+    exit $status
+    ;;
   psql)     dc exec pgsql psql -U postgres -d "${1:-majas}" ;;
   sh)       exec_app sh ;;
   *)
-    echo "Usage: scripts/dev.sh up|down|init|artisan|migrate|composer|npm|pest|pint|stan|psql|sh"
+    echo "Usage: scripts/dev.sh up|down|init|artisan|migrate|composer|npm|pest|browser|lighthouse|pint|stan|psql|sh"
     ;;
 esac

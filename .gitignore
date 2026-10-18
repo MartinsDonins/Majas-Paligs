@@ -41,3 +41,6 @@ Homestead.yaml
 /.zed
 .DS_Store
 Thumbs.db
+# Real-browser test screenshots and Lighthouse reports (review artefacts, regenerated on every run)
+/tests/Browser/Screenshots/
+/storage/app/lighthouse/

@@ -111,7 +111,7 @@ it('requires a TOTP step-up for building_admin and parking_officer; section elde
     $stepUp->markFresh($admin, 'email');
     expect($stepUp->hasFreshFor($admin))->toBeFalse();
     $this->get('/manage/mfa-roles')->assertRedirect(route('step-up'));
-    expect(session('mp.step_up.level'))->toBe('mfa');
+    expect(session(StepUpService::LEVEL_KEY))->toBe('mfa');
 
     $stepUp->markFresh($admin, 'totp');
     expect($stepUp->hasFreshFor($admin))->toBeTrue();

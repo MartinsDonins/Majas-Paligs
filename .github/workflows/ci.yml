@@ -54,7 +54,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: intl, pdo_pgsql, redis, gd, exif, bcmath, sodium, zip, pcntl
+          extensions: intl, pdo_pgsql, redis, gd, exif, bcmath, sodium, zip, pcntl, sockets
           coverage: none
 
       - name: Composer install
@@ -94,10 +94,68 @@ jobs:
       - name: Docker build (prod target)
         run: docker build --target prod -t majas-paligs:ci .
 
+  # Real browser (MVP-SPEC A.12 / B.8 / C.8 Browser/* + A.11 AC 16 layout sweep): pest-plugin-browser drives
+  # Playwright Chromium against the real Vite build; e-mail codes go through a real Mailpit.
+  browser:
+    runs-on: ubuntu-latest
+    services:
+      pgsql:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-timeout 3s --health-retries 30
+      mailpit:
+        image: axllent/mailpit
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci
+      DB_HOST: 127.0.0.1
+      MAILPIT_URL: http://127.0.0.1:8025
+      MAILPIT_SMTP_HOST: 127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap roles
+        run: |
+          psql -v ON_ERROR_STOP=1 -d postgres -v dbname=majas_test -v owner_password=owner-dev-only             -v app_password=app-dev-only -v retention_password=retention-dev-only -v owner_createdb=CREATEDB             -f database/sql/roles.sql
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql, redis, gd, exif, bcmath, sodium, zip, pcntl, sockets
+          coverage: none
+
+      - name: Composer install
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: npm ci + build + Playwright Chromium (version pinned in package.json)
+        run: npm ci && npm run build && npx playwright install --with-deps chromium
+
+      - name: Pest browser suite
+        run: vendor/bin/pest --testsuite=Browser
+
+      - name: Screenshots (review: 320px / senior / 200 %, colour-blind simulation)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots
+          path: tests/Browser/Screenshots
+          if-no-files-found: ignore
+
   # ADR 0002: the image that passed the tests is the image that runs. A green main builds the prod target once and
   # pushes it to GHCR as :<VERSION>, :sha-<commit> (immutable, for rollback) and :main (the tag Coolify pulls).
   image:
-    needs: test
+    needs: [test, browser]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

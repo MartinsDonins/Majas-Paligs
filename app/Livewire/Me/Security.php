@@ -116,8 +116,8 @@ final class Security extends Component
 
     private function askStepUp(string $level): void
     {
-        session()->put('mp.step_up.intended', route('me.security'));
-        session()->put('mp.step_up.level', $level);
+        session()->put(StepUpService::INTENDED_KEY, route('me.security'));
+        session()->put(StepUpService::LEVEL_KEY, $level);
         $this->redirectRoute('step-up');
     }
 

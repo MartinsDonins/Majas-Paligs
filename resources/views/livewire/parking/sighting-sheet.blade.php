@@ -45,8 +45,8 @@
 
                 <div x-data="photoCapture" class="stack">
                     <p class="field-label">{{ __('parking.sighting.photo') }}</p>
-                    <input type="file" accept="image/*" capture="environment" class="sr-only" x-ref="camera" x-on:change="onChange" tabindex="-1">
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" class="sr-only" x-ref="file" x-on:change="onChange" tabindex="-1">
+                    <input type="file" accept="image/*" capture="environment" class="sr-only" x-ref="camera" x-on:change="onChange" tabindex="-1" aria-label="{{ __('parking.sighting.photo_take') }}">
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" class="sr-only" x-ref="file" x-on:change="onChange" tabindex="-1" aria-label="{{ __('parking.sighting.photo_pick') }}">
                     @if ($photo)
                         <div class="banner" role="status">
                             <x-lucide-image class="size-5 shrink-0 text-(--color-accent)" aria-hidden="true" />

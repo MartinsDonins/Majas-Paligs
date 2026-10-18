@@ -29,10 +29,33 @@ ARG USER_ID=1000
 ARG GROUP_ID=1000
 COPY --from=composer:2.9 /usr/bin/composer /usr/bin/composer
 RUN apt-get update && apt-get install -y --no-install-recommends postgresql-client && rm -rf /var/lib/apt/lists/* \
-    && install-php-extensions xdebug \
+    && install-php-extensions xdebug sockets \
     && docker-php-serversideup-set-id www-data ${USER_ID}:${GROUP_ID} \
     && docker-php-serversideup-set-file-permissions --owner ${USER_ID}:${GROUP_ID} --service nginx
 ENV XDEBUG_MODE=off
+USER www-data
+
+############################
+# browser: dev + Node 24 + Playwright Chromium (MVP-SPEC A.12/B.8/C.8 Browser/* smoke tests, A.11 AC 16
+# Lighthouse). Used only by the `browser` compose profile (scripts/dev.sh browser|lighthouse); never shipped.
+# PLAYWRIGHT_VERSION must equal the exact `playwright` pin in package.json (browser builds are per-version).
+############################
+FROM dev AS browser
+USER root
+ARG PLAYWRIGHT_VERSION=1.63.0
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    NPM_CONFIG_UPDATE_NOTIFIER=false
+COPY --from=node:24-trixie-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24-trixie-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
+    && npx -y "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core fonts-noto-core \
+    && rm -rf /var/lib/apt/lists/* /root/.npm \
+    && chmod -R a+rX /ms-playwright \
+    # node_modules is a named volume (Linux binaries, never the host's); pre-create it so a fresh volume is owned
+    # by www-data and `npm ci` can run unprivileged.
+    && mkdir -p /var/www/html/node_modules && chown www-data:www-data /var/www/html/node_modules
 USER www-data
 
 ############################

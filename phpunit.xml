@@ -3,6 +3,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
+         defaultTestSuite="Unit,Feature,Arch"
 >
     <testsuites>
         <testsuite name="Unit">
@@ -13,6 +14,11 @@
         </testsuite>
         <testsuite name="Arch">
             <directory>tests/Arch</directory>
+        </testsuite>
+        <!-- Real browser (pest-plugin-browser + Playwright Chromium), only in the `browser` image:
+             scripts/dev.sh browser, i.e. pest with testsuite Browser. Not part of the default run. -->
+        <testsuite name="Browser">
+            <directory>tests/Browser</directory>
         </testsuite>
     </testsuites>
     <source>
