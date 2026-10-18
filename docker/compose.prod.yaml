@@ -7,8 +7,12 @@
 # DB_HOST, DB_PORT, DB_DATABASE, REDIS_HOST, MAIL_*, SENTRY_LARAVEL_DSN, PLATFORM_ALERT_EMAIL.
 name: majas-paligs
 
+# Image (ADR 0002): CI pushes the tested prod image to GHCR as :<VERSION>, :sha-<commit> and :main. Coolify pulls
+# :main on the deploy webhook; to roll back set MAJAS_IMAGE to an immutable tag (…:0.0.12 or …:sha-<commit>).
+# The GHCR package is private → add the registry credentials on the Coolify server (MANUAL-TODO).
 x-app: &app
-  image: ${MAJAS_IMAGE:-ghcr.io/coredigify/majas-paligs:latest}
+  image: ${MAJAS_IMAGE:-ghcr.io/martinsdonins/majas-paligs:main}
+  pull_policy: always
   environment: &env
     APP_ENV: production
     APP_DEBUG: "false"
@@ -23,15 +27,20 @@ x-app: &app
     SESSION_DRIVER: redis
     SESSION_COOKIE: __Host-mp_session
     SESSION_SECURE_COOKIE: "true"
+    # Session payload encrypted with APP_KEY (holds the auth id, step-up freshness, the pending TOTP secret).
+    SESSION_ENCRYPT: "true"
     CACHE_STORE: redis
     QUEUE_CONNECTION: redis
     REDIS_HOST: ${REDIS_HOST}
-    REDIS_PASSWORD: ${REDIS_PASSWORD:-null}
+    # Redis AUTH is mandatory (sessions, limiters, PIN pause, TOTP replay markers); the app refuses to boot without it
+    # (App\Support\ProductionGuard). Keep Redis on the private Coolify network only; TLS if it is on another host.
+    REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     DB_CONNECTION: pgsql
     DB_HOST: ${DB_HOST}
     DB_PORT: ${DB_PORT:-5432}
     DB_DATABASE: ${DB_DATABASE:-majas}
-    DB_SSLMODE: ${DB_SSLMODE:-prefer}
+    # No TLS downgrade: require (or verify-full with the CA mounted); ProductionGuard refuses disable/allow/prefer.
+    DB_SSLMODE: ${DB_SSLMODE:-require}
     MAIL_MAILER: ${MAIL_MAILER:-smtp}
     MAIL_HOST: ${MAIL_HOST}
     MAIL_PORT: ${MAIL_PORT:-587}
@@ -41,6 +50,9 @@ x-app: &app
     SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
     PLATFORM_ALERT_EMAIL: ${PLATFORM_ALERT_EMAIL:-}
     LOG_CHANNEL: stderr
+    # nginx realip (serversideup trusted-proxy/cloudflare.conf): CF-Connecting-IP only from Cloudflare / Docker
+    # ranges → REMOTE_ADDR. Laravel trusts proxies for the scheme only, never for the IP (bootstrap/app.php).
+    # Smoke test after deploy: curl https://<host>/up/ip from a known client must show THAT client's prefix.
     TRUSTED_PROXY: cloudflare
   logging: &logging
     driver: json-file
