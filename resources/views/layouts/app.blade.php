@@ -4,7 +4,8 @@
     $building = CurrentBuilding::find();
     $settings = $building?->settings;
     $showHeating = $settings !== null && ($settings->moduleEnabled('heating') || $settings->moduleEnabled('outages'));
-    $showParking = $settings !== null && $settings->moduleEnabled('parking');
+    // Stāvvieta only when modules.parking is ON and parking gate L2 holds (MVP-SPEC C.0).
+    $showParking = $building !== null && \App\Gdpr\ParkingGate::residentEnabled($building);
 @endphp
 {{-- Resident app shell (DESIGN-SYSTEM §4): sticky top bar, module-dependent bottom nav (3–4 items, labels always
      visible), offline banner, footer with version + privacy + "not an emergency channel". --}}
@@ -45,7 +46,7 @@
                                    icon="thermometer" :label="__('nav.heating')" :active="$active === 'heating' || request()->routeIs('building.heating', 'building.water', 'building.incident')" />
                 @endif
                 @if ($showParking)
-                    <x-ui.nav-item href="#" icon="car" :label="__('nav.parking')" :active="$active === 'parking'" :disabled="true" />
+                    <x-ui.nav-item :href="route('building.parking', $building)" icon="car" :label="__('nav.parking')" :active="$active === 'parking' || request()->routeIs('building.parking*')" />
                 @endif
                 <x-ui.nav-item :href="route('building.me', $building)" icon="ellipsis" :label="__('nav.more')" :active="request()->routeIs('building.me', 'building.elder')" />
             </ul>

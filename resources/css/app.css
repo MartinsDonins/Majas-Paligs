@@ -2,6 +2,7 @@
 @import "tailwindcss";
 @import "./tokens.css";
 @import "./heating.css";
+@import "./parking.css";
 
 @source "../views";
 @source "../../app/Livewire";

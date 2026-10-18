@@ -26,8 +26,9 @@
                                  :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
             @endif
             @if ($parking)
-                <x-ui.big-action icon="car" :label="__('home.action.check_car')" />
-                <x-ui.big-action icon="badge-check" :label="__('home.action.permits')" />
+                <x-ui.big-action icon="car" :label="__('home.action.check_car')" :href="route('building.parking', $building)"
+                                 :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
+                <x-ui.big-action icon="badge-check" :label="__('home.action.permits')" :href="route('building.parking.mine', $building)" />
             @endif
         </section>
     @else

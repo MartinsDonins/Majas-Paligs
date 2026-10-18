@@ -227,6 +227,128 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 
+    /**
+     * Plate forms (Package C). The typed plate is passed as an ACTION ARGUMENT and the field is cleared afterwards,
+     * so a plate never sits in a Livewire public property / snapshot (MVP-SPEC §0).
+     * Usage: <form x-data="plateForm" data-method="check" x-on:submit="submit"> … <input data-plate> …
+     */
+    Alpine.data('plateForm', () => ({
+        busy: false,
+        async submit(event) {
+            event.preventDefault();
+            const input = this.$el.querySelector('[data-plate]');
+            if (!input || this.busy) {
+                return;
+            }
+            this.busy = true;
+            try {
+                await this.$wire.call(this.$el.dataset.method || 'check', input.value);
+                if (this.$el.dataset.keep !== '1') {
+                    input.value = '';
+                }
+            } finally {
+                this.busy = false;
+            }
+        },
+    }));
+
+    /**
+     * Sighting photo: decode in the browser (iOS Safari decodes HEIC into the canvas), downscale to 1600 px and
+     * re-encode as JPEG before upload — the canvas also drops EXIF / GPS. Undecodable files show the friendly
+     * "nofotografējiet ar pogu «Fotografēt»" message. The server re-checks and re-encodes anyway.
+     */
+    Alpine.data('photoCapture', () => ({
+        status: '',
+        pickCamera() {
+            this.$refs.camera.click();
+        },
+        pickFile() {
+            this.$refs.file.click();
+        },
+        async onChange(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file) {
+                return;
+            }
+            this.status = 'working';
+            try {
+                const blob = await this.toJpeg(file);
+                const jpeg = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+                this.$wire.upload('photo', jpeg, () => {
+                    this.status = 'ready';
+                }, () => {
+                    this.status = 'error';
+                });
+            } catch (e) {
+                this.status = 'error';
+            }
+        },
+        toJpeg(file) {
+            return new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    const max = 1600;
+                    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    URL.revokeObjectURL(url);
+                    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', 0.85);
+                };
+                img.onerror = () => {
+                    URL.revokeObjectURL(url);
+                    reject(new Error('decode'));
+                };
+                img.src = url;
+            });
+        },
+        clear() {
+            this.status = '';
+            this.$wire.call('removePhoto');
+        },
+        get isWorking() {
+            return this.status === 'working';
+        },
+        get isReady() {
+            return this.status === 'ready';
+        },
+        get isError() {
+            return this.status === 'error';
+        },
+    }));
+
+    /** Friendly rate-limit countdown "mm:ss" (data-seconds); re-enables the form when it reaches zero. */
+    Alpine.data('retryCountdown', () => ({
+        left: 0,
+        timer: null,
+        init() {
+            this.left = parseInt(this.$el.dataset.seconds || '0', 10);
+            this.timer = setInterval(() => {
+                this.left = Math.max(0, this.left - 1);
+                if (this.left === 0) {
+                    clearInterval(this.timer);
+                }
+            }, 1000);
+        },
+        get label() {
+            const m = Math.floor(this.left / 60);
+            const s = this.left % 60;
+            return `${m}:${String(s).padStart(2, '0')}`;
+        },
+        get waiting() {
+            return this.left > 0;
+        },
+        get done() {
+            return this.left === 0;
+        },
+        destroy() {
+            clearInterval(this.timer);
+        },
+    }));
+
     Alpine.data('stairwellTabs', () => ({
         active: null,
         init() {

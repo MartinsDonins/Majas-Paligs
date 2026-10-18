@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Home;
 
 use App\Enums\BuildingRoleType;
+use App\Gdpr\ParkingGate;
 use App\Models\Apartment;
 use App\Models\ApartmentMembership;
 use App\Models\User;
@@ -65,7 +66,8 @@ final class Dashboard extends Component
             'heating' => $heatingOn,
             'heatingView' => $heatingView,
             'outages' => $building->settings->moduleEnabled('outages'),
-            'parking' => $building->settings->moduleEnabled('parking'),
+            // Parking tiles only with modules.parking ON and gate L2 (MVP-SPEC C.0, A.7).
+            'parking' => ParkingGate::residentEnabled($building),
             'daysToDeadline' => max(0, (int) now('Europe/Riga')->startOfDay()->diffInDays($deadline, false)),
             'largeText' => $user->text_size->value === 'large',
         ])->title(__('nav.home'));

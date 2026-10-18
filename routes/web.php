@@ -10,8 +10,11 @@ use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InviteLetterController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ManagerReportDownloadController;
+use App\Http\Controllers\ParkingExportDownloadController;
+use App\Http\Controllers\ParkingSignController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PwaController;
+use App\Http\Controllers\SightingPhotoController;
 use App\Livewire\Auth\EmailLogin;
 use App\Livewire\Auth\PinLogin;
 use App\Livewire\Auth\SetNewPin;
@@ -27,6 +30,11 @@ use App\Livewire\Onboarding\ChooseRole;
 use App\Livewire\Onboarding\LanguagePick;
 use App\Livewire\Onboarding\RedeemInvite;
 use App\Livewire\Outage\Detail as OutageDetail;
+use App\Livewire\Parking\CampaignProgress;
+use App\Livewire\Parking\DeclarationWizard;
+use App\Livewire\Parking\Lookup as ParkingLookup;
+use App\Livewire\Parking\MyPermits;
+use App\Livewire\Parking\SightingSheet;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -96,4 +104,25 @@ Route::prefix('/b/{building:slug}')
             ->middleware(['module:heating,outages', 'step-up', 'signed'])
             ->where(['report' => '[0-9a-z]{26}', 'format' => 'pdf|csv'])
             ->name('building.manager-report');
+
+        // ---- Package C: parking (MVP-SPEC C.2). `module:parking` = modules.parking ON **and** parking gate L2. ----
+        Route::middleware('module:parking')->group(function (): void {
+            Route::get('/parking', ParkingLookup::class)->name('building.parking');
+            Route::get('/parking/mine', MyPermits::class)->name('building.parking.mine');
+            Route::get('/parking/declare', DeclarationWizard::class)->name('building.parking.declare');
+            Route::get('/parking/sighting', SightingSheet::class)->name('building.parking.sighting');
+            Route::get('/parking/progress', CampaignProgress::class)->name('building.parking.progress');
+        });
+        // Staff files (gate L1 is checked by the policies inside): photo 5-min signed, export 10-min signed + step-up.
+        Route::get('/files/sightings/{sighting}/photo', SightingPhotoController::class)
+            ->middleware(['role:parking_officer,building_admin', 'step-up', 'signed'])
+            ->where('sighting', '[0-9a-z]{26}')
+            ->name('building.sighting-photo');
+        Route::get('/files/parking-exports/{export}', ParkingExportDownloadController::class)
+            ->middleware(['role:parking_officer,building_admin', 'step-up', 'signed'])
+            ->where('export', '[0-9a-z]{26}')
+            ->name('building.parking-export');
+        Route::get('/files/parking-sign', ParkingSignController::class)
+            ->middleware(['role:parking_officer,building_admin'])
+            ->name('building.parking-sign');
     });

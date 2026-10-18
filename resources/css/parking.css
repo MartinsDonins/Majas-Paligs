@@ -1,0 +1,96 @@
+/*
+ * Package C — parking (DESIGN-SYSTEM §5, §6.6–6.8). Neutral result card (never red / "svešs"), plate input
+ * (mono / tnum, uppercase), Latvian plate badge for the user's OWN vehicles only, progress rings.
+ */
+@layer components {
+    .plate-input {
+        width: 100%;
+        min-height: 64px;
+        padding: 10px 16px;
+        border: 2px solid var(--color-line);
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
+        color: var(--color-fg);
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        text-align: center;
+        font-feature-settings: "tnum" 1, "ss01" 1;
+    }
+
+    .plate-input:focus { outline: 3px solid var(--color-focus); outline-offset: 2px; border-color: var(--color-focus); }
+    .plate-input::placeholder { color: var(--color-fg-muted); opacity: .55; letter-spacing: .08em; }
+
+    /* Result card: success (registered) vs neutral info (not found) — icon + words, never colour alone. */
+    .lookup-result {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        padding: 24px 16px;
+        border-radius: var(--radius-md);
+        border: 2px solid var(--color-line);
+        background: var(--color-surface);
+        text-align: center;
+    }
+
+    .lookup-result[data-result="yes"] { border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-line)); }
+    .lookup-result[data-result="yes"] .lookup-icon { color: var(--color-success); }
+    .lookup-result[data-result="no"] { background: var(--color-surface-2); }
+    .lookup-result[data-result="no"] .lookup-icon { color: var(--color-fg-muted); }
+    .lookup-result .lookup-word { font-size: var(--text-3xl); font-weight: 700; line-height: 1.15; }
+
+    /* Latvian plate look — white, thin black border, blue EU strip. Only for the user's own vehicles. */
+    .plate-badge {
+        display: inline-flex;
+        align-items: stretch;
+        min-height: 40px;
+        border: 2px solid #1c1a17;
+        border-radius: 6px;
+        background: #ffffff;
+        color: #1c1a17;
+        overflow: hidden;
+        font-weight: 700;
+        letter-spacing: .08em;
+        font-feature-settings: "tnum" 1, "ss01" 1;
+    }
+
+    .plate-badge > .eu {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+        width: 22px;
+        padding-bottom: 3px;
+        background: #003399;
+        color: #ffffff;
+        font-size: 10px;
+        letter-spacing: 0;
+    }
+
+    .plate-badge > .num { display: flex; align-items: center; padding: 2px 10px; font-size: 1.25rem; }
+
+    .permit-card { border-left: 6px solid var(--color-accent); }
+    .permit-card[data-type="guest"] { border-left-style: dashed; }
+
+    .progress-ring { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
+    .progress-ring svg { width: 88px; height: 88px; transform: rotate(-90deg); }
+    .progress-ring .track { stroke: var(--color-surface-2); }
+    .progress-ring .bar { stroke: var(--color-accent); stroke-linecap: round; transition: stroke-dashoffset var(--motion-base) ease-out; }
+    .progress-ring .value { font-size: var(--text-lg); font-weight: 700; }
+    .progress-ring[data-mine] .track { stroke: var(--color-primary-100); }
+
+    .reason-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .reason-chips > button {
+        min-height: 44px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--color-line);
+        background: var(--color-surface);
+        color: var(--color-fg);
+        font-weight: 600;
+        font-size: var(--text-sm);
+    }
+    .reason-chips > button[aria-pressed="true"] { background: var(--color-accent-soft); border-color: var(--color-accent); color: var(--color-accent); }
+}

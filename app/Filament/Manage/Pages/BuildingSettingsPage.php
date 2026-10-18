@@ -8,6 +8,9 @@ use App\Audit\AuditLogger;
 use App\Gdpr\CoreGate;
 use App\Gdpr\CoreGateMonitor;
 use App\Gdpr\CoreGateStatus;
+use App\Gdpr\ParkingGate;
+use App\Gdpr\ParkingGateMonitor;
+use App\Gdpr\ParkingGateStatus;
 use App\Models\Building;
 use App\Support\BuildingSettings;
 use App\Tenancy\CurrentBuilding;
@@ -85,6 +88,10 @@ final class BuildingSettingsPage extends Page
             'mandate_ref' => $s->mandateRef,
             'module_heating' => $s->modules['heating'],
             'module_outages' => $s->modules['outages'],
+            'module_parking' => $s->modules['parking'],
+            'parking_enforcement_mode' => $s->parkingEnforcementMode,
+            'parking_rules_adopted_at' => $s->parkingRulesAdoptedAt,
+            'parking_amnesty_until' => $s->parkingAmnestyUntil,
             'share_heating_floors' => $s->shareWithManager['heating_floors'],
             'share_apartment_numbers' => $s->shareWithManager['apartment_numbers'],
             'share_decided_ref' => $s->shareWithManager['decided_ref'],
@@ -124,6 +131,18 @@ final class BuildingSettingsPage extends Page
                     ->schema([
                         Toggle::make('module_heating')->label(__('enum.module.heating')),
                         Toggle::make('module_outages')->label(__('enum.module.outages')),
+                        Toggle::make('module_parking')->label(__('enum.module.parking'))
+                            ->helperText(__('admin.settings.parking_module_help')),
+                    ]),
+                Section::make(__('admin.settings.parking'))
+                    ->description(__('admin.settings.parking_help'))
+                    ->columns(3)
+                    ->schema([
+                        Select::make('parking_enforcement_mode')->label(__('admin.settings.enforcement_mode'))
+                            ->options(collect(BuildingSettings::ENFORCEMENT_MODES)->mapWithKeys(fn ($m) => [$m => __('admin.settings.enforcement.'.$m)])->all())
+                            ->required(),
+                        DatePicker::make('parking_rules_adopted_at')->label(__('admin.settings.rules_adopted'))->native(false)->displayFormat('d.m.Y'),
+                        DatePicker::make('parking_amnesty_until')->label(__('admin.settings.amnesty_until'))->native(false)->displayFormat('d.m.Y'),
                     ]),
                 Section::make(__('admin.settings.sharing'))
                     ->description(__('admin.settings.sharing_help'))
@@ -154,6 +173,7 @@ final class BuildingSettingsPage extends Page
 
         $data = $this->form->getState();
         $before = CoreGate::status($building);
+        $parkingBefore = ParkingGate::status($building);
 
         try {
             $settings = $building->settings->with([
@@ -170,7 +190,11 @@ final class BuildingSettingsPage extends Page
                 'modules' => [
                     'heating' => (bool) ($data['module_heating'] ?? false),
                     'outages' => (bool) ($data['module_outages'] ?? false),
+                    'parking' => (bool) ($data['module_parking'] ?? $building->settings->modules['parking']),
                 ],
+                'parking_enforcement_mode' => $data['parking_enforcement_mode'] ?? 'visible_permit',
+                'parking_rules_adopted_at' => $data['parking_rules_adopted_at'] ?? null,
+                'parking_amnesty_until' => $data['parking_amnesty_until'] ?? null,
                 'share_with_manager' => [
                     'heating_floors' => (bool) ($data['share_heating_floors'] ?? false),
                     'apartment_numbers' => (bool) ($data['share_heating_floors'] ?? false) && (bool) ($data['share_apartment_numbers'] ?? false),
@@ -189,6 +213,27 @@ final class BuildingSettingsPage extends Page
         $sharingChanged = $settings->shareWithManager !== $building->settings->shareWithManager;
         if ($sharingChanged && ! Gate::allows('updateSharing', $building)) {
             Notification::make()->danger()->title(__('admin.settings.sharing_step_up'))->send();
+
+            return;
+        }
+
+        // Parking gate fields (DPA scope, DPIA, mandate, module, rules, mode): building_admin + fresh step-up (C.0).
+        $old = $building->settings;
+        $parkingChanged = $settings->modules['parking'] !== $old->modules['parking']
+            || in_array('parking', $settings->dpaScope, true) !== in_array('parking', $old->dpaScope, true)
+            || $settings->dpiaCompletedAt !== $old->dpiaCompletedAt
+            || $settings->mandateRef !== $old->mandateRef
+            || $settings->parkingEnforcementMode !== $old->parkingEnforcementMode
+            || $settings->parkingRulesAdoptedAt !== $old->parkingRulesAdoptedAt;
+        if ($parkingChanged && ! Gate::allows('updateParkingGate', $building)) {
+            Notification::make()->danger()->title(__('admin.settings.sharing_step_up'))->send();
+
+            return;
+        }
+
+        // The resident module can be switched ON only at L2 (and is switched off automatically when L2 is lost).
+        if ($settings->modules['parking'] && ! $old->modules['parking'] && ! $this->wouldReachL2($building, $settings)) {
+            Notification::make()->danger()->title(__('admin.settings.parking_needs_l2'))->send();
 
             return;
         }
@@ -215,6 +260,7 @@ final class BuildingSettingsPage extends Page
         }
 
         CoreGateMonitor::afterChange($building, $before);
+        ParkingGateMonitor::afterChange($building, $parkingBefore);
 
         Notification::make()->success()->title(__('admin.settings.saved'))->send();
     }
@@ -222,6 +268,26 @@ final class BuildingSettingsPage extends Page
     public function gateStatus(): CoreGateStatus
     {
         return CoreGate::status(CurrentBuilding::get());
+    }
+
+    public function parkingGate(): ParkingGateStatus
+    {
+        return ParkingGate::status(CurrentBuilding::get());
+    }
+
+    /**
+     * Gate L2 with the NEW settings applied (the same save may complete the last condition and enable the module).
+     */
+    private function wouldReachL2(Building $building, BuildingSettings $settings): bool
+    {
+        $original = $building->settings;
+        $building->setAttribute('settings', $settings);
+
+        try {
+            return ParkingGate::status($building)->l2();
+        } finally {
+            $building->setAttribute('settings', $original);
+        }
     }
 
     public function building(): Building
