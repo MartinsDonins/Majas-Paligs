@@ -72,6 +72,8 @@ jobs:
       - name: Fresh-cluster bootstrap check (AC 20)
         run: sh scripts/bootstrap-check.sh
         env:
+          # No .env in CI: without this, APP_ENV defaults to production and ProductionGuard (correctly) refuses to boot.
+          APP_ENV: testing
           DB_OWNER_PASSWORD: owner-dev-only
 
       - name: Composer audit
