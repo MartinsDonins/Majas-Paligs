@@ -46,6 +46,15 @@ final class BuildingPolicy
         return $this->update($user, $building) && app(StepUpService::class)->hasFresh($user);
     }
 
+    /**
+     * Parking gate fields (dpa_scope ∋ parking, DPIA, mandate, modules.parking, rules, enforcement mode) need
+     * building_admin AND a fresh step-up (MVP-SPEC C.0); changes are audited by the settings page.
+     */
+    public function updateParkingGate(User $user, Building $building): bool
+    {
+        return $this->update($user, $building) && app(StepUpService::class)->hasFresh($user);
+    }
+
     private function inContext(Building $building): bool
     {
         return CurrentBuilding::has() && CurrentBuilding::id() === (int) $building->id;

@@ -82,6 +82,19 @@ final class AppServiceProvider extends ServiceProvider
         Gate::policy(Models\RiserCheck::class, Policies\RiserCheckPolicy::class);
         Gate::policy(Models\RiserDispute::class, Policies\RiserDisputePolicy::class);
 
+        // Package C — parking (MVP-SPEC C.4). Every policy applies ParkingGate in before().
+        Gate::policy(Models\Vehicle::class, Policies\VehiclePolicy::class);
+        Gate::policy(Models\Permit::class, Policies\PermitPolicy::class);
+        Gate::policy(Models\PlateLookup::class, Policies\PlateLookupPolicy::class);
+        Gate::policy(Models\Sighting::class, Policies\SightingPolicy::class);
+        Gate::policy(Models\ApartmentParkingDeclaration::class, Policies\DeclarationPolicy::class);
+        Gate::policy(Models\ParkingExport::class, Policies\ParkingExportPolicy::class);
+        Gate::policy(Models\ParkingLot::class, Policies\ParkingLotPolicy::class);
+        Gate::policy(Models\ParkingOfficerTask::class, Policies\ParkingOfficerTaskPolicy::class);
+        Gate::define('parking-analytics', [Policies\ParkingAnalyticsPolicy::class, 'view']);
+        Gate::define('parking-analytics-apartments', [Policies\ParkingAnalyticsPolicy::class, 'viewPerApartment']);
+        Gate::define('parking-import', [Policies\PermitImportPolicy::class, 'import']);
+
         foreach ([Models\BuildingSeries::class, Models\SeriesSectionLayout::class, Models\SeriesApartmentType::class,
             Models\SeriesRoom::class, Models\SeriesRiser::class, Models\LegalNotice::class, Models\PrivacyNoticeVersion::class,
             Models\Organization::class] as $platformModel) {

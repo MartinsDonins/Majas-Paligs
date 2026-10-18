@@ -7,7 +7,8 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * Structure-only seed (zero personal data): series catalogue, privacy notice drafts and the pilot building.
+ * Structure-only seed (zero personal data): series catalogue, privacy notice drafts, the
+ * parking legal banner and the pilot building.
  * DemoSeeder (synthetic users, local only) is NOT called here: `php artisan db:seed --class=DemoSeeder`.
  */
 final class DatabaseSeeder extends Seeder
@@ -17,6 +18,7 @@ final class DatabaseSeeder extends Seeder
         $this->call([
             Series602Seeder::class,
             PrivacyNoticeSeeder::class,
+            LegalNoticeSeeder::class,
             PucesIela51Seeder::class,
         ]);
     }

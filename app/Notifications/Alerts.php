@@ -16,9 +16,12 @@ use Illuminate\Support\Facades\Notification;
  */
 class Alerts
 {
-    public function building(Building $building, string $limiter, string $window, int $count, int $threshold): void
+    /**
+     * @param  list<string>|null  $roles  building role values to alert (default: building_admin + section_elder)
+     */
+    public function building(Building $building, string $limiter, string $window, int $count, int $threshold, ?array $roles = null): void
     {
-        SendBuildingAlert::dispatch((int) $building->id, $limiter, $window, $count, $threshold);
+        SendBuildingAlert::dispatch((int) $building->id, $limiter, $window, $count, $threshold, $roles);
     }
 
     public function platform(string $limiter, string $window, int $count, int $threshold): void

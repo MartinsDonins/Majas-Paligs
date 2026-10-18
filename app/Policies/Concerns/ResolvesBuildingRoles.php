@@ -27,6 +27,21 @@ trait ResolvesBuildingRoles
         return $b !== null && ! $user->isTombstone() && $user->hasRoleIn($b, BuildingRoleType::BuildingAdmin);
     }
 
+    protected function isParkingOfficer(User $user): bool
+    {
+        $b = $this->building();
+
+        return $b !== null && ! $user->isTombstone() && $user->hasRoleIn($b, BuildingRoleType::ParkingOfficer);
+    }
+
+    /**
+     * parking_officer or building_admin (Package C staff).
+     */
+    protected function isParkingStaff(User $user): bool
+    {
+        return $this->isParkingOfficer($user) || $this->isAdmin($user);
+    }
+
     protected function isElderOf(User $user, int $sectionId): bool
     {
         $b = $this->building();

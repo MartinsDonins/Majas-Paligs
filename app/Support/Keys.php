@@ -28,6 +28,16 @@ final class Keys
     }
 
     /**
+     * Previous plate encryption master during a master-key rotation (PLATE_ENC_KEY_PREVIOUS), or null.
+     */
+    public static function plateEncryptionPrevious(): ?string
+    {
+        $value = (string) config('majas.keys.plate_enc_previous');
+
+        return $value === '' ? null : self::decode('plate_enc_previous', 'PLATE_ENC_KEY_PREVIOUS');
+    }
+
+    /**
      * Key for pseudonymous HMACs of e-mails and IPs (derived from INVITE_KEY with a separate label so the
      * invite key itself is never used directly for another purpose).
      */

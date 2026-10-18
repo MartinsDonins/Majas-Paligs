@@ -19,6 +19,19 @@ Baseline: OWASP Top 10 (2025) + GDPR. Architecture context: `BRAIN/PLANNING.md` 
 - **Restore drill (every 6 months):** restore the latest encrypted DB backup into a scratch Coolify project,
   inject the escrowed keys, run `php artisan tinker --execute="app(App\Audit\AuditChainVerifier::class)->verify(0)"`
   and log in with a test account. Rotating `INVITE_KEY` invalidates all printed codes — only before a new print.
+- **Plate keys (Package C):** rotate `PLATE_INDEX_KEY` by replacing it and running `php artisan plates:rekey`
+  (all buildings, one transaction each). Rotate `PLATE_ENC_KEY` by setting the new value, putting the old one in
+  `PLATE_ENC_KEY_PREVIOUS`, running `php artisan plates:rekey`, verifying a lookup, then removing
+  `PLATE_ENC_KEY_PREVIOUS` and escrowing the new key. A failed building aborts alone and alerts the platform admin.
+
+## Parking data (Package C)
+Two-level gate (L1 processing / L2 resident-facing) in policies, model guards and routes; plates only as
+ciphertext + per-building blind index; residents get yes/no only; declarations always `pending` (no registration
+oracle); reveals need step-up + reason, are capped (10/day) and visible to the data subjects; sighting photos are
+re-encoded without EXIF and served by 5-minute signed URLs; police lists need four eyes and are never stored.
+Retention: `prune:sightings` (photos 30 d, records 12 mo), `prune:plate-lookups` (6 mo, append-only guard),
+`prune:vehicles` (30 d after permit / membership end or an unanswered re-confirmation, through
+VehicleRemovalService), `prune:uploads` (Livewire temporary files, hourly).
 
 ## Tenancy (A01)
 Fail-closed row-level tenancy, composite FKs, allow-listed context setters and scope lifts — see

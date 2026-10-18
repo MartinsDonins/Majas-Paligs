@@ -52,5 +52,26 @@ final class PrivacyNoticeSeeder extends Seeder
                 ]),
             ],
         ]);
+
+        // Building template incl. the parking section (Package C, gate L2 needs a published notice covering parking).
+        PrivacyNoticeVersion::query()->firstOrCreate(['kind' => 'building_template', 'version' => '2026-10-parking-draft-1'], [
+            'covers_modules' => ['core', 'heating', 'outages', 'parking'],
+            'body' => [
+                'lv' => implode("\n\n", [
+                    'Mājas privātuma paziņojums ar stāvvietas sadaļu (MELNRAKSTS — jāpārbauda juristam).',
+                    'Pārzinis: {controller.name} ({controller.contact}). Apstrādātājs: CoreDigify saskaņā ar datu apstrādes līgumu.',
+                    'Mērķis: dzīvokļu piederības pārbaude, kāpņu telpu vecāko darbs, ziņojumi par apkuri un atslēgumiem, mājas stāvvietas caurlaižu un auto numuru reģistrs.',
+                    'Stāvvieta: auto numuri tiek glabāti šifrēti. Kaimiņi redz tikai atbildi «ir reģistrā» vai «nav atrasts», nekad dzīvokli. Dzīvokli redz tikai stāvvietas atbildīgais un administrators ar pamatotu iemeslu; katra šāda apskate tiek reģistrēta un ir redzama Jums sadaļā «Kas skatīja manus datus». Ziņojumu foto tiek dzēsti pēc 30 dienām, ziņojumi pēc 12 mēnešiem, pārbaudes žurnāls pēc 6 mēnešiem, auto 30 dienas pēc caurlaides vai dalības beigām.',
+                    'Jums ir tiesības piekļūt saviem datiem, tos lejupielādēt un dzēst, kā arī iesniegt sūdzību Datu valsts inspekcijā.',
+                ]),
+                'ru' => implode("\n\n", [
+                    'Сведения о конфиденциальности дома с разделом о парковке (ЧЕРНОВИК — требует проверки юристом).',
+                    'Контролёр: {controller.name} ({controller.contact}). Обработчик: CoreDigify по договору об обработке данных.',
+                    'Цель: проверка принадлежности к квартире, работа старших по подъезду, сообщения об отоплении и отключениях, реестр парковочных пропусков и номеров машин дома.',
+                    'Парковка: номера машин хранятся в зашифрованном виде. Соседи видят только ответ «есть в списке» или «не найдено», никогда квартиру. Квартиру видит только ответственный за парковку и администратор при обоснованной причине; каждый такой просмотр записывается и виден вам в разделе «Кто смотрел мои данные». Фото сообщений удаляются через 30 дней, сообщения через 12 месяцев, журнал проверок через 6 месяцев, машины через 30 дней после окончания пропуска или членства.',
+                    'Вы можете получить, скачать и удалить свои данные, а также подать жалобу в Государственную инспекцию данных (DVI).',
+                ]),
+            ],
+        ]);
     }
 }

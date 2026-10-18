@@ -12,8 +12,14 @@ use App\Models\BuildingRole;
 use App\Models\DataExport;
 use App\Models\HeatingReport;
 use App\Models\IncidentConfirmation;
+use App\Models\Permit;
+use App\Models\PlateLookup;
 use App\Models\Section;
+use App\Models\Sighting;
 use App\Models\User;
+use App\Models\Vehicle;
+use App\Services\Parking\SightingService;
+use App\Services\Parking\VehicleRegistry;
 use App\Tenancy\Data\AuditEntryData;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Bus\Queueable;
@@ -96,7 +102,7 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                     'expires_at' => $r->expires_at->toIso8601String(),
                     'revoked_at' => $r->revoked_at?->toIso8601String(),
                 ])->values()->all(),
-                // Package B: the user's own heating reports and outage confirmations (Package C adds vehicles/permits).
+                // Package B: the user's own heating reports and outage confirmations (Package C below).
                 'heating_reports' => HeatingReport::query()->where('reported_by_user_id', $user->id)->with(['room:id,code', 'apartment:id,number'])
                     ->orderBy('reported_at')->get()->map(static fn (HeatingReport $r): array => [
                         'apartment' => $r->apartment->number,
@@ -114,6 +120,34 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                         'kind' => $c->incident->kind->value,
                         'source' => $c->source->value,
                         'confirmed_at' => $c->created_at->toIso8601String(),
+                    ])->values()->all(),
+                // Package C: vehicles the user declared (own plate in clear — it is the user's own data), permits bound
+                // to them, the user's lookups (reason + yes/no, never the index) and reported sightings (own plate input).
+                'vehicles' => Vehicle::query()->where('declared_by_user_id', $user->id)->orderBy('created_at')->get()
+                    ->map(static fn (Vehicle $v): array => [
+                        'plate' => app(VehicleRegistry::class)->plateOf($v),
+                        'country' => $v->country,
+                        'company_car' => $v->is_company_car,
+                        'status' => $v->status->value,
+                        'declared_at' => $v->created_at->toIso8601String(),
+                        'permits' => Permit::query()->where('vehicle_id', $v->id)->orderBy('valid_from')->get()->map(static fn (Permit $p): array => [
+                            'number' => $p->number, 'type' => $p->type->value, 'status' => $p->status->value,
+                            'valid_from' => $p->valid_from->toDateString(), 'valid_to' => $p->valid_to?->toDateString(),
+                        ])->values()->all(),
+                    ])->values()->all(),
+                'plate_lookups' => PlateLookup::query()->where('user_id', $user->id)->orderBy('created_at')->get()
+                    ->map(static fn (PlateLookup $l): array => [
+                        'reason' => $l->reason_code->value,
+                        'result' => $l->result,
+                        'at' => $l->created_at->toIso8601String(),
+                    ])->values()->all(),
+                'sightings_reported' => Sighting::query()->where('reporter_user_id', $user->id)->with('lot:id,name')->orderBy('seen_at')->get()
+                    ->map(static fn (Sighting $s): array => [
+                        'plate' => app(SightingService::class)->plateOf($s),
+                        'lot' => $s->lot->name,
+                        'seen_at' => $s->seen_at->toIso8601String(),
+                        'status' => $s->reporterState(),
+                        'photo_kept' => $s->hasPhoto(),
                     ])->values()->all(),
             ];
         }, includeEnded: true);

@@ -18,7 +18,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * Count-only alert to a building's elders and building_admin (runs inside that building's context).
+ * Count-only alert to a building's elders and building_admin — or the given roles, e.g. parking_officer —
+ * (runs inside that building's context).
  */
 final class SendBuildingAlert implements ShouldQueue, TenantAware
 {
@@ -32,6 +33,8 @@ final class SendBuildingAlert implements ShouldQueue, TenantAware
         public readonly string $window,
         public readonly int $count,
         public readonly int $threshold,
+        /** @var list<string>|null */
+        public readonly ?array $roles = null,
     ) {}
 
     public function tenantBuildingId(): int
@@ -53,7 +56,7 @@ final class SendBuildingAlert implements ShouldQueue, TenantAware
 
         $ids = BuildingRole::query()
             ->current()
-            ->whereIn('role', [BuildingRoleType::BuildingAdmin->value, BuildingRoleType::SectionElder->value])
+            ->whereIn('role', $this->roles ?? [BuildingRoleType::BuildingAdmin->value, BuildingRoleType::SectionElder->value])
             ->pluck('user_id');
 
         $recipients = User::query()->whereIn('id', $ids)->whereNotNull('email')->whereNull('anonymised_at')->get();

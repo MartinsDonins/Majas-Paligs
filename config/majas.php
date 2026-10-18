@@ -15,6 +15,8 @@ return [
         'invite' => env('INVITE_KEY'),
         'plate_enc' => env('PLATE_ENC_KEY'),
         'plate_index' => env('PLATE_INDEX_KEY'),
+        // Only while rotating the plate encryption master (plates:rekey re-seals every building, then remove it).
+        'plate_enc_previous' => env('PLATE_ENC_KEY_PREVIOUS'),
     ],
 
     /* Working host and future own domain (BUSINESS §6). */
@@ -94,5 +96,13 @@ return [
 
     'outages' => [
         'poll_seconds' => 30,
+    ],
+
+    /* Package C — parking (MVP-SPEC C). Quotas live in buildings.settings (lookup_quota, sighting_quota). */
+    'parking' => [
+        // Private disk for sighting photos (building/{id}/sightings/{ulid}.jpg), served only via 5-min signed URLs.
+        'photo_disk' => env('PARKING_PHOTO_DISK', 'local'),
+        // Legal banner key (platform legal_notices, editable in the platform panel).
+        'legal_notice_key' => 'parking.riga.current_rule',
     ],
 ];

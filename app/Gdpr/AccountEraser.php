@@ -13,6 +13,7 @@ use App\Models\BuildingRole;
 use App\Models\DataExport;
 use App\Models\LoginToken;
 use App\Models\User;
+use App\Services\Parking\VehicleRemovalService;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -30,7 +31,7 @@ final class AccountEraser
         $userId = (int) $user->id;
 
         UserScopedQuery::for($user)->eachBuilding(static function (Building $building) use ($userId): void {
-            DB::transaction(static function () use ($userId): void {
+            DB::transaction(static function () use ($userId, $building): void {
                 foreach (ApartmentMembership::query()->where('user_id', $userId)->active()->get() as $membership) {
                     $membership->forceFill(['status' => MembershipStatus::Ended, 'ended_at' => now()])->save();
                     AuditLogger::record('membership.end', $membership, [$userId], reasonCode: 'account_deleted', actorRole: 'self', actorUserId: $userId);
@@ -38,7 +39,10 @@ final class AccountEraser
 
                 BuildingRole::query()->where('user_id', $userId)->whereNull('revoked_at')->update(['revoked_at' => now()]);
 
-                // Package C: VehicleRemovalService::removeAllFor($userId) + declarations (C.5).
+                // Package C (C.5): own vehicles through the ONE removal path (bound main permits revoked with
+                // status_reason=account_deleted + officer task), then the apartment declarations this user made.
+                app(VehicleRemovalService::class)->removeAllDeclaredBy($userId);
+                DB::table('apartment_parking_declarations')->where('building_id', $building->id)->where('declared_by_user_id', $userId)->delete();
             });
         });
 

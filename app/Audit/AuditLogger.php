@@ -7,6 +7,7 @@ namespace App\Audit;
 use App\Casts\PgArray;
 use App\Support\Identifiers;
 use App\Tenancy\CurrentBuilding;
+use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -41,6 +42,7 @@ final class AuditLogger
         bool $platform = false,
         ?string $actorRole = null,
         ?int $actorUserId = null,
+        ?ConnectionInterface $connection = null,
     ): int {
         self::assertSafe($data);
 
@@ -56,7 +58,7 @@ final class AuditLogger
 
         $request = app()->runningInConsole() && ! app()->runningUnitTests() ? null : request();
 
-        return (int) DB::table('audit_entries')->insertGetId([
+        $row = [
             'chain_key' => $buildingId ?? 0,
             'building_id' => $buildingId,
             'actor_user_id' => $actorUserId,
@@ -70,7 +72,17 @@ final class AuditLogger
             'data' => json_encode((object) $data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
             'ip_hmac' => $request?->ip() !== null ? Identifiers::ipHmac((string) $request->ip()) : null,
             'ua_hash' => $request?->userAgent() !== null ? substr(hash('sha256', (string) $request->userAgent()), 0, 32) : null,
-        ]);
+        ];
+
+        // An explicit connection (e.g. the retention role inside prune:vehicles) inserts without RETURNING (no SELECT
+        // grant needed for the id); the default path returns the trigger-assigned id.
+        if ($connection !== null) {
+            $connection->table('audit_entries')->insert($row);
+
+            return 0;
+        }
+
+        return (int) DB::table('audit_entries')->insertGetId($row);
     }
 
     /**
