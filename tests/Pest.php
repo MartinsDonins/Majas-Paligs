@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Auth\StepUpService;
+use App\Casts\Bytea;
 use App\Enums\BuildingRoleType;
 use App\Enums\MembershipRole;
 use App\Enums\MembershipStatus;
@@ -20,6 +21,7 @@ use App\Models\PrivacyNoticeVersion;
 use App\Models\Riser;
 use App\Models\Section;
 use App\Models\User;
+use App\Models\Vehicle;
 use App\Services\Buildings\BuildingGenerator;
 use App\Services\Buildings\GeneratorInput;
 use App\Services\Buildings\SeriesTemplateData;
@@ -28,10 +30,14 @@ use App\Services\Heating\HeatingReportService;
 use App\Services\Heating\HeatingSubmission;
 use App\Services\Heating\Views\HeatingSectionView;
 use App\Services\Invites\InviteCodeService;
+use App\Services\Parking\VehicleRegistry;
 use App\Tenancy\CurrentBuilding;
 use Database\Seeders\PrivacyNoticeSeeder;
 use Database\Seeders\Series602Seeder;
+use Illuminate\Database\Connection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Tests\Support\DbRoles;
 use Tests\TestCase;
 
 /*
@@ -247,4 +253,112 @@ function residentSectionView(Building $b, int $sectionNumber, string $roundKey =
 function riserId(Building $b, string $code): int
 {
     return (int) inBuilding($b, fn () => Riser::query()->where('code', $code)->value('id'));
+}
+
+/*
+ * ---- Package C helpers (parking) ----
+ */
+
+/**
+ * A generated, gate-open building at parking gate level $level (0, 1 or 2); at L2 the resident module is ON unless
+ * $module is false. Default: 2 stairwells × 3 floors × 4 apartments (1..24).
+ */
+function parkingHouse(string $slug = 'park-house', int $level = 2, bool $module = true, int $sections = 2, int $floors = 3): Building
+{
+    $b = makeBuilding($slug, $sections, $floors, open: true);
+
+    if ($level >= 1) {
+        $b->forceFill(['settings' => $b->settings->with(['dpa_scope' => ['core', 'heating', 'outages', 'parking']])])->save();
+    }
+
+    if ($level >= 2) {
+        $b->forceFill(['settings' => $b->settings->with([
+            'dpia_completed_at' => '2026-10-10',
+            'mandate_ref' => 'Kopības lēmums Nr. 1 (tests)',
+            'modules' => ['parking' => $module],
+        ])])->save();
+
+        $template = PrivacyNoticeVersion::query()->where('kind', PrivacyNoticeKind::BuildingTemplate->value)->orderByDesc('id')->firstOrFail();
+        inBuilding($b, fn () => BuildingPrivacyNotice::query()->create([
+            'template_version_id' => $template->id,
+            'controller_snapshot' => ['name' => 'Testa biedrība', 'contact' => 'dati@example.test'],
+            'covers_modules' => ['core', 'heating', 'outages', 'parking'],
+            'published_at' => now()->subMinutes(5),
+        ]));
+    }
+
+    return $b->refresh();
+}
+
+/**
+ * parking_officer of the building (with an e-mail, so step-up works).
+ */
+function parkingOfficer(Building $b, ?string $email = null): User
+{
+    $officer = makeUser($email);
+    grantRole($officer, $b, BuildingRoleType::ParkingOfficer);
+
+    return $officer;
+}
+
+/**
+ * An ACTIVE vehicle of an apartment, created by an officer (synthetic plates only, e.g. "AB1234").
+ */
+function activeVehicle(Building $b, int $apartmentNumber, string $plate, ?User $officer = null): Vehicle
+{
+    $officer ??= parkingOfficer($b);
+    $apartment = apartment($b, $apartmentNumber);
+
+    return inBuilding($b, fn () => app(VehicleRegistry::class)->officerCreate($officer, $apartment, $plate));
+}
+
+/**
+ * Approved owner of an apartment in a parking house.
+ */
+function parkingResident(Building $b, int $apartmentNumber, MembershipRole $role = MembershipRole::Owner): User
+{
+    $user = makeUser();
+    member($user, $b, $apartmentNumber, role: $role);
+
+    return $user;
+}
+
+/*
+ * Committed fixtures for retention tests (the majas_retention connection cannot see the test transaction).
+ */
+function retentionBuilding(Connection $owner, string $slug): array
+{
+    $now = now();
+    $buildingId = (int) $owner->table('buildings')->insertGetId([
+        'slug' => $slug, 'name' => $slug, 'address_line' => $slug, 'address_search' => $slug, 'city' => 'Rīga', 'floors' => 1,
+        'settings' => '{}', 'status' => 'draft', 'default_locale' => 'lv', 'created_at' => $now, 'updated_at' => $now,
+    ]);
+    $sectionId = (int) $owner->table('sections')->insertGetId(['building_id' => $buildingId, 'number' => 1, 'first_apartment_no' => 1, 'apartments_per_floor' => 4, 'floors' => 1, 'created_at' => $now, 'updated_at' => $now]);
+    $apartments = [];
+    foreach ([1, 2, 3, 4] as $n) {
+        $apartments[$n] = (int) $owner->table('apartments')->insertGetId(['building_id' => $buildingId, 'section_id' => $sectionId, 'number' => $n, 'floor' => 1, 'position' => $n, 'created_at' => $now, 'updated_at' => $now]);
+    }
+
+    return [$buildingId, $apartments];
+}
+
+function retentionVehicle(Connection $owner, int $buildingId, int $apartmentId, array $attrs = []): string
+{
+    $id = strtolower((string) Str::ulid());
+    $owner->table('vehicles')->insert($attrs + [
+        'id' => $id, 'building_id' => $buildingId, 'apartment_id' => $apartmentId,
+        'plate_ciphertext' => Bytea::literal(random_bytes(40)), 'plate_bidx' => Bytea::literal(random_bytes(32)), 'plate_key_version' => 1,
+        'status' => 'active', 'source' => 'officer', 'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    return $id;
+}
+
+function cleanupRetentionBuilding(Connection $owner, int $buildingId): void
+{
+    DbRoles::wipeChain($buildingId);
+    foreach (['parking_officer_tasks', 'permits', 'vehicles', 'apartment_memberships', 'apartments', 'sections'] as $table) {
+        $owner->table($table)->where('building_id', $buildingId)->delete();
+    }
+    $owner->table('buildings')->where('id', $buildingId)->delete();
 }

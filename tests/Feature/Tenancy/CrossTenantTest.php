@@ -4,21 +4,38 @@ declare(strict_types=1);
 
 use App\Enums\BuildingRoleType;
 use App\Enums\IncidentKind;
+use App\Enums\LookupReason;
 use App\Enums\ManagerReportKind;
 use App\Enums\MembershipStatus;
+use App\Enums\ParkingExportFormat;
+use App\Enums\ParkingExportKind;
 use App\Livewire\Home\Dashboard;
+use App\Models\ApartmentParkingDeclaration;
+use App\Models\BuildingPrivacyNotice;
 use App\Models\ColumnStatus;
 use App\Models\HeatingReport;
 use App\Models\Incident;
 use App\Models\IncidentConfirmation;
 use App\Models\ManagerReport;
+use App\Models\ParkingExport;
+use App\Models\ParkingLot;
+use App\Models\ParkingOfficerTask;
+use App\Models\Permit;
+use App\Models\PlateLookup;
+use App\Models\PlateSightingStat;
+use App\Models\PrivacyNoticeVersion;
 use App\Models\RiserCheck;
 use App\Models\RiserDispute;
 use App\Models\RiserStatus;
+use App\Models\Sighting;
 use App\Models\SurveyRound;
+use App\Models\Vehicle;
 use App\Services\Heating\ManagerReportGenerator;
 use App\Services\Heating\SectionScope;
 use App\Services\Outages\IncidentService;
+use App\Services\Parking\ParkingExportService;
+use App\Services\Parking\PlateLookupService;
+use App\Services\Parking\SightingService;
 use App\Tenancy\Exceptions\MissingBuildingContext;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +58,7 @@ function residentPaths(string $slug): array
         ->map(fn (Route $r) => '/'.strtr($r->uri(), [
             '{building:slug}' => $slug, '{building}' => $slug, '{batch}' => '01JABCDEFGHJKMNPQRSTVWXYZ0', '{export}' => '01JABCDEFGHJKMNPQRSTVWXYZ0',
             '{incident}' => test()->incidentA ?? '01jabcdefghjkmnpqrstvwxyz0', '{report}' => test()->reportA ?? '01jabcdefghjkmnpqrstvwxyz0', '{format}' => 'pdf',
+            '{sighting}' => test()->sightingA ?? '01jabcdefghjkmnpqrstvwxyz0',
         ]))
         ->values()
         ->all();
@@ -59,6 +77,27 @@ beforeEach(function (): void {
         'target' => 'building', 'reason_lv' => 'Tests', 'reason_ru' => 'Тест',
     ]))->id;
     $this->reportA = inBuilding($this->a, fn () => app(ManagerReportGenerator::class)->generate($adminA, ManagerReportKind::Heating, SectionScope::wholeBuilding()))->id;
+    // Package C rows of building A (parking gate L2 in both houses): a vehicle, a sighting, an export request.
+    foreach ([$this->a, $this->b] as $b) {
+        $b->forceFill(['settings' => $b->settings->with([
+            'modules' => ['heating' => true, 'outages' => true, 'parking' => true],
+            'dpa_scope' => ['core', 'heating', 'outages', 'parking'], 'dpia_completed_at' => '2026-10-10', 'mandate_ref' => 'Lēmums 2',
+            'parking_enforcement_mode' => 'both',
+        ])])->save();
+        inBuilding($b, fn () => BuildingPrivacyNotice::query()->create([
+            'template_version_id' => PrivacyNoticeVersion::query()->where('kind', 'building_template')->value('id'),
+            'controller_snapshot' => ['name' => 'Testa biedrība', 'contact' => 'dati@example.test'],
+            'covers_modules' => ['core', 'heating', 'outages', 'parking'], 'published_at' => now()->subMinute(),
+        ]));
+    }
+    $this->vehicleA = activeVehicle($this->a, 1, 'AB1234', parkingOfficer($this->a));
+    $lotA = inBuilding($this->a, fn () => ParkingLot::query()->create(['name' => 'Pagalms A']));
+    $reporterA = makeUser('reporter-a@example.test');
+    member($reporterA, $this->a, 2);
+    inBuilding($this->a, fn () => app(SightingService::class)->submit($reporterA, apartment($this->a, 2), $lotA, 'CD5678'));
+    $this->sightingA = inBuilding($this->a, fn () => Sighting::query()->value('id'));
+    $this->exportA = inBuilding($this->a, fn () => app(ParkingExportService::class)->request($adminA, ParkingExportKind::Manager, ParkingExportFormat::Csv))->id;
+
     $this->memberOfB = makeUser('member-b@example.test');
     member($this->memberOfB, $this->b, 1);
     $this->adminOfB = makeUser('admin-b@example.test');
@@ -68,7 +107,9 @@ beforeEach(function (): void {
 
 it('covers every resident route', function (): void {
     expect(residentPaths('ct-a'))->toContain('/b/ct-a', '/b/ct-a/me', '/b/ct-a/help', '/b/ct-a/heating', '/b/ct-a/water',
-        '/b/ct-a/incidents/'.$this->incidentA, '/b/ct-a/reports/'.$this->reportA.'.pdf');
+        '/b/ct-a/incidents/'.$this->incidentA, '/b/ct-a/reports/'.$this->reportA.'.pdf',
+        '/b/ct-a/parking', '/b/ct-a/parking/mine', '/b/ct-a/parking/declare', '/b/ct-a/parking/sighting', '/b/ct-a/parking/progress',
+        '/b/ct-a/files/sightings/'.$this->sightingA.'/photo', '/b/ct-a/files/parking-sign');
 });
 
 it('keeps building A heating / outage rows unreachable from building B (scope → 404)', function (): void {
@@ -82,6 +123,29 @@ it('keeps building A heating / outage rows unreachable from building B (scope �
         expect(fn () => $model::query()->count())->toThrow(MissingBuildingContext::class);
     }
     expect(inBuilding($this->b, fn () => Incident::query()->whereKey($this->incidentA)->exists()))->toBeFalse();
+});
+
+it('keeps building A parking rows unreachable from building B (scope → 404, fail-closed without context)', function (): void {
+    steppedUp($this->adminOfB);
+    grantRole($this->adminOfB, $this->b, BuildingRoleType::ParkingOfficer);
+
+    $photo = URL::temporarySignedRoute('building.sighting-photo', now()->addMinutes(5), ['building' => 'ct-b', 'sighting' => $this->sightingA]);
+    $this->actingAs($this->adminOfB)->get($photo)->assertNotFound();
+    $export = URL::temporarySignedRoute('building.parking-export', now()->addMinutes(5), ['building' => 'ct-b', 'export' => $this->exportA]);
+    $this->actingAs($this->adminOfB)->get($export)->assertNotFound();
+
+    foreach ([Vehicle::class, Permit::class, Sighting::class, PlateLookup::class, ParkingLot::class, ParkingOfficerTask::class,
+        ApartmentParkingDeclaration::class, ParkingExport::class, PlateSightingStat::class] as $model) {
+        expect(fn () => $model::query()->count())->toThrow(MissingBuildingContext::class);
+    }
+
+    expect(inBuilding($this->b, fn () => Vehicle::query()->whereKey($this->vehicleA->id)->exists()))->toBeFalse()
+        ->and(inBuilding($this->b, fn () => Sighting::query()->whereKey($this->sightingA)->exists()))->toBeFalse();
+
+    // The same plate in building B is NOT registered (per-building blind index).
+    $resident = makeUser('lookup-b@example.test');
+    member($resident, $this->b, 3);
+    expect(inBuilding($this->b, fn () => app(PlateLookupService::class)->lookup($resident, 'AB1234', LookupReason::OwnCheck)->registered))->toBeFalse();
 });
 
 it('returns 404 for a non-member on every /b/{A} route, identical to an unknown slug', function (string $who): void {

@@ -15,7 +15,7 @@ function grantsFor(string $role, string $table): array
     ))->pluck('privilege_type')->sort()->values()->all();
 }
 
-const APPEND_ONLY = ['audit_entries'];
+const APPEND_ONLY = ['audit_entries', 'plate_lookups'];
 const READ_ONLY_FOR_APP = ['audit_chain_heads', 'audit_chain_anchors'];
 
 it('grants majas_app full DML on normal tables', function (): void {
@@ -48,6 +48,25 @@ it('gives majas_retention SELECT + INSERT only on anchors and SELECT on heads', 
         ->and(grantsFor('majas_retention', 'login_tokens'))->toBe(['DELETE', 'SELECT'])
         ->and(grantsFor('majas_retention', 'heating_reports'))->toBe(['DELETE', 'SELECT'])
         ->and(grantsFor('majas_retention', 'users'))->toBe(['DELETE', 'SELECT']);
+});
+
+it('gives majas_retention exactly the Package C prune grants (MVP-SPEC A.2a / C.5)', function (): void {
+    expect(grantsFor('majas_retention', 'plate_lookups'))->toBe(['DELETE', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'vehicles'))->toBe(['DELETE', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'sightings'))->toBe(['DELETE', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'permits'))->toBe(['SELECT'])
+        ->and(grantsFor('majas_retention', 'parking_officer_tasks'))->toBe(['INSERT', 'SELECT']);
+
+    $columns = collect(DB::select(
+        "SELECT table_name, column_name FROM information_schema.column_privileges WHERE grantee = 'majas_retention' AND privilege_type = 'UPDATE' AND table_name IN ('permits', 'sightings')"
+    ))->map(fn ($r) => $r->table_name.'.'.$r->column_name)->sort()->values()->all();
+
+    expect($columns)->toBe(['permits.status', 'permits.status_reason', 'permits.updated_at', 'sightings.photo_deleted_at', 'sightings.photo_path']);
+});
+
+it('rejects UPDATE and DELETE on plate_lookups for majas_app (append-only, trigger + grants)', function (): void {
+    expect(DB::selectOne("SELECT count(*) AS c FROM pg_trigger WHERE tgrelid = 'plate_lookups'::regclass AND NOT tgisinternal")->c)->toBe(2)
+        ->and(DB::selectOne("SELECT prosecdef FROM pg_proc WHERE proname = 'plate_lookups_delete_guard'")->prosecdef)->toBeFalse();
 });
 
 it('never lets majas_app own anything', function (): void {
