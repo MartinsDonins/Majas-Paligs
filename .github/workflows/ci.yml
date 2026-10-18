@@ -144,7 +144,7 @@ jobs:
       - name: Pest browser suite
         run: vendor/bin/pest --testsuite=Browser
 
-      - name: Screenshots (review: 320px / senior / 200 %, colour-blind simulation)
+      - name: "Screenshots (review: 320px / senior / 200 %, colour-blind simulation)"
         if: always()
         uses: actions/upload-artifact@v4
         with:
