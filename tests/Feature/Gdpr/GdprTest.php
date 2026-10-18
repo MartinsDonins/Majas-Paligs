@@ -6,6 +6,8 @@ use App\Audit\AuditChainVerifier;
 use App\Audit\AuditLogger;
 use App\Enums\BuildingRoleType;
 use App\Enums\ExportStatus;
+use App\Enums\IncidentKind;
+use App\Enums\ManagerReportKind;
 use App\Enums\MembershipStatus;
 use App\Gdpr\AccountEraser;
 use App\Gdpr\BuildingExporter;
@@ -15,6 +17,10 @@ use App\Models\ApartmentMembership;
 use App\Models\BuildingExport;
 use App\Models\DataExport;
 use App\Models\User;
+use App\Services\Heating\HeatingReportService;
+use App\Services\Heating\ManagerReportGenerator;
+use App\Services\Heating\SectionScope;
+use App\Services\Outages\IncidentService;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -129,6 +135,15 @@ it('exports the house as structure + aggregates without personal data (AC 13)', 
     $admin = makeUser('admin-x@example.test');
     grantRole($admin, $b, BuildingRoleType::BuildingAdmin);
 
+    // Package B data generated while BOTH sharing flags are on: the manager report snapshot holds per-floor rows
+    // and apartment numbers — the export must contain neither (metadata + riser aggregates only).
+    $b->forceFill(['settings' => $b->settings->with(['modules' => ['heating' => true, 'outages' => true]])])->save();
+    $b->refresh();
+    inBuilding($b, fn () => app(HeatingReportService::class)->submit($resident, apartment($b, 3), ['kitchen' => 'cold', 'room1' => 'cold'], note: 'PRIVATE-NOTE-X'));
+    $report = inBuilding($b, fn () => app(ManagerReportGenerator::class)->generate($admin, ManagerReportKind::Heating, SectionScope::wholeBuilding()));
+    expect(json_encode($report->snapshot))->toContain('"floors_reported"')->toContain('"apartment_numbers"')->toContain('"floor_grid"');
+    inBuilding($b, fn () => app(IncidentService::class)->report($resident, apartment($b, 3), IncidentKind::WaterCold));
+
     $export = inBuilding($b, fn () => BuildingExport::query()->create(['requested_by' => $admin->id, 'status' => ExportStatus::Queued]));
     BuildingExporter::dispatch($b->id, (string) $export->id);
 
@@ -144,7 +159,16 @@ it('exports the house as structure + aggregates without personal data (AC 13)', 
         ->not->toContain('"memberships"')
         ->not->toContain('"floors_reported"')
         ->not->toContain('"apartment_numbers"')
+        ->not->toContain('"floor_grid"')
+        ->not->toContain('"snapshot"')
+        ->not->toContain('PRIVATE-NOTE-X')
         ->not->toContain('"user_id"');
+
+    expect($json['manager_reports'])->toHaveCount(1)
+        ->and($json['manager_reports'][0]['number'])->toBe($report->number)
+        ->and($json['manager_reports'][0]['risers'])->not->toBeEmpty()
+        ->and($json['incident_history'])->toHaveCount(1)
+        ->and($json['incident_history'][0]['confirmations'])->toBe(1);
 
     // defence in depth: the strip() filter removes forbidden keys from any future section
     expect(BuildingExporter::strip(['manager_reports' => [['snapshot' => ['x'], 'floors_reported' => [1], 'apartment_numbers' => [5], 'number' => 'MP-2026-0001']]]))

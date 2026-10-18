@@ -7,6 +7,7 @@ use App\Enums\BuildingRoleType;
 use App\Enums\MembershipRole;
 use App\Enums\MembershipStatus;
 use App\Enums\PrivacyNoticeKind;
+use App\Enums\ReportSource;
 use App\Gdpr\CoreGate;
 use App\Models\Apartment;
 use App\Models\ApartmentInvite;
@@ -16,11 +17,16 @@ use App\Models\BuildingPrivacyNotice;
 use App\Models\BuildingRole;
 use App\Models\BuildingSeries;
 use App\Models\PrivacyNoticeVersion;
+use App\Models\Riser;
 use App\Models\Section;
 use App\Models\User;
 use App\Services\Buildings\BuildingGenerator;
 use App\Services\Buildings\GeneratorInput;
 use App\Services\Buildings\SeriesTemplateData;
+use App\Services\Heating\HeatingGridQuery;
+use App\Services\Heating\HeatingReportService;
+use App\Services\Heating\HeatingSubmission;
+use App\Services\Heating\Views\HeatingSectionView;
 use App\Services\Invites\InviteCodeService;
 use App\Tenancy\CurrentBuilding;
 use Database\Seeders\PrivacyNoticeSeeder;
@@ -192,4 +198,53 @@ function makeInvite(Building $building, int $apartmentNumber, array $attributes 
 function steppedUp(User $user, string $method = 'email'): void
 {
     test()->withSession([StepUpService::SESSION_KEY => ['user' => $user->id, 'at' => now()->getTimestamp(), 'method' => $method]]);
+}
+
+/*
+ * ---- Package B helpers (heating & outages) ----
+ */
+
+/**
+ * A generated, gate-open building with the heating + outages modules on (default 2 stairwells × 9 floors × 4).
+ */
+function heatingHouse(string $slug = 'heat-house', int $sections = 2, int $floors = 9, array $modules = ['heating' => true, 'outages' => true]): Building
+{
+    $b = makeBuilding($slug, $sections, $floors, open: true);
+    $b->forceFill(['settings' => $b->settings->with(['modules' => $modules])])->save();
+
+    return $b->refresh();
+}
+
+/**
+ * Submit a heating report for an apartment as $user (states: room code => status).
+ *
+ * @param  array<string, string>  $states
+ */
+function reportHeating(User $user, Building $b, int $apartmentNumber, array $states, ReportSource $source = ReportSource::Self): HeatingSubmission
+{
+    $apartment = apartment($b, $apartmentNumber);
+
+    return inBuilding($b, fn () => app(HeatingReportService::class)->submit($user, $apartment, $states, source: $source));
+}
+
+/**
+ * Approved resident of an apartment who reports cold/warm in every radiator room.
+ */
+function residentReports(Building $b, int $apartmentNumber, string $status = 'cold', ?array $states = null): User
+{
+    $user = makeUser();
+    member($user, $b, $apartmentNumber);
+    reportHeating($user, $b, $apartmentNumber, $states ?? ['kitchen' => $status, 'room1' => $status, 'room2' => $status]);
+
+    return $user;
+}
+
+function residentSectionView(Building $b, int $sectionNumber, string $roundKey = 'rolling'): HeatingSectionView
+{
+    return inBuilding($b, fn () => app(HeatingGridQuery::class)->residentSection(section($b, $sectionNumber), $roundKey));
+}
+
+function riserId(Building $b, string $code): int
+{
+    return (int) inBuilding($b, fn () => Riser::query()->where('code', $code)->value('id'));
 }

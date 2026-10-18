@@ -46,6 +46,7 @@ it('gives majas_retention SELECT + INSERT only on anchors and SELECT on heads', 
         ->and(grantsFor('majas_retention', 'audit_chain_heads'))->toBe(['SELECT'])
         ->and(grantsFor('majas_retention', 'audit_entries'))->toBe(['DELETE', 'INSERT', 'SELECT'])
         ->and(grantsFor('majas_retention', 'login_tokens'))->toBe(['DELETE', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'heating_reports'))->toBe(['DELETE', 'SELECT'])
         ->and(grantsFor('majas_retention', 'users'))->toBe(['DELETE', 'SELECT']);
 });
 
