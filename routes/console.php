@@ -12,3 +12,5 @@ Schedule::command('prune:login-tokens')->hourly()->withoutOverlapping();
 Schedule::command('prune:users')->dailyAt('03:20')->withoutOverlapping();
 Schedule::command('prune:audit')->weeklyOn(1, '03:40')->withoutOverlapping();
 Schedule::command('prune:exports')->hourly()->withoutOverlapping();
+Schedule::command('prune:heating-reports')->dailyAt('04:10')->withoutOverlapping();
+Schedule::command('heating:recompute')->hourly()->withoutOverlapping();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Auth\StepUpService;
 use App\Models\Building;
 use App\Models\User;
 use App\Policies\Concerns\ResolvesBuildingRoles;
@@ -34,6 +35,15 @@ final class BuildingPolicy
     public function manageNotices(User $user, Building $building): bool
     {
         return $this->inContext($building) && $this->isAdmin($user);
+    }
+
+    /**
+     * BuildingSettingsPolicy::updateSharing (MVP-SPEC B.5): the manager-sharing flags need building_admin AND a
+     * fresh step-up (changes are audited by the settings page).
+     */
+    public function updateSharing(User $user, Building $building): bool
+    {
+        return $this->update($user, $building) && app(StepUpService::class)->hasFresh($user);
     }
 
     private function inContext(Building $building): bool

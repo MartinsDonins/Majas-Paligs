@@ -82,4 +82,17 @@ return [
     ],
 
     'livewire_throttle_per_minute' => 120,
+
+    /* Package B — heating & outages (MVP-SPEC B). */
+    'heating' => [
+        // Heating reports are pruned one month after this month-day (end of the heating season).
+        'season_end' => '05-31',
+        // Undo window shown on the thank-you screen (server accepts up to HeatingReportService::UNDO_SECONDS).
+        'undo_seconds_ui' => 8,
+        'poll_seconds' => 60,
+    ],
+
+    'outages' => [
+        'poll_seconds' => 30,
+    ],
 ];

@@ -6,6 +6,7 @@ use App\Gdpr\CoreGateClosed;
 use App\Http\Middleware\DiscardSecretQuery;
 use App\Http\Middleware\EnsureBuildingRole;
 use App\Http\Middleware\EnsureMember;
+use App\Http\Middleware\EnsureModule;
 use App\Http\Middleware\EnsurePinChanged;
 use App\Http\Middleware\PreventRequestForgery;
 use App\Http\Middleware\RequireStepUp;
@@ -38,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'member' => EnsureMember::class,
+            'module' => EnsureModule::class,
             'role' => EnsureBuildingRole::class,
             'step-up' => RequireStepUp::class,
             'tenant' => SetCurrentBuilding::class,
@@ -49,7 +51,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->appendToPriorityList(SubstituteBindings::class, IdentifyTenant::class);
         $middleware->appendToPriorityList(IdentifyTenant::class, SetCurrentBuilding::class);
         $middleware->appendToPriorityList(SetCurrentBuilding::class, EnsureMember::class);
-        $middleware->appendToPriorityList(EnsureMember::class, EnsureBuildingRole::class);
+        $middleware->appendToPriorityList(EnsureMember::class, EnsureModule::class);
+        $middleware->appendToPriorityList(EnsureModule::class, EnsureBuildingRole::class);
         $middleware->appendToPriorityList(EnsureBuildingRole::class, RequireStepUp::class);
 
         $middleware->redirectGuestsTo(fn (Request $request) => route('login'));

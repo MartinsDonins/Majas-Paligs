@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Auth\RememberCookieGuard;
 use App\Http\Middleware\EnsureBuildingRole;
 use App\Http\Middleware\EnsureMember;
+use App\Http\Middleware\EnsureModule;
 use App\Http\Middleware\EnsurePinChanged;
 use App\Http\Middleware\RequireStepUp;
 use App\Http\Middleware\SetCurrentBuilding;
@@ -73,6 +74,14 @@ final class AppServiceProvider extends ServiceProvider
         Gate::policy(Models\AuditEntry::class, Policies\AuditEntryPolicy::class);
         Gate::policy(Models\User::class, Policies\UserPolicy::class);
 
+        // Package B — heating & outages (MVP-SPEC B.5).
+        Gate::policy(Models\HeatingReport::class, Policies\HeatingReportPolicy::class);
+        Gate::policy(Models\SurveyRound::class, Policies\SurveyRoundPolicy::class);
+        Gate::policy(Models\Incident::class, Policies\IncidentPolicy::class);
+        Gate::policy(Models\ManagerReport::class, Policies\ManagerReportPolicy::class);
+        Gate::policy(Models\RiserCheck::class, Policies\RiserCheckPolicy::class);
+        Gate::policy(Models\RiserDispute::class, Policies\RiserDisputePolicy::class);
+
         foreach ([Models\BuildingSeries::class, Models\SeriesSectionLayout::class, Models\SeriesApartmentType::class,
             Models\SeriesRoom::class, Models\SeriesRiser::class, Models\LegalNotice::class, Models\PrivacyNoticeVersion::class,
             Models\Organization::class] as $platformModel) {
@@ -130,6 +139,7 @@ final class AppServiceProvider extends ServiceProvider
         Livewire::addPersistentMiddleware([
             SetCurrentBuilding::class,
             EnsureMember::class,
+            EnsureModule::class,
             EnsureBuildingRole::class,
             RequireStepUp::class,
             EnsurePinChanged::class,

@@ -10,6 +10,8 @@ use App\Models\ApartmentMembership;
 use App\Models\Building;
 use App\Models\BuildingRole;
 use App\Models\DataExport;
+use App\Models\HeatingReport;
+use App\Models\IncidentConfirmation;
 use App\Models\Section;
 use App\Models\User;
 use App\Tenancy\Data\AuditEntryData;
@@ -94,7 +96,25 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                     'expires_at' => $r->expires_at->toIso8601String(),
                     'revoked_at' => $r->revoked_at?->toIso8601String(),
                 ])->values()->all(),
-                // Package B/C add heating reports, incident confirmations, vehicles and permits here.
+                // Package B: the user's own heating reports and outage confirmations (Package C adds vehicles/permits).
+                'heating_reports' => HeatingReport::query()->where('reported_by_user_id', $user->id)->with(['room:id,code', 'apartment:id,number'])
+                    ->orderBy('reported_at')->get()->map(static fn (HeatingReport $r): array => [
+                        'apartment' => $r->apartment->number,
+                        'room' => $r->room->code,
+                        'status' => $r->status->value,
+                        'temperature_c' => $r->temperature_c,
+                        'triage' => $r->triage?->value,
+                        'private_note' => $r->note_private,
+                        'source' => $r->source->value,
+                        'reported_at' => $r->reported_at->toIso8601String(),
+                        'superseded' => $r->superseded_at !== null,
+                    ])->values()->all(),
+                'outage_confirmations' => IncidentConfirmation::query()->where('user_id', $user->id)->with('incident:id,kind,started_at')
+                    ->orderBy('created_at')->get()->map(static fn (IncidentConfirmation $c): array => [
+                        'kind' => $c->incident->kind->value,
+                        'source' => $c->source->value,
+                        'confirmed_at' => $c->created_at->toIso8601String(),
+                    ])->values()->all(),
             ];
         }, includeEnded: true);
 

@@ -118,7 +118,7 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
-            'tap' => [App\Logging\RedactSecrets::class],
+            'tap' => [RedactSecrets::class],
         ],
 
         'syslog' => [

@@ -69,6 +69,18 @@ final class ApartmentMerger
                 ->where('apartment_id', $absorbed->id)
                 ->update(['apartment_id' => $primary->id, 'updated_at' => now()]);
 
+            // 3b. Package B house data follows the rooms: heating reports, outage confirmations, disputes.
+            DB::table('heating_reports')->where('building_id', $primary->building_id)->where('apartment_id', $absorbed->id)
+                ->update(['apartment_id' => $primary->id, 'updated_at' => now()]);
+            DB::table('incident_confirmations')->where('building_id', $primary->building_id)->where('apartment_id', $absorbed->id)
+                ->whereIn('incident_id', DB::table('incident_confirmations')->where('building_id', $primary->building_id)
+                    ->where('apartment_id', $primary->id)->select('incident_id'))
+                ->delete();
+            DB::table('incident_confirmations')->where('building_id', $primary->building_id)->where('apartment_id', $absorbed->id)
+                ->update(['apartment_id' => $primary->id]);
+            DB::table('riser_disputes')->where('building_id', $primary->building_id)->where('apartment_id', $absorbed->id)
+                ->update(['apartment_id' => $primary->id, 'updated_at' => now()]);
+
             // 4. Invites of the absorbed number can never redeem again.
             ApartmentInvite::query()->where('apartment_id', $absorbed->id)->whereNull('revoked_at')->update(['revoked_at' => now()]);
 

@@ -7,9 +7,13 @@ namespace App\Gdpr;
 use App\Enums\ExportStatus;
 use App\Models\Apartment;
 use App\Models\BuildingExport;
+use App\Models\Incident;
 use App\Models\LandParcel;
+use App\Models\ManagerReport;
 use App\Models\Riser;
+use App\Models\RiserStatus;
 use App\Models\Section;
+use App\Models\SurveyRound;
 use App\Tenancy\CurrentBuilding;
 use App\Tenancy\Jobs\RestoreBuildingContext;
 use App\Tenancy\Jobs\TenantAware;
@@ -157,11 +161,100 @@ final class BuildingExporter implements ShouldQueue, TenantAware
                     'room' => $l->room?->code,
                 ])->values()->all(),
             ])->all(),
-            // Package B fills these with riser/column-level aggregates only (never per-floor data).
-            'survey_round_aggregates' => [],
-            'incident_history' => [],
-            'manager_reports' => [],
+            // Package B: riser/column-level aggregates only (never per-floor data, apartments or identities).
+            'survey_round_aggregates' => $this->roundAggregates($sectionNo->all()),
+            'incident_history' => $this->incidentHistory($sectionNo->all()),
+            'manager_reports' => $this->managerReports(),
         ];
+    }
+
+    /**
+     * Survey rounds with their riser projection (resident-safe columns only).
+     *
+     * @param  array<int, int>  $sectionNo  section id => number
+     * @return list<array<string, mixed>>
+     */
+    private function roundAggregates(array $sectionNo): array
+    {
+        $out = [];
+        foreach (SurveyRound::query()->orderBy('starts_at')->get() as $round) {
+            $risers = RiserStatus::query()
+                ->join('risers', fn ($j) => $j->on('risers.id', '=', 'riser_status.riser_id')->on('risers.building_id', '=', 'riser_status.building_id'))
+                ->where('riser_status.round_key', $round->roundKey())
+                ->orderBy('risers.code')
+                ->get(['risers.code', 'riser_status.status', 'riser_status.confirmed', 'riser_status.distinct_apartments', 'riser_status.floors_covered', 'riser_status.coverage_total', 'riser_status.status_counts']);
+
+            $out[] = [
+                'title' => $round->getTranslations('title'),
+                'status' => $round->status->value,
+                'starts_at' => $round->starts_at->toIso8601String(),
+                'ends_at' => $round->ends_at->toIso8601String(),
+                'sections' => $round->section_ids === null ? 'building' : array_values(array_map(fn (int $id) => $sectionNo[$id] ?? null, $round->section_ids)),
+                'risers' => $risers->map(fn ($r): array => [
+                    'code' => $r->getAttribute('code'),
+                    'status' => $r->getAttribute('status'),
+                    'confirmed' => (bool) $r->getAttribute('confirmed'),
+                    'distinct_apartments' => (int) $r->getAttribute('distinct_apartments'),
+                    'floors_covered' => (int) $r->getAttribute('floors_covered'),
+                    'coverage_total' => (int) $r->getAttribute('coverage_total'),
+                    'status_counts' => json_decode((string) $r->getAttribute('status_counts'), true),
+                ])->values()->all(),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * Incident history without reporter / confirmer identities (confirmations as a count).
+     *
+     * @param  array<int, int>  $sectionNo
+     * @return list<array<string, mixed>>
+     */
+    private function incidentHistory(array $sectionNo): array
+    {
+        return Incident::query()->withCount('confirmations')->with('riser:id,code')->orderBy('started_at')->get()
+            ->map(fn (Incident $i): array => [
+                'kind' => $i->kind->value,
+                'origin' => $i->origin->value,
+                'scope' => explode(':', $i->scope_key)[0],
+                'section' => $i->section_id !== null ? ($sectionNo[$i->section_id] ?? null) : null,
+                'riser' => $i->riser?->code,
+                'column' => $i->column_position,
+                'status' => $i->status->value,
+                'started_at' => $i->started_at->toIso8601String(),
+                'resolved_at' => $i->resolved_at?->toIso8601String(),
+                'confirmations' => (int) $i->confirmations_count,
+            ])->values()->all();
+    }
+
+    /**
+     * Manager reports as METADATA + per-riser aggregates only. The stored snapshot is never copied: per-floor lists,
+     * per-floor grids and apartment numbers are dropped even if the sharing flags were on.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function managerReports(): array
+    {
+        $allowed = ['code', 'section', 'status', 'confirmed', 'distinct_apartments', 'floors_covered', 'coverage_total', 'status_counts', 'whole_riser_under', 'confidence'];
+
+        return ManagerReport::query()->orderBy('generated_at')->get()->map(fn (ManagerReport $m): array => [
+            'number' => $m->number,
+            'kind' => $m->kind->value,
+            'generated_at' => $m->generated_at->toIso8601String(),
+            'period' => ['from' => $m->params['from'] ?? null, 'to' => $m->params['to'] ?? null],
+            'sections' => $m->snapshot['sections'] ?? [],
+            'sent_at' => $m->sent_at?->toIso8601String(),
+            'response_recorded_at' => $m->response['recorded_at'] ?? null,
+            'risers' => array_values(array_map(
+                static fn (array $r): array => array_intersect_key($r, array_flip($allowed)),
+                (array) ($m->snapshot['risers'] ?? []),
+            )),
+            'columns' => array_values(array_map(
+                static fn (array $c): array => array_intersect_key($c, array_flip(['section', 'position', 'status', 'confirmed'])),
+                (array) ($m->snapshot['columns'] ?? []),
+            )),
+        ])->values()->all();
     }
 
     /**
