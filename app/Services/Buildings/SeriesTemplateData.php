@@ -102,7 +102,7 @@ final readonly class SeriesTemplateData
      */
     public function layout(string $code): array
     {
-        return $this->layouts[$code] ?? throw new InvalidArgumentException("Unknown layout preset [{$code}] for series {$this->seriesCode}.");
+        return $this->layouts[$code] ?? throw new InvalidArgumentException(__('admin.generator.err_preset', ['code' => $code, 'series' => $this->seriesCode]));
     }
 
     /**
@@ -110,6 +110,6 @@ final readonly class SeriesTemplateData
      */
     public function type(string $code): array
     {
-        return $this->types[$code] ?? throw new InvalidArgumentException("Unknown apartment type [{$code}] for series {$this->seriesCode}.");
+        return $this->types[$code] ?? throw new InvalidArgumentException(__('admin.generator.err_type', ['code' => $code, 'series' => $this->seriesCode]));
     }
 }

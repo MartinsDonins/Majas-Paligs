@@ -22,6 +22,11 @@ use Illuminate\Support\Facades\DB;
  * (`rtl` mirrors the position). preview() is pure and idempotent (no DB writes, no context needed);
  * generate() writes sections, apartments, cells, rooms, risers and riser links in ONE transaction inside the
  * building's context and is idempotent: existing rows (incl. overrides such as merged apartments) are kept.
+ *
+ * "Idempotent" only holds for the SAME inputs. Re-running with another numbering, floor count or preset used to
+ * link risers and rooms across stairwells (QA 2026-10-20: 226 of 634 riser links pointed into another stairwell).
+ * generate() therefore refuses any input that conflicts with the stored structure (conflicts()), and every lookup
+ * is scoped to the stairwell being generated.
  */
 final class BuildingGenerator
 {
@@ -97,6 +102,11 @@ final class BuildingGenerator
 
         $preview = $this->preview($template, $input);
 
+        $conflicts = $this->conflicts($template, $preview);
+        if ($conflicts !== []) {
+            throw new GeneratorConflict(implode(' ', $conflicts));
+        }
+
         return DB::transaction(function () use ($template, $preview): array {
             $created = ['sections' => 0, 'apartments' => 0, 'rooms' => 0, 'risers' => 0, 'riser_links' => 0];
 
@@ -106,6 +116,73 @@ final class BuildingGenerator
 
             return $created;
         });
+    }
+
+    /**
+     * Why this preview cannot be applied to the building's stored structure (empty = safe to generate). Needs the
+     * building context. A stairwell that already exists must be generated with exactly its stored first number,
+     * floors, apartments per floor, layout preset and numbering direction; apartment numbers and riser codes may
+     * not belong to another stairwell.
+     *
+     * @param  array{sections: list<array{number: int, floors: int, apartments_per_floor: int, first: int, last: int, layout_code: string, rows: array<int, array<int, array{number: int, floor: int, position: int, side: string, type_code: string, rooms_count: int}>>}>, apartments: int, risers: int}  $preview
+     * @return list<string>
+     */
+    public function conflicts(SeriesTemplateData $template, array $preview): array
+    {
+        if (! CurrentBuilding::has()) {
+            throw new MissingBuildingContext('BuildingGenerator::conflicts() requires the building context.');
+        }
+
+        $messages = [];
+        $stored = Section::query()->get()->keyBy('number');
+
+        foreach ($preview['sections'] as $ps) {
+            /** @var Section|null $section */
+            $section = $stored->get($ps['number']);
+
+            if ($section !== null) {
+                $first = (int) $section->first_apartment_no;
+                $last = $first + (int) $section->floors * (int) $section->apartments_per_floor - 1;
+                if ($first !== $ps['first'] || (int) $section->floors !== $ps['floors']
+                    || (int) $section->apartments_per_floor !== $ps['apartments_per_floor'] || (string) $section->layout_code !== $ps['layout_code']) {
+                    $messages[] = __('admin.generator.conflict_section', [
+                        'n' => $ps['number'],
+                        'existing' => __('admin.generator.structure_line', ['from' => $first, 'to' => $last, 'floors' => (int) $section->floors, 'layout' => (string) $section->layout_code]),
+                    ]);
+
+                    continue;
+                }
+
+                $sample = Apartment::query()->where('section_id', $section->id)->where('floor', 1)->where('position', 1)->value('number');
+                $expected = $ps['rows'][1][1]['number'] ?? null;
+                if ($sample !== null && $expected !== null && (int) $sample !== (int) $expected) {
+                    $messages[] = __('admin.generator.conflict_direction', ['n' => $ps['number']]);
+
+                    continue;
+                }
+            }
+
+            $taken = Apartment::query()
+                ->whereBetween('number', [$ps['first'], $ps['last']])
+                ->when($section !== null, fn ($q) => $q->where('section_id', '!=', $section->id))
+                ->orderBy('number')
+                ->pluck('number');
+            if ($taken->isNotEmpty()) {
+                $messages[] = __('admin.generator.conflict_numbers', ['n' => $ps['number'], 'from' => $taken->first(), 'to' => $taken->last()]);
+            }
+
+            $codes = array_column($this->riserPlan($template, $ps['layout_code'], $ps['number']), 'code');
+            $foreign = Riser::query()
+                ->whereIn('code', $codes)
+                ->when($section !== null, fn ($q) => $q->where('section_id', '!=', $section->id))
+                ->orderBy('code')
+                ->pluck('code');
+            if ($foreign->isNotEmpty()) {
+                $messages[] = __('admin.generator.conflict_risers', ['n' => $ps['number'], 'codes' => $foreign->take(3)->implode(', ')]);
+            }
+        }
+
+        return $messages;
     }
 
     /**
@@ -144,7 +221,8 @@ final class BuildingGenerator
                 $numbers[] = $cell['number'];
             }
         }
-        $existing = Apartment::query()->whereIn('number', $numbers)->get()->keyBy('number');
+        // Only THIS stairwell's apartments (conflicts() guarantees no other stairwell uses these numbers).
+        $existing = Apartment::query()->where('section_id', $section->id)->whereIn('number', $numbers)->get()->keyBy('number');
 
         // 1. Missing apartments (bulk).
         $newApartments = [];
@@ -172,7 +250,7 @@ final class BuildingGenerator
         if ($newApartments !== []) {
             DB::table('apartments')->insert($newApartments);
             $created['apartments'] += count($newApartments);
-            $existing = Apartment::query()->whereIn('number', $numbers)->get()->keyBy('number');
+            $existing = Apartment::query()->where('section_id', $section->id)->whereIn('number', $numbers)->get()->keyBy('number');
         }
 
         // 2. Cells.
@@ -245,7 +323,7 @@ final class BuildingGenerator
         $risers = Riser::query()->where('section_id', $section->id)->get()->keyBy('code');
         $links = [];
         foreach ($this->riserPlan($template, $ps['layout_code'], $ps['number']) as $plan) {
-            $riser = $risers->get($plan['code']) ?? Riser::query()->where('code', $plan['code'])->first();
+            $riser = $risers->get($plan['code']);
             if ($riser === null) {
                 $riser = Riser::query()->create([
                     'section_id' => $section->id,

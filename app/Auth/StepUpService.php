@@ -144,7 +144,7 @@ class StepUpService
             'expires_at' => now()->addMinutes((int) config('majas.step_up.code_ttl_minutes', 10)),
         ]);
 
-        $user->notify(new StepUpCode($code));
+        $user->notify((new StepUpCode($code))->locale(app()->getLocale()));
 
         return true;
     }

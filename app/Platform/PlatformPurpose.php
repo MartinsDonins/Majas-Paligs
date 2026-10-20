@@ -11,6 +11,9 @@ enum PlatformPurpose: string
 {
     case Generate = 'generate';
     case StructureEdit = 'structure_edit';
+
+    /** The generator reads a building's stored stairwells to show them and to check a new input against them. */
+    case StructureView = 'structure_view';
     case Seed = 'seed';
 
     /** Bootstrap the first building_admin of a building (MVP-SPEC A.9 "platform_admin bootstrap"). */

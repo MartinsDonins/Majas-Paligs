@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Section layout presets (e.g. 2-2-3-3): positions with side and apartment type.
@@ -30,12 +31,17 @@ final class LayoutsRelationManager extends RelationManager
             TextInput::make('code')->label(__('admin.series.layout_code'))->required()->maxLength(20),
             TextInput::make('apartments_per_floor')->label(__('admin.series.apf'))->numeric()->required()->minValue(1)->maxValue(12),
             Toggle::make('is_default')->label(__('admin.series.default')),
-            Repeater::make('positions')->label(__('admin.series.positions'))->columns(3)->schema([
+            Repeater::make('positions')->label(__('admin.series.positions'))->addActionLabel(__('admin.series.add_position'))->columns(3)->schema([
                 TextInput::make('position')->numeric()->required()->minValue(1),
                 Select::make('side')->options(['left' => __('enum.side.left'), 'right' => __('enum.side.right')])->required(),
                 TextInput::make('apartment_type_code')->label(__('admin.series.type_code'))->required(),
             ])->columnSpanFull(),
         ]);
+    }
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('admin.series.layouts');
     }
 
     public function table(Table $table): Table

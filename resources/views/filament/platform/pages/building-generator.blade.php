@@ -3,7 +3,7 @@
     <x-filament::section :heading="__('admin.generator.input')" icon="heroicon-o-adjustments-horizontal">
         <div class="grid gap-4 text-sm md:grid-cols-3">
             <label class="grid gap-1 font-medium">{{ __('admin.building.label') }}
-                <select wire:model="building" class="{{ $input }}">
+                <select wire:model.live="building" class="{{ $input }}">
                     <option value="">—</option>
                     @foreach ($this->buildings() as $id => $name)
                         <option value="{{ $id }}">{{ $name }}</option>
@@ -18,13 +18,13 @@
                 </select>
             </label>
             <label class="grid gap-1 font-medium">{{ __('admin.generator.sections') }}
-                <input type="number" min="1" max="20" wire:model.live.debounce.500ms="sections" class="{{ $input }}">
+                <input type="number" inputmode="numeric" min="1" max="20" wire:model.live.debounce.500ms="sections" class="{{ $input }}">
             </label>
             <label class="grid gap-1 font-medium">{{ __('admin.section.floors') }}
-                <input type="number" min="1" max="30" wire:model="floors" class="{{ $input }}">
+                <input type="number" inputmode="numeric" min="1" max="30" wire:model="floors" class="{{ $input }}">
             </label>
             <label class="grid gap-1 font-medium">{{ __('admin.generator.first_no') }}
-                <input type="number" min="1" wire:model="firstApartmentNo" class="{{ $input }}">
+                <input type="number" inputmode="numeric" min="1" wire:model="firstApartmentNo" class="{{ $input }}">
             </label>
             <label class="grid gap-1 font-medium">{{ __('admin.generator.direction') }}
                 <select wire:model="direction" class="{{ $input }}">
@@ -33,9 +33,9 @@
                 </select>
             </label>
         </div>
-        <div class="mt-4 grid gap-3 text-sm md:grid-cols-5">
+        <div class="mt-4 grid gap-3 text-sm sm:grid-cols-2 md:grid-cols-5">
             @foreach ($layouts as $section => $code)
-                <label class="grid gap-1 font-medium">{{ __('admin.section.short', ['n' => $section]) }}
+                <label class="grid gap-1 font-medium" wire:key="layout-{{ $section }}">{{ __('admin.section.short', ['n' => $section]) }}
                     <select wire:model="layouts.{{ $section }}" class="{{ $input }}">
                         @foreach ($this->layoutOptions() as $option)
                             <option value="{{ $option }}">{{ $option }}</option>
@@ -44,6 +44,7 @@
                 </label>
             @endforeach
         </div>
+        <p class="mt-2 text-xs text-gray-500">{{ __('admin.generator.layout_help') }}</p>
         <div class="mt-4 flex flex-wrap gap-2">
             <x-filament::button color="gray" wire:click="previewGrid" icon="heroicon-o-eye">{{ __('admin.generator.preview') }}</x-filament::button>
             <x-filament::button wire:click="generate" wire:confirm="{{ __('admin.generator.confirm') }}" icon="heroicon-o-sparkles">{{ __('admin.generator.generate') }}</x-filament::button>
@@ -51,9 +52,33 @@
         <p class="mt-2 text-xs text-gray-500">{{ __('admin.generator.hint') }}</p>
     </x-filament::section>
 
+    @if ($building)
+        <x-filament::section :heading="__('admin.generator.existing_title')" :description="$existing ? __('admin.generator.existing_help') : null" icon="heroicon-o-building-office-2">
+            @if ($existing)
+                <ul class="grid gap-1 text-sm" data-testid="generator-existing">
+                    @foreach ($existing as $s)
+                        <li>{{ __('admin.section.short', ['n' => $s['number']]) }}: {{ __('admin.generator.structure_line', ['from' => $s['first'], 'to' => $s['last'], 'floors' => $s['floors'], 'layout' => $s['layout_code']]) }}</li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="text-sm text-gray-500">{{ __('admin.generator.empty') }}</p>
+            @endif
+        </x-filament::section>
+    @endif
+
+    @if ($conflicts)
+        <x-filament::section :heading="__('admin.generator.conflicts_title')" icon="heroicon-o-exclamation-triangle" icon-color="danger">
+            <ul class="grid list-disc gap-1 ps-5 text-sm" role="alert" data-testid="generator-conflicts">
+                @foreach ($conflicts as $message)
+                    <li>{{ $message }}</li>
+                @endforeach
+            </ul>
+        </x-filament::section>
+    @endif
+
     @if ($result)
         <x-filament::section :heading="__('admin.generator.result')">
-            <p class="text-sm">{{ __('admin.generator.done', $result) }}</p>
+            <p class="text-sm">{{ array_sum($result) === 0 ? __('admin.generator.nothing_new') : __('admin.generator.done', $result) }}</p>
         </x-filament::section>
     @endif
 

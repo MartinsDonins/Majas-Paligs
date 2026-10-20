@@ -80,7 +80,7 @@ class MagicLinkService
             ]);
         });
 
-        $user->notify(new MagicLoginLink($token, $code));
+        $user->notify((new MagicLoginLink($token, $code))->locale(app()->getLocale()));
     }
 
     /**
