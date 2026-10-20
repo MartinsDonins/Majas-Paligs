@@ -118,6 +118,7 @@ final class BuildingRoleResource extends Resource
                         /** @var User $actor */
                         $actor = auth()->user();
                         app(BuildingRoleService::class)->revoke($actor, $record);
+                        Notification::make()->success()->title(__('admin.role.revoked'))->send();
                     }),
             ]);
     }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\MembershipStatus;
+use App\Models\ApartmentMembership;
 use App\Models\User;
 use App\Tenancy\CurrentBuilding;
 use Closure;
@@ -30,6 +32,13 @@ final class EnsureMember
         $roles = $membership === null || ! $membership->isApproved() ? $user->rolesIn($building) : null;
 
         if ($membership === null && ($roles === null || $roles->isEmpty())) {
+            // A former member (rejected / ended) already knows this building exists: send them to /home, which
+            // explains what happened, instead of "Lapa nav atrasta". Everyone else still gets the anti-enumeration 404.
+            if (ApartmentMembership::query()->where('user_id', $user->id)
+                ->whereIn('status', [MembershipStatus::Rejected->value, MembershipStatus::Ended->value])->exists()) {
+                return redirect()->route('home.redirect');
+            }
+
             abort(404);
         }
 

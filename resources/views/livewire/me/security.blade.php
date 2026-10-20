@@ -34,5 +34,5 @@
         </section>
     @endif
 
-    <a href="{{ route('home.redirect') }}" class="btn btn-block">{{ __('common.back') }}</a>
+    <a href="{{ $back }}" class="btn btn-block">{{ __('common.back') }}</a>
 </div>

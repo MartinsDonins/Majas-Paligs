@@ -144,7 +144,7 @@ scripts/prodlike/dc.sh exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-aut
   use `http://127.0.0.1:8080` for dev.
 - The volume `majas-paligs_node_modules_browser` is shared with the dev `browser` service. `down.sh --wipe` never deletes it.
 - First run (2026-10-20, image 0.0.18 = production): the smoke test reproduced these issues, which are also present on
-  production (all fixed in 0.0.20–0.0.23, BRAIN/TASK.md FIX-001…):
+  production (all fixed in 0.0.20–0.0.22, BRAIN/TASK.md FIX-001…FIX-007; re-check with `scripts/prodlike/browser.sh node scripts/prodlike/qa-verify.mjs`):
   1. The LV/RU toggle redirects to `url()->previous()`, which is `/sw.js` after the service worker was fetched, so the
      user lands on the worker's JavaScript ("RU does not work").
   2. `/up/ip` shows `172.28.0.0/24` both here and on https://kaimini.coredigify.com/up/ip. `TRUSTED_PROXY=cloudflare`

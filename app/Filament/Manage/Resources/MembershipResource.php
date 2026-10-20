@@ -19,6 +19,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\RecordActionsPosition;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -68,6 +69,8 @@ final class MembershipResource extends Resource
     {
         return $table
             ->defaultSort('created_at', 'desc')
+            // Approve / reject first: on a 390px phone they were at x≈717, behind a sideways scroll.
+            ->recordActionsPosition(RecordActionsPosition::BeforeColumns)
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['apartment.section', 'user:id,email,login_handle,anonymised_at']))
             ->columns([
                 TextColumn::make('apartment.number')->label(__('admin.apartment.number'))->sortable(),
@@ -81,10 +84,10 @@ final class MembershipResource extends Resource
                         MembershipStatus::Pending => 'warning',
                         default => 'gray',
                     }),
-                TextColumn::make('account')->label(__('admin.membership.account'))
+                TextColumn::make('account')->label(__('admin.membership.account'))->visibleFrom('md')
                     ->getStateUsing(fn (ApartmentMembership $record): string => self::accountType($record->user)),
-                TextColumn::make('created_at')->label(__('admin.membership.requested'))->dateTime('d.m.Y H:i', 'Europe/Riga')->sortable(),
-                TextColumn::make('approved_at')->label(__('admin.membership.approved_at'))->dateTime('d.m.Y', 'Europe/Riga'),
+                TextColumn::make('created_at')->label(__('admin.membership.requested'))->dateTime('d.m.Y H:i', 'Europe/Riga')->sortable()->visibleFrom('md'),
+                TextColumn::make('approved_at')->label(__('admin.membership.approved_at'))->dateTime('d.m.Y', 'Europe/Riga')->visibleFrom('lg'),
             ])
             ->filters([
                 SelectFilter::make('status')->label(__('admin.membership.status'))->options(MembershipStatus::options())->default('pending'),
@@ -115,7 +118,10 @@ final class MembershipResource extends Resource
                     ->color('danger')
                     ->visible(fn (ApartmentMembership $record): bool => $record->isApproved() && Gate::allows('end', $record))
                     ->requiresConfirmation()
-                    ->action(fn (ApartmentMembership $record) => app(MembershipService::class)->end(self::actor(), $record, 'admin_ended')),
+                    ->action(function (ApartmentMembership $record): void {
+                        app(MembershipService::class)->end(self::actor(), $record, 'admin_ended');
+                        Notification::make()->success()->title(__('admin.membership.ended'))->send();
+                    }),
             ]);
     }
 

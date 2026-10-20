@@ -22,5 +22,6 @@ final readonly class MembershipData
         public int $sectionNumber,
         public MembershipRole $role,
         public MembershipStatus $status,
+        public ?string $rejectedReason = null,
     ) {}
 }

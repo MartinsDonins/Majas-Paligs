@@ -132,6 +132,33 @@ out", "admin login is too complicated", "generating the house plan failed". Repr
   SEC-007's "no markFresh on enrolment" (the confirm code already proves possession of the new secret). - COMPLETED (0.0.20)
   - 🆕 FIX-004.1: Lomas atsaukšana bez pilnas izrakstīšanas — revoking an elder role bumps the epoch (logs the resident out
     everywhere); consider forgetting only the step-up (roles are re-checked on every request anyway). Needs a security decision.
+- ✅ FIX-005: Mājas plāna ģenerators un platformas panelis — building edit page 500 (BuildingSettings object in the Livewire
+  form data) fixed, create → generator; "Create" buttons on all platform lists; generator: nullable number fields, every
+  input error a translated notification (no 500), series switch resets presets, the form loads the building's STORED
+  stairwells, and BuildingGenerator::conflicts() refuses an input that differs from the stored structure (numbering,
+  floors, preset, direction, numbers or riser codes of another stairwell) — lookups scoped to the stairwell, so risers /
+  rooms can no longer be linked across stairwells; audit verify button (Filament 5 `afterHeader` slot), purpose +
+  building on platform-chain rows, break-glass reason label; privacy notices: published rows not edit links, modules
+  listed once; translated relation-manager tabs and repeater buttons; Buildings row actions in one menu (phones);
+  relative favicon + local initials avatar (no CSP violations, no name to ui-avatars.com). - COMPLETED (0.0.21)
+- ✅ FIX-006: Valoda paneļos un e-pastos — LV/RU switch in both Filament panels; `fallback_locale=en` + lang/vendor overrides
+  for the Filament keys missing in lv/ru (no raw `filament-*::` keys); labels exactly as translated (no Title Case);
+  "Rediģēt: :label"; notifications in the recipient's users.locale (User::preferredLocale), login / step-up mail in the
+  page language; Laravel mail layout strings translated; 404 in the visitor's language. - COMPLETED (0.0.20–0.0.21)
+- ✅ FIX-007: Pārvaldība un iedzīvotāju lapas — survey round times no longer shifted by the UTC offset (double conversion);
+  round selector on its own row; sheet close buttons never wrap; empty heating report: error next to the button, no
+  limiter hit; outage copy for the first reporter; plate kept on a validation error; vehicle approval asks for a permit
+  number only for a plate change; staff / self actor roles in "Kas skatīja manus datus"; DZEST accepted; /me/privacy back
+  link; former members redirected to /home with the reason instead of a 404; memberships: actions first + fewer columns
+  on phones, toasts for "Beigt dalību" / role revoke; audit log: translated actions and human subjects; export list polls;
+  invite revoke plural; "Apvienots" column; DPA items say CoreDigify fills them; revoked letter hint; PDF columns
+  without reports show "–", "Telpu ziņojumi"; Livewire navigate bar without inline <style> (CSP). - COMPLETED (0.0.22)
+  - 🆕 FIX-007.1: Siltuma režģis tūlīt pēc ziņojuma — the projection updates after the debounced RecomputeRiserStatus job
+    (~11 s), so the reporter briefly sees "be the first"; show the own report optimistically and drop ?report=1 after save.
+  - 🆕 FIX-007.2: "Mans viesis" bez numuru pārbaužu limita — guest declarations share the 5/h plate-lookup quota on purpose
+    (anti-enumeration); a separate, small allowance needs a privacy decision.
+  - 🆕 FIX-007.3: Valodas pārslēgšana pieteikšanās vidū — toggling during the code step / on the magic-link page reloads the
+    page and loses the Livewire state or the fragment token; keep the step (or explain it).
 
 ## 🧑‍⚖️ Pārvaldība (paralēli A/B; GOV-002 + GOV-005 bloķē vilni 1 caur L-core, pārējie bloķē C)
 - 🎯 GOV-002: Apstrādes pārziņa noteikšana un DPA — template DPA (CoreDigify = processor for house data, scope list core/heating/outages/parking), controller = house-authorised person, kopība or association; CoreDigify's own controller role for platform accounts documented; owner signs off. **Unblocks gate L-core (wave 1)** and, with scope `parking`, parking gate L1 (no plate stored before this).

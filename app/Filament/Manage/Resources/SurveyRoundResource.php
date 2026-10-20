@@ -148,8 +148,11 @@ final class SurveyRoundResource extends Resource
                 ->columns(5)
                 ->required(fn (Get $get): bool => ! $get('whole_building'))
                 ->hidden(fn (Get $get): bool => (bool) $get('whole_building')),
-            DateTimePicker::make('starts_at')->label(__('admin.round.starts'))->required()->seconds(false)->timezone('Europe/Riga'),
-            DateTimePicker::make('ends_at')->label(__('admin.round.ends'))->required()->seconds(false)->timezone('Europe/Riga')->after('starts_at'),
+            // Riga wall-clock strings in and out (no ->timezone()): SurveyRoundService::save() converts Riga → UTC
+            // itself. With ->timezone('Europe/Riga') the picker already converted to UTC and the service did it a
+            // second time — rounds opened and closed 2–3 h early (QA 2026-10-20).
+            DateTimePicker::make('starts_at')->label(__('admin.round.starts'))->required()->seconds(false),
+            DateTimePicker::make('ends_at')->label(__('admin.round.ends'))->required()->seconds(false)->after('starts_at'),
             Select::make('status')->label(__('admin.round.status'))->options(SurveyRoundStatus::options())->default('draft')->required(),
         ];
     }

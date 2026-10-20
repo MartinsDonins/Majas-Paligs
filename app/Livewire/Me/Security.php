@@ -169,6 +169,8 @@ final class Security extends Component
 
         return view('livewire.me.security', [
             'enabled' => $user->hasTotp(),
+            // Back to the panel that sent the person here (step-up banner), otherwise Home.
+            'back' => SafeReturn::path(session(self::AFTER_ENROL)) ?? route('home.redirect'),
             'pending' => is_string($pending) ? trim(chunk_split($pending, 4, ' ')) : null,
             'qr' => $qr,
         ])->title(__('me.security.title'));

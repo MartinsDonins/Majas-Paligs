@@ -276,7 +276,9 @@ document.addEventListener('alpine:init', () => {
             this.busy = true;
             try {
                 await this.$wire.call(this.$el.dataset.method || 'check', input.value);
-                if (this.$el.dataset.keep !== '1') {
+                // Keep the typed plate when the server rejected it (aria-invalid after the re-render), so a typo can
+                // be fixed instead of retyping the whole plate.
+                if (this.$el.dataset.keep !== '1' && input.getAttribute('aria-invalid') !== 'true') {
                     input.value = '';
                 }
             } finally {
@@ -395,6 +397,10 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 });
+
+// wire:navigate feedback without Livewire's injected <style> (CSP): a CSS-only bar while the next page loads.
+document.addEventListener('livewire:navigate', () => document.documentElement.classList.add('is-navigating'));
+document.addEventListener('livewire:navigated', () => document.documentElement.classList.remove('is-navigating'));
 
 // LV/RU toggle: post the page the person is ON (path + query, never the #fragment, which may hold a code) — the
 // server-rendered value can be stale after wire:navigate. The server re-validates it (App\Support\SafeReturn).

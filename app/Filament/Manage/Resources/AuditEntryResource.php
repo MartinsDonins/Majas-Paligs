@@ -17,6 +17,8 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Str;
 
 /**
  * Building audit log (read-only, building chain only) + chain verification. Actors by role; no PII in data.
@@ -59,7 +61,8 @@ final class AuditEntryResource extends Resource
                 TextColumn::make('created_at')->label(__('admin.audit.time'))->dateTime('d.m.Y H:i:s', 'Europe/Riga'),
                 TextColumn::make('action')->label(__('admin.audit.action'))->formatStateUsing(fn (string $state) => __('audit.action.'.$state)),
                 TextColumn::make('actor_role')->label(__('admin.audit.actor'))->formatStateUsing(fn (?string $state) => __('audit.actor.'.($state ?? 'system'))),
-                TextColumn::make('subject_type')->label(__('admin.audit.subject')),
+                // A human subject ("Stāvada pārbaude"), never the PHP class name (QA 2026-10-20).
+                TextColumn::make('subject_type')->label(__('admin.audit.subject'))->formatStateUsing(fn (?string $state): string => self::subjectLabel($state)),
                 TextColumn::make('reason_code')->label(__('admin.audit.reason')),
                 TextColumn::make('hash')->label('#')->formatStateUsing(fn ($state) => is_resource($state) ? substr(bin2hex((string) stream_get_contents($state)), 0, 10) : substr(bin2hex((string) $state), 0, 10)),
             ])
@@ -90,5 +93,16 @@ final class AuditEntryResource extends Resource
         return [
             'index' => Pages\ListAuditEntries::route('/'),
         ];
+    }
+
+    public static function subjectLabel(?string $type): string
+    {
+        if ($type === null || $type === '') {
+            return '—';
+        }
+
+        $base = Str::snake(class_basename($type));
+
+        return Lang::has('audit.subject.'.$base) ? __('audit.subject.'.$base) : Str::ucfirst(str_replace('_', ' ', $base));
     }
 }

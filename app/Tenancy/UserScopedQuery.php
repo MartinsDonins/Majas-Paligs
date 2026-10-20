@@ -84,6 +84,8 @@ final class UserScopedQuery
                 'apartment_memberships.apartment_id',
                 'apartment_memberships.role',
                 'apartment_memberships.status',
+                'apartment_memberships.rejected_reason',
+                'apartment_memberships.updated_at as membership_updated_at',
                 'buildings.slug as building_slug',
                 'buildings.name as building_name',
                 'apartments.number as apartment_number',
@@ -104,6 +106,7 @@ final class UserScopedQuery
             sectionNumber: (int) $row->section_number,
             role: MembershipRole::from((string) $row->role),
             status: MembershipStatus::from((string) $row->status),
+            rejectedReason: $row->rejected_reason !== null ? (string) $row->rejected_reason : null,
         ))->values();
     }
 

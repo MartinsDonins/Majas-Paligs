@@ -11,7 +11,8 @@
     </x-filament::section>
 
     <x-filament::section :heading="__('admin.export.recent')">
-        <div class="grid gap-2 text-sm">
+        {{-- Refresh while an export is still being prepared (it used to stay "Gaida" until F5). --}}
+        <div class="grid gap-2 text-sm" @if (collect($this->exports())->contains(fn ($e) => ! in_array($e['status'], ['ready', 'failed', 'expired'], true))) wire:poll.5s @endif>
             @forelse ($this->exports() as $e)
                 <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 dark:border-white/10">
                     <span>{{ $e['created'] }}</span>

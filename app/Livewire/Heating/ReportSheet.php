@@ -72,6 +72,13 @@ final class ReportSheet extends Component
         abort_if($apartment === null, 403);
         Gate::authorize('create', [HeatingReport::class, $apartment]);
 
+        // Nothing chosen: say so next to the button and do NOT spend the 20/h report budget on it.
+        if (array_filter($this->states, static fn ($v): bool => is_string($v) && $v !== '') === []) {
+            $this->addError('states', __('heating.report.choose_one'));
+
+            return;
+        }
+
         $key = 'heating-report:'.auth()->id();
         if (RateLimiter::tooManyAttempts($key, 20)) {
             $this->addError('states', __('heating.report.rate_limited'));

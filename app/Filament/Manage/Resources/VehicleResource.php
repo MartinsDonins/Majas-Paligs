@@ -11,6 +11,7 @@ use App\Enums\VehicleStatus;
 use App\Filament\Manage\Resources\Concerns\ParkingStaff;
 use App\Filament\Manage\Resources\VehicleResource\Pages;
 use App\Models\Apartment;
+use App\Models\ParkingOfficerTask;
 use App\Models\Vehicle;
 use App\Services\Parking\ParkingActionFailed;
 use App\Services\Parking\RevealService;
@@ -177,8 +178,11 @@ final class VehicleResource extends Resource
                     ->color('success')
                     ->visible(fn (Vehicle $record): bool => $record->status === VehicleStatus::Pending && Gate::allows('verify', $record))
                     ->schema([
+                        // Only a plate CHANGE (open task bound to a main permit) uses the number; for a new car it was
+                        // silently discarded (QA 2026-10-20) — the permit is issued under «Caurlaides».
                         TextInput::make('permit_number')->label(__('admin.parking.permit.new_number'))->maxLength(32)
-                            ->helperText(__('admin.parking.vehicle.verify_help')),
+                            ->helperText(__('admin.parking.vehicle.verify_help'))
+                            ->visible(fn (Vehicle $record): bool => ParkingOfficerTask::query()->open()->where('vehicle_id', $record->id)->whereNotNull('permit_id')->exists()),
                     ])
                     ->action(function (Vehicle $record, array $data): void {
                         Gate::authorize('verify', $record);

@@ -13,8 +13,8 @@
         <div class="mx-auto max-w-[40rem] space-y-4">
             <div class="sheet-handle" aria-hidden="true"></div>
             <div class="flex items-start justify-between gap-3">
-                <h2 id="{{ $id }}-h" class="text-lg">{{ $title }}</h2>
-                <button type="button" x-on:click="hide" class="btn">{{ __('common.close') }}</button>
+                <h2 id="{{ $id }}-h" class="min-w-0 text-lg">{{ $title }}</h2>
+                <button type="button" x-on:click="hide" class="btn shrink-0 whitespace-nowrap">{{ __('common.close') }}</button>
             </div>
             {{ $slot }}
         </div>

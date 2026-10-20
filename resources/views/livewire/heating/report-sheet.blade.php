@@ -85,6 +85,8 @@
                 <div x-show="offline" x-cloak class="banner banner-warning mb-3" role="status">
                     <x-lucide-wifi-off class="size-5 shrink-0" aria-hidden="true" /> <span>{{ __('shell.offline') }}</span>
                 </div>
+                {{-- The same error again right above the button: the banner at the top of the sheet is off-screen on a phone. --}}
+                @error('states') <p class="field-error mb-3" role="alert" data-testid="report-error-near-save">{{ $message }}</p> @enderror
                 <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled">
                     <x-lucide-check class="size-5" aria-hidden="true" /> {{ __('common.save') }}
                 </button>

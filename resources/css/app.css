@@ -350,3 +350,25 @@
         position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
     }
 }
+
+/* wire:navigate progress (replaces Livewire's injected <style>, which broke the nonce CSP — QA 2026-10-20). */
+html.is-navigating::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 9999;
+    height: 3px;
+    background: var(--color-accent);
+    transform-origin: left;
+    animation: mp-navigating 1.2s ease-in-out infinite;
+}
+
+@keyframes mp-navigating {
+    0% { transform: scaleX(0.05); }
+    60% { transform: scaleX(0.7); }
+    100% { transform: scaleX(0.95); opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.is-navigating::before { animation: none; transform: none; opacity: 0.8; }
+}
