@@ -19,6 +19,7 @@ use Filament\Models\Contracts\HasDefaultTenant;
 use Filament\Models\Contracts\HasName;
 use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -53,7 +54,7 @@ use Illuminate\Support\Collection;
  * @property string|null $app_authentication_secret
  * @property CarbonImmutable|null $anonymised_at
  */
-class User extends Authenticatable implements FilamentUser, HasDefaultTenant, HasName, HasTenants
+class User extends Authenticatable implements FilamentUser, HasDefaultTenant, HasLocalePreference, HasName, HasTenants
 {
     use Notifiable;
     use SoftDeletes;
@@ -95,6 +96,26 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
             'app_authentication_secret' => 'encrypted',
             'app_authentication_recovery_codes' => 'encrypted:array',
         ];
+    }
+
+    /**
+     * Passwordless accounts (magic link / code / PIN). Laravel 13's SessionGuard binds the "remember this phone"
+     * cookie to an HMAC of getAuthPassword() and refuses the cookie when it is not a string — with no password
+     * column every remember cookie was rejected and everyone was logged out after the 120-minute idle session
+     * (QA ieeja-sesija). A stable per-account value keeps that check meaningful: the secret is still the 60-char
+     * remember_token, which SessionEpoch::bump rotates on every credential change.
+     */
+    public function getAuthPassword(): string
+    {
+        return 'passwordless:'.$this->getAuthIdentifier();
+    }
+
+    /**
+     * Notifications and mail are rendered in the RECIPIENT's language, never the sender's request locale.
+     */
+    public function preferredLocale(): string
+    {
+        return $this->locale instanceof Locale ? $this->locale->value : (string) config('app.locale', 'lv');
     }
 
     public function isPlatformAdmin(): bool

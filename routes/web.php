@@ -15,6 +15,9 @@ use App\Http\Controllers\ParkingSignController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PwaController;
 use App\Http\Controllers\SightingPhotoController;
+use App\Http\Middleware\EnsurePinChanged;
+use App\Http\Middleware\EnsureSessionEpoch;
+use App\Http\Middleware\PreventRequestForgery;
 use App\Livewire\Auth\EmailLogin;
 use App\Livewire\Auth\PinLogin;
 use App\Livewire\Auth\SetNewPin;
@@ -35,7 +38,9 @@ use App\Livewire\Parking\DeclarationWizard;
 use App\Livewire\Parking\Lookup as ParkingLookup;
 use App\Livewire\Parking\MyPermits;
 use App\Livewire\Parking\SightingSheet;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 /*
  * Mājas Palīgs routes (MVP-SPEC A.6). Bearer secrets never travel in a query string or path:
@@ -43,10 +48,18 @@ use Illuminate\Support\Facades\Route;
  * an immediate 303 to the bare route and the value is discarded (never echoed).
  */
 
-Route::get('/up', HealthController::class)->name('health');
-Route::get('/up/ip', [HealthController::class, 'ip'])->middleware('throttle:locale')->name('health.ip');
-Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
-Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
+/*
+ * Session-less endpoints: fetched by the browser itself (service-worker update checks, the manifest, health probes,
+ * a 404 favicon) with the session cookie. With a session they overwrote `_previous.url` — the LV/RU toggle then sent
+ * people to the raw /sw.js — and, finishing after a step-up request, could write back a stale session payload and
+ * drop the fresh step-up (QA 2026-10-20). Cookies stay readable (EncryptCookies) for the manifest language.
+ */
+$sessionless = [StartSession::class, ShareErrorsFromSession::class, PreventRequestForgery::class, EnsureSessionEpoch::class, EnsurePinChanged::class];
+
+Route::get('/up', HealthController::class)->withoutMiddleware($sessionless)->name('health');
+Route::get('/up/ip', [HealthController::class, 'ip'])->middleware('throttle:locale')->withoutMiddleware($sessionless)->name('health.ip');
+Route::get('/manifest.webmanifest', [PwaController::class, 'manifest'])->withoutMiddleware($sessionless)->name('pwa.manifest');
+Route::get('/sw.js', [PwaController::class, 'serviceWorker'])->withoutMiddleware($sessionless)->name('pwa.sw');
 
 Route::get('/', LanguagePick::class)->name('landing');
 Route::get('/privacy', [PublicPageController::class, 'privacy'])->name('privacy');
@@ -127,3 +140,7 @@ Route::prefix('/b/{building:slug}')
             ->middleware(['role:parking_officer,building_admin'])
             ->name('building.parking-sign');
     });
+
+// Unknown URL: our 404 page in the visitor's language (SetLocale reads the mp_locale cookie). Session-less, so a
+// browser-initiated miss (apple-touch-icon, favicon) never becomes the "previous URL".
+Route::fallback(static fn () => response()->view('errors.404', [], 404))->withoutMiddleware($sessionless);

@@ -6,8 +6,10 @@ namespace App\Livewire\Auth;
 
 use App\Auth\LoginCompleter;
 use App\Auth\PinAuthService;
+use App\Support\Identifiers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -28,6 +30,8 @@ final class PinLogin extends Component
 
     public bool $cooldown = false;
 
+    public int $cooldownMinutes = 0;
+
     public function login(PinAuthService $pins, LoginCompleter $completer): ?RedirectResponse
     {
         $handle = $this->handle;
@@ -45,6 +49,7 @@ final class PinLogin extends Component
 
         if ($result->status === 'cooldown') {
             $this->cooldown = true;
+            $this->cooldownMinutes = max(1, (int) ceil(RateLimiter::availableIn('pin-ip:'.Identifiers::ipBucket((string) request()->ip())) / 60));
 
             return null;
         }

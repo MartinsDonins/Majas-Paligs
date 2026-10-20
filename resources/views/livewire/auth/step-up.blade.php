@@ -6,7 +6,7 @@
 
     @if ($needsMfa && ! $hasTotp)
         <x-ui.banner variant="warning" icon="shield-check">
-            <p>{{ __('auth.step_up.mfa_required') }}</p>
+            <p>{{ __($forPlatform ? 'auth.step_up.mfa_required' : 'auth.step_up.mfa_required_building') }}</p>
             <a href="{{ route('me.security') }}" class="btn mt-3">{{ __('me.security.setup') }}</a>
         </x-ui.banner>
     @elseif ($hasTotp)

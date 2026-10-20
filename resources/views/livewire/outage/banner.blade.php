@@ -1,4 +1,6 @@
-<div wire:poll.{{ $pollSeconds }}s>
+{{-- .visible: a background tab never polls (each poll writes the whole session and could undo a step-up done in
+     another tab — QA 2026-10-20). --}}
+<div wire:poll.visible.{{ $pollSeconds }}s>
     @if ($enabled && $active->isNotEmpty())
         <section class="stack" aria-label="{{ __('outage.banner.label') }}">
             @foreach ($active as $incident)

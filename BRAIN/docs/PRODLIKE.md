@@ -15,7 +15,7 @@ The stack has no live-reload, no Xdebug and no `.env`. Use the dev stack (`scrip
 | DB bootstrap: `database/sql/roles.sql`, NOCREATEDB | The same file, one `majas` database, NOCREATEDB (`scripts/prodlike/pg-bootstrap.sh`) |
 | Redis with password | `redis:8-alpine --requirepass` (no volume, so `down` ends all sessions) |
 | SMTP | Mailpit catches all mail |
-| `APP_ENV=production`, `APP_DEBUG=false`, `LOG_CHANNEL=stderr`, `__Host-mp_session` cookie, encrypted sessions, `TRUSTED_PROXY=cloudflare` | Identical: they come from `compose.prod.yaml` |
+| `APP_ENV=production`, `APP_DEBUG=false`, `LOG_CHANNEL=stderr`, `__Host-mp_session` cookie, encrypted sessions, `TRUSTED_PROXY=local` (0.0.20; was `cloudflare`) | Identical: they come from `compose.prod.yaml` |
 | `MAJAS_PUBLIC_HOST` not set (default `kaimini.coredigify.com`) | `localhost:8443`, so invite letters and QR codes point at this stack |
 
 Secrets are generated once into `storage/app/prodlike/prodlike.env`. That file is git-ignored by
@@ -144,7 +144,7 @@ scripts/prodlike/dc.sh exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-aut
   use `http://127.0.0.1:8080` for dev.
 - The volume `majas-paligs_node_modules_browser` is shared with the dev `browser` service. `down.sh --wipe` never deletes it.
 - First run (2026-10-20, image 0.0.18 = production): the smoke test reproduced these issues, which are also present on
-  production:
+  production (all fixed in 0.0.20–0.0.23, BRAIN/TASK.md FIX-001…):
   1. The LV/RU toggle redirects to `url()->previous()`, which is `/sw.js` after the service worker was fetched, so the
      user lands on the worker's JavaScript ("RU does not work").
   2. `/up/ip` shows `172.28.0.0/24` both here and on https://kaimini.coredigify.com/up/ip. `TRUSTED_PROXY=cloudflare`

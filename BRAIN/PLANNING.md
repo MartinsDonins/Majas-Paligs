@@ -284,7 +284,8 @@ Role powers are **split** so no single neighbour sees everything:
      apartment's other approved members (and the user) are notified; cap 5 resets/day per elder.
 3. "Remember this phone" on by default (long-lived remember token, revocable in "Mans dzīvoklis").
 4. Elevated actions (approvals, reveals, exports, panels) require **MFA** (Filament built-in TOTP or
-   e-mail OTP) and a step-up confirmation valid 2 h. Elevated roles therefore need an e-mail.
+   e-mail OTP) and a step-up confirmation valid 2 h idle — sliding while the person keeps working, 12 h at most
+   (0.0.20, QA 2026-10-20; a first TOTP enrolment counts as the step-up). Elevated roles therefore need an e-mail.
 5. No CAPTCHA, no SMS (cost), no Smart-ID/e-signature anywhere.
 
 ### 4.6 Module 🔥 Heating & outages (Package B)

@@ -30,7 +30,8 @@ return [
         'max_uses' => 3,
         'valid_days' => 60,
         'throttle' => [
-            'ip_per_15min' => 5,
+            // Wrong codes only (RedeemInvite): a correct code never uses up the device's budget.
+            'ip_per_15min' => 10,
             // Sized for a letter drop: a 180-apartment house can redeem a third of its letters in one evening hour.
             'building_per_hour' => 60,
             // ALERT-ONLY platform monitor (counts well-formed codes only) — never blocks /join (review fix).
@@ -71,7 +72,10 @@ return [
     ],
 
     'step_up' => [
+        // Sliding: lapses after this many minutes WITHOUT a step-up-protected request (= SESSION_LIFETIME)…
         'valid_minutes' => 120,
+        // …and at the latest this long after the confirmation, however active the person is.
+        'max_minutes' => 720,
         'code_ttl_minutes' => 10,
     ],
 

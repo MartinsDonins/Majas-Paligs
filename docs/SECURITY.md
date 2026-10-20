@@ -81,14 +81,18 @@ Review fixes 0.0.12:
   lock is progressive (4 h → 24 h → 72 h, an elder reset clears it) with a count-only elder alert. The platform-wide
   `/join` monitor is alert-only and counts well-formed codes only; per-building 60/h (letter waves).
 
-## Client IP behind Cloudflare (A04/A07)
-- nginx's realip module (serversideup `TRUSTED_PROXY=cloudflare`) is the ONLY place the client IP is resolved:
-  `CF-Connecting-IP` is accepted from Cloudflare ranges and the Docker networks and becomes `REMOTE_ADDR`.
-  Laravel trusts proxies for `X-Forwarded-Proto/Port` only — never for the IP (the right-most X-Forwarded-For
-  entry would be a Cloudflare edge shared by every visitor and every limiter).
-- **Origin lock-down (human task):** the Docker ranges are trusted, so a client that reaches Traefik directly could
-  send its own `CF-Connecting-IP`. Allow 80/443 on the server only from Cloudflare ranges (or enable Cloudflare
-  Authenticated Origin Pulls).
+## Client IP (A04/A07)
+- nginx's realip module is the ONLY place the client IP is resolved; Laravel trusts proxies for
+  `X-Forwarded-Proto/Port` only — never for the IP.
+- **Production today = Traefik only (no Cloudflare)** → `TRUSTED_PROXY=local` (docker/compose.prod.yaml):
+  `X-Forwarded-For` is accepted from the Docker / private ranges and walked right-to-left (`real_ip_recursive on`),
+  so `REMOTE_ADDR` = the first untrusted hop = the address Traefik saw. A spoofed `X-Forwarded-For` from a visitor
+  only adds entries to the LEFT of the one Traefik appends, so it cannot change the result. Until 0.0.20 the stack ran
+  with `TRUSTED_PROXY=cloudflare` without Cloudflare: every visitor was the Traefik container (172.28.0.x) and all
+  IP limiters (PIN, e-mail link, code, `/join`, locale) were one shared bucket — a few typos locked everyone out.
+- **If Cloudflare is ever put in front (orange cloud):** switch to `TRUSTED_PROXY=cloudflare` (`CF-Connecting-IP`
+  from Cloudflare ranges) and allow 80/443 on the server only from Cloudflare ranges (or Authenticated Origin
+  Pulls), otherwise a client reaching Traefik directly could send its own `CF-Connecting-IP`.
 - Smoke test after every infrastructure change: `curl https://<host>/up/ip` from a known client must print that
   client's own /24 (or /48), never a Cloudflare or 172.x prefix.
 

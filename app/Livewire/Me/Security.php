@@ -10,6 +10,7 @@ use App\Auth\StepUpService;
 use App\Models\User;
 use App\Notifications\Alerts;
 use App\Notifications\TotpChangedNotice;
+use App\Support\SafeReturn;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -23,7 +24,10 @@ use PragmaRX\Google2FAQRCode\Google2FA;
  * Review fix (drošība): the second factor can never be replaced with the first factor alone.
  * - Enrolment (start / confirm) is refused while an authenticator exists — replace = disable first.
  * - A FIRST enrolment needs a fresh step-up (e-mail code); disabling needs a fresh TOTP step-up.
- * - Enrolment never marks the session as MFA-fresh: the next elevated action asks for a TOTP code.
+ * - The confirm code of a FIRST enrolment proves possession of the new authenticator, so it counts as this
+ *   session's TOTP step-up (StepUpService::markEnrolled, time step burnt for replays): one code per login instead of
+ *   a second one right after enrolling (QA 2026-10-20). It grants nothing a holder of the new secret could not get
+ *   with the next code anyway; the guards above (no replacement, first factor + step-up before enrolment) stay.
  * - Every enable / disable: audit (platform chain), e-mail notice to the account, session epoch bump (other
  *   sessions end) and, for platform_admin, a count-only platform alert.
  */
@@ -31,6 +35,9 @@ use PragmaRX\Google2FAQRCode\Google2FA;
 final class Security extends Component
 {
     private const PENDING = 'mp.totp.pending';
+
+    /** The page that sent the person here to enrol (the step-up banner), resumed after a successful enrolment. */
+    public const AFTER_ENROL = 'mp.totp.after';
 
     public string $code = '';
 
@@ -68,8 +75,15 @@ final class Security extends Component
         session()->forget(self::PENDING);
         AuditLogger::record('account.totp_enabled', $user, [(int) $user->id], platform: true, actorRole: 'self');
         $this->announce($user, enabled: true);
+        $stepUp->markEnrolled($user, $secret, $code);
 
         session()->flash('status', 'totp_enabled');
+
+        // Back to where the person was going (e.g. /manage, via the step-up banner) once the authenticator works.
+        $next = SafeReturn::path(session()->pull(self::AFTER_ENROL));
+        if ($next !== null) {
+            $this->redirect($next);
+        }
     }
 
     public function disable(StepUpService $stepUp): void
@@ -116,7 +130,7 @@ final class Security extends Component
 
     private function askStepUp(string $level): void
     {
-        session()->put(StepUpService::INTENDED_KEY, route('me.security'));
+        session()->put(StepUpService::INTENDED_KEY, route('me.security', absolute: false));
         session()->put(StepUpService::LEVEL_KEY, $level);
         $this->redirectRoute('step-up');
     }

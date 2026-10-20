@@ -16,7 +16,7 @@
         <section class="card stack text-center" role="status">
             <x-lucide-hourglass class="mx-auto size-12 text-(--color-accent)" aria-hidden="true" />
             <h1 class="text-xl">{{ __('onboarding.cooldown.title') }}</h1>
-            <p class="muted">{{ __('onboarding.cooldown.body') }}</p>
+            <p class="muted">{{ __('onboarding.cooldown.body', ['minutes' => $cooldownMinutes]) }}</p>
         </section>
     @else
         <section class="stack">

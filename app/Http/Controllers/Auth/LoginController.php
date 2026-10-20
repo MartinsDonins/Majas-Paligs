@@ -37,7 +37,9 @@ final class LoginController
             return redirect()->route('login')->with('status', 'link_invalid');
         }
 
-        return $this->completer->login($request, $user, remember: $request->boolean('remember', true), method: 'email_link');
+        // The form always sends remember=0 before the checkbox; a missing field means "do not remember" (a shared
+        // phone must never get the 180-day cookie by default).
+        return $this->completer->login($request, $user, remember: $request->boolean('remember'), method: 'email_link');
     }
 
     public function code(Request $request): RedirectResponse

@@ -88,7 +88,7 @@ final class ChooseAccess extends Component
 
         if (RateLimiter::tooManyAttempts($key, (int) config('majas.magic_link.per_email_15min', 3))
             || RateLimiter::tooManyAttempts($ipKey, (int) config('majas.magic_link.per_ip_hour', 10))) {
-            $this->addError('email', __('auth.email.cooldown'));
+            $this->addError('email', __('auth.email.cooldown', ['minutes' => max(1, (int) ceil(max(RateLimiter::availableIn($key), RateLimiter::availableIn($ipKey)) / 60))]));
 
             return;
         }

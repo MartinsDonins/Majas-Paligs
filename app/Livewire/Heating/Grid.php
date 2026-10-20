@@ -106,7 +106,7 @@ final class Grid extends Component
         Gate::forUser($user)->authorize('generate', [ManagerReport::class, [(int) $section->id]]);
 
         if (! $stepUp->hasFreshFor($user)) {
-            session()->put(StepUpService::INTENDED_KEY, route($this->mode === 'outage' ? 'building.water' : 'building.heating', CurrentBuilding::get()).'?k='.$section->number);
+            session()->put(StepUpService::INTENDED_KEY, route($this->mode === 'outage' ? 'building.water' : 'building.heating', CurrentBuilding::get(), absolute: false).'?k='.$section->number);
             session()->put(StepUpService::LEVEL_KEY, $stepUp->requiresMfa($user) ? 'mfa' : 'any');
 
             return $this->redirectRoute('step-up');

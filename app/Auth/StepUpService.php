@@ -17,7 +17,10 @@ use PragmaRX\Google2FA\Google2FA;
 
 /**
  * Step-up confirmation for elevated actions (PLANNING §4.5 item 4): approvals, reveals, exports, panels.
- * Valid 2 h. Methods: TOTP (MFA — required for platform_admin, building_admin and parking_officer, and the only
+ * Valid while the person keeps working: it lapses after `valid_minutes` (120) WITHOUT a step-up-protected request
+ * (RequireStepUp touches it) and at the latest `max_minutes` (720) after the confirmation. It used to be an absolute
+ * 2 h, so an admin in the middle of the building generator was thrown to /step-up and lost the form
+ * (QA 2026-10-20). Methods: TOTP (MFA — required for platform_admin, building_admin and parking_officer, and the only
  * method accepted once an account has an authenticator) or a 6-digit e-mail code (section elders; also the
  * confirmation before a FIRST authenticator enrolment). Elevated roles therefore need an e-mail.
  */
@@ -44,9 +47,12 @@ class StepUpService
             return false;
         }
 
-        $minutes = (int) config('majas.step_up.valid_minutes', 120);
+        $at = (int) ($state['at'] ?? 0);
+        $seen = max($at, (int) ($state['seen'] ?? 0));
+        $idle = (int) config('majas.step_up.valid_minutes', 120);
+        $max = max($idle, (int) config('majas.step_up.max_minutes', 720));
 
-        if ((int) ($state['at'] ?? 0) < now()->subMinutes($minutes)->getTimestamp()) {
+        if ($seen < now()->subMinutes($idle)->getTimestamp() || $at < now()->subMinutes($max)->getTimestamp()) {
             return false;
         }
 
@@ -89,7 +95,23 @@ class StepUpService
 
     public function markFresh(User $user, string $method): void
     {
-        session()->put(self::SESSION_KEY, ['user' => (int) $user->id, 'at' => now()->getTimestamp(), 'method' => $method]);
+        $now = now()->getTimestamp();
+        session()->put(self::SESSION_KEY, ['user' => (int) $user->id, 'at' => $now, 'seen' => $now, 'method' => $method]);
+    }
+
+    /**
+     * Activity on a step-up-protected page keeps a still-fresh step-up alive (sliding idle window). Never revives
+     * an expired one and never extends past max_minutes after the confirmation.
+     */
+    public function touch(User $user): void
+    {
+        if (! $this->hasFresh($user)) {
+            return;
+        }
+
+        $state = (array) session(self::SESSION_KEY);
+        $state['seen'] = now()->getTimestamp();
+        session()->put(self::SESSION_KEY, $state);
     }
 
     public function forget(): void
@@ -164,6 +186,32 @@ class StepUpService
         $this->markFresh($user, 'email');
 
         return true;
+    }
+
+    /**
+     * True when the code is right but its 30-second window was already used (replay protection) — the person only
+     * has to wait for the next code. Used for a clearer message than "Kods neder".
+     */
+    public function totpWasReplayed(User $user, #[\SensitiveParameter] string $code): bool
+    {
+        if (! $user->hasTotp()) {
+            return false;
+        }
+
+        $code = (string) preg_replace('/\D/', '', $code);
+
+        return $code !== '' && $this->google2fa->verifyKey((string) $user->app_authentication_secret, $code, 1) === true;
+    }
+
+    /**
+     * Enrolment just proved possession of the new authenticator with a valid code: count it as the TOTP step-up
+     * (one prompt per login instead of a second code right after enrolling) and burn that time step for replays.
+     */
+    public function markEnrolled(User $user, #[\SensitiveParameter] string $secret, #[\SensitiveParameter] string $code): void
+    {
+        $timestamp = $this->google2fa->verifyKeyNewer($secret, (string) preg_replace('/\D/', '', $code), (int) Cache::get($this->replayKey($user), 0), 1);
+        Cache::put($this->replayKey($user), is_int($timestamp) ? $timestamp : $this->google2fa->getTimestamp(), now()->addMinutes(10));
+        $this->markFresh($user, 'totp');
     }
 
     public function verifyTotp(User $user, #[\SensitiveParameter] string $code): bool

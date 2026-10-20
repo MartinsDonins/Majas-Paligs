@@ -396,6 +396,19 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
+// LV/RU toggle: post the page the person is ON (path + query, never the #fragment, which may hold a code) — the
+// server-rendered value can be stale after wire:navigate. The server re-validates it (App\Support\SafeReturn).
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-locale-form')) {
+        return;
+    }
+    const input = form.querySelector('input[name="return"]');
+    if (input) {
+        input.value = window.location.pathname + window.location.search;
+    }
+}, true);
+
 // Service worker: static assets only (HTML and /livewire/* are NetworkOnly).
 if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
     window.addEventListener('load', () => {

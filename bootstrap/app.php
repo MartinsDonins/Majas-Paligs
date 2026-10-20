@@ -47,6 +47,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'discard.query' => DiscardSecretQuery::class,
         ]);
 
+        // The UI language is known BEFORE route-model binding, so a 404 for an unknown building / record is rendered
+        // in the visitor's language (it used to be always Latvian).
+        $middleware->prependToPriorityList(SubstituteBindings::class, SetLocale::class);
+
         // Binding order: auth → SubstituteBindings → SetCurrentBuilding → member → role/step-up.
         // Filament resolves the tenant (IdentifyTenant, via User::getTenants/canAccessTenant) BEFORE we set it.
         $middleware->appendToPriorityList(SubstituteBindings::class, IdentifyTenant::class);
@@ -59,10 +63,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(fn (Request $request) => route('login'));
         $middleware->redirectUsersTo(fn () => route('home.redirect'));
 
-        // Client IP (review fix): resolved ONCE, by nginx's realip module (serversideup TRUSTED_PROXY=cloudflare —
-        // CF-Connecting-IP accepted only from Cloudflare / Docker ranges) into REMOTE_ADDR. Laravel must never derive
-        // the IP from X-Forwarded-For again: behind Cloudflare → Traefik its right-most entry is a Cloudflare edge,
-        // shared by every visitor, so every IP limiter (pin-ip, invite-ip, magic-ip, login-*) would become one bucket.
+        // Client IP (review fix): resolved ONCE, by nginx's realip module (serversideup TRUSTED_PROXY=local —
+        // X-Forwarded-For walked right-to-left past the Docker / private ranges, i.e. the address Traefik saw) into
+        // REMOTE_ADDR. Laravel must never derive the IP from X-Forwarded-For again (its right-most entry is the
+        // proxy, shared by every visitor, so every IP limiter — pin-ip, invite-ip, magic-ip, login-* — would become
+        // one bucket; docs/SECURITY.md "Client IP").
         // Proxies are trusted for the scheme and port only (TLS ends at Traefik); never for the host or the IP.
         $middleware->trustProxies(at: '*', headers: Request::HEADER_X_FORWARDED_PROTO | Request::HEADER_X_FORWARDED_PORT);
     })

@@ -8,7 +8,7 @@
         <section class="card stack text-center" role="status">
             <x-lucide-hourglass class="mx-auto size-12 text-(--color-accent)" aria-hidden="true" />
             <h2 class="text-xl">{{ __('auth.pin.cooldown_title') }}</h2>
-            <p class="muted">{{ __('auth.pin.cooldown_body') }}</p>
+            <p class="muted">{{ __('auth.pin.cooldown_body', ['minutes' => $cooldownMinutes]) }}</p>
         </section>
     @else
         @if ($failed)

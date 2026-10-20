@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Audit\AuditLogger;
+use App\Auth\SessionEpoch;
 use App\Enums\PlatformRole;
 use App\Models\User;
 use Illuminate\Console\Command;
@@ -18,9 +19,11 @@ use Symfony\Component\Console\Attribute\AsCommand;
 #[AsCommand(name: 'majas:platform-admin')]
 final class MakePlatformAdmin extends Command
 {
-    protected $signature = 'majas:platform-admin {email} {--no-totp : Keep an existing TOTP secret}';
+    protected $signature = 'majas:platform-admin {email}
+        {--reset-totp : Replace an existing authenticator secret (the old phone entry stops working)}
+        {--no-totp : Deprecated, kept for scripts: an existing secret is now always kept unless --reset-totp}';
 
-    protected $description = 'Create or promote a platform admin (prints a one-time TOTP secret).';
+    protected $description = 'Create or promote a platform admin (prints a one-time TOTP secret when none exists).';
 
     public function handle(Google2FA $google2fa): int
     {
@@ -37,9 +40,19 @@ final class MakePlatformAdmin extends Command
 
         $user->forceFill(['platform_role' => PlatformRole::PlatformAdmin->value])->save();
 
-        if (! $this->option('no-totp') || ! $user->hasTotp()) {
+        // Re-running the command used to replace the secret silently, so the authenticator entry the owner had just
+        // added stopped working (QA 2026-10-20). Now an existing secret is kept unless --reset-totp is given.
+        if ($user->hasTotp() && ! $this->option('reset-totp')) {
+            $this->info('The account already has an authenticator; it is kept. Use --reset-totp to create a new one.');
+        } else {
+            $replacing = $user->hasTotp();
             $secret = $google2fa->generateSecretKey(32);
             $user->forceFill(['app_authentication_secret' => $secret])->save();
+            if ($replacing) {
+                // A TOTP change ends the account's other sessions and remember cookies (SEC-008).
+                SessionEpoch::bump($user);
+                AuditLogger::record('account.totp_enabled', $user, [(int) $user->id], platform: true, actorRole: 'console');
+            }
             $this->warn('TOTP secret (add to your authenticator app now, it is not shown again):');
             $this->line(trim(chunk_split($secret, 4, ' ')));
             $this->line($google2fa->getQRCodeUrl((string) config('app.name'), $email, $secret));

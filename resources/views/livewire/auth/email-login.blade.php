@@ -1,6 +1,8 @@
 <div class="stack-lg">
     @if (session('status') === 'link_invalid')
         <x-ui.banner variant="warning" icon="circle-alert">{{ __('auth.email.link_invalid') }}</x-ui.banner>
+    @elseif (session('status') === 'signed_out')
+        <x-ui.banner variant="info" icon="log-in">{{ __('auth.email.signed_out') }}</x-ui.banner>
     @endif
 
     @if (! $sent)

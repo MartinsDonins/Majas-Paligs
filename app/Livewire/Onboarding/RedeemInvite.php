@@ -34,6 +34,8 @@ final class RedeemInvite extends Component
 
     public bool $cooldown = false;
 
+    public int $cooldownMinutes = 15;
+
     public bool $closed = false;
 
     public function submit(InviteCodeService $codes, InviteResolver $resolver): void
@@ -41,8 +43,11 @@ final class RedeemInvite extends Component
         $this->error = null;
         $this->closed = false;
 
-        if (! $this->passesThrottle()) {
+        $ipKey = 'invite-ip:'.Identifiers::ipBucket((string) request()->ip());
+
+        if (RateLimiter::tooManyAttempts($ipKey, (int) config('majas.invites.throttle.ip_per_15min', 10))) {
             $this->cooldown = true;
+            $this->cooldownMinutes = max(1, (int) ceil(RateLimiter::availableIn($ipKey) / 60));
             $this->code = '';
 
             return;
@@ -52,6 +57,7 @@ final class RedeemInvite extends Component
             $codes->normalize($this->code);
         } catch (InvalidInviteCode $e) {
             $this->error = $e->reason === 'ambiguous' ? __('onboarding.code.ambiguous') : __('onboarding.code.invalid');
+            RateLimiter::hit($ipKey, 15 * 60);
 
             return;
         }
@@ -70,6 +76,9 @@ final class RedeemInvite extends Component
         $this->code = '';
 
         if ($resolved === null) {
+            // Only wrong codes count toward the per-device budget: neighbours on one Wi-Fi who type their own
+            // correct codes never lock each other out (the budget exists against guessing).
+            RateLimiter::hit($ipKey, 15 * 60);
             $this->error = __('onboarding.code.invalid');
 
             return;
@@ -80,6 +89,7 @@ final class RedeemInvite extends Component
         $limit = (int) config('majas.invites.throttle.building_per_hour', 60);
         if (RateLimiter::tooManyAttempts($buildingKey, $limit)) {
             $this->cooldown = true;
+            $this->cooldownMinutes = max(1, (int) ceil(RateLimiter::availableIn($buildingKey) / 60));
 
             return;
         }
@@ -93,19 +103,6 @@ final class RedeemInvite extends Component
         (new JoinState(invite: $resolved, platformNoticeVersion: $platformNotice?->version))->save(request());
 
         $this->redirectRoute('join.role');
-    }
-
-    private function passesThrottle(): bool
-    {
-        $ipKey = 'invite-ip:'.Identifiers::ipBucket((string) request()->ip());
-
-        if (RateLimiter::tooManyAttempts($ipKey, (int) config('majas.invites.throttle.ip_per_15min', 5))) {
-            return false;
-        }
-
-        RateLimiter::hit($ipKey, 15 * 60);
-
-        return true;
     }
 
     /**

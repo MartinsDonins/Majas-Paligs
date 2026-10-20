@@ -66,8 +66,9 @@
   pakete ir privāta (ADR 0002). Blocks: first deploy.
 - 🎯 Iestatīt **`REDIS_PASSWORD`** (Redis AUTH, tikai privātajā Coolify tīklā) un **`DB_SSLMODE=require`** — bez tiem
   aplikācija ražošanā neieslēdzas (ProductionGuard). Blocks: first deploy.
-- 🆕 Servera ugunsmūrī atļaut 80/443 **tikai no Cloudflare IP** (vai Authenticated Origin Pulls), citādi `CF-Connecting-IP`
-  var viltot; pēc izvietošanas pārbaudīt `curl https://<host>/up/ip` no zināma klienta (docs/SECURITY.md).
+- 🎯 Pēc 0.0.20 izvietošanas pārbaudīt `curl https://kaimini.coredigify.com/up/ip` no sava telefona/datora: jābūt
+  SAVAM IP prefiksam, nevis `172.28.0.0/24` (tagad `TRUSTED_PROXY=local`, jo Cloudflare priekšā nav). Ja kādreiz
+  ieslēdz Cloudflare starpniekserveri — pārslēgt uz `cloudflare` un atļaut 80/443 tikai no Cloudflare IP (docs/SECURITY.md).
 - 🆕 Pilota building_admin un parking_officer: **ieslēgt autentifikatora lietotni (TOTP)** — paaugstinātās darbības
   (atklāšana, eksports, vēstuļu druka, pārvaldības panelis) tagad prasa TOTP.
 - 🆕 DPA datus (datums, atsauce, tvērums) ieraksta **platformas panelī** (CoreDigify, platform_admin + TOTP), nevis mājas

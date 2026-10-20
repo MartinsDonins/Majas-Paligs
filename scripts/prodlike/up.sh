@@ -113,10 +113,10 @@ echo "https://localhost:8443/up → $code"
 # 4. Structure seed exactly like production (web container, majas_app connection). Idempotent seeders.
 dc exec -T web php artisan db:seed --force --no-interaction
 
-# 5. Platform admin. Keep the saved TOTP secret on re-runs; a fresh database gets a new one (and the file is replaced).
+# 5. Platform admin. An existing TOTP secret is always kept; without a saved copy, ask for a new one (--reset-totp).
 totp_file="$state/admin-totp.txt"
 args=()
-[ -s "$totp_file" ] && args=(--no-totp)
+[ -s "$totp_file" ] || args=(--reset-totp)
 out="$(dc exec -T web php artisan majas:platform-admin "$admin_email" "${args[@]}" --no-interaction | tr -d '\r')"
 secret="$(printf '%s\n' "$out" | grep -E '^([A-Z2-7]{4} ?)+$' | head -1 | tr -d ' \r' || true)"
 if [ -n "$secret" ]; then

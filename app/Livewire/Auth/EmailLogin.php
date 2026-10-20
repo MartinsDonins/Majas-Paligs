@@ -43,7 +43,8 @@ final class EmailLogin extends Component
 
         if (RateLimiter::tooManyAttempts($key, (int) config('majas.magic_link.per_email_15min', 3))
             || RateLimiter::tooManyAttempts($ipKey, (int) config('majas.magic_link.per_ip_hour', 10))) {
-            $this->addError('email', __('auth.email.cooldown'));
+            $wait = max(RateLimiter::availableIn($key), RateLimiter::availableIn($ipKey));
+            $this->addError('email', __('auth.email.cooldown', ['minutes' => max(1, (int) ceil($wait / 60))]));
 
             return;
         }
