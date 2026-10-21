@@ -7,6 +7,7 @@ use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Enums\Locale;
 use App\Gdpr\CoreGate;
+use App\Http\Middleware\SetLocale;
 use App\Livewire\Me\PasskeyOffer;
 use App\Livewire\Team\AcceptInvite;
 use App\Models\AuditEntry;
@@ -18,6 +19,7 @@ use App\Notifications\TeamInviteCode;
 use App\Notifications\TeamMemberJoined;
 use App\Services\Team\TeamInvitationService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Features\SupportTesting\Testable;
@@ -221,4 +223,26 @@ it('works below gate L-core (a house is opened by its team, D5)', function (): v
 
     $token = issueInvite('closed-house@example.test', BuildingRoleType::BuildingAdmin, []);
     inBuilding($this->b, fn () => acceptPage()->call('open', $token)->assertSet('state', 'guest'));
+});
+
+it('opens the accept page in the invitation language on a device that has not chosen one', function (): void {
+    $admin = $this->admin;
+    $this->actingAs($admin);
+    session()->put(StepUpService::SESSION_KEY, ['user' => $admin->id, 'at' => now()->getTimestamp(), 'seen' => now()->getTimestamp(), 'method' => 'passkey']);
+    inBuilding($this->b, fn () => app(TeamInvitationService::class)->invite($admin, 'ru-elder@example.test', BuildingRoleType::SectionElder, [(int) section($this->b, 5)->id], null, Locale::Ru));
+    $token = null;
+    Notification::assertSentOnDemand(TeamInvitation::class, function (TeamInvitation $n) use (&$token): bool {
+        $token = explode('#t=', $n->url())[1];
+
+        return true;
+    });
+    Auth::logout();
+    session()->flush();
+
+    inBuilding($this->b, fn () => acceptPage()->call('open', (string) $token)
+        ->assertRedirect(route('team.accept', ['building' => 'accept-house'], absolute: false)));
+    expect(Cookie::hasQueued(SetLocale::COOKIE))->toBeTrue();
+
+    // After the reload the remembered invitation is shown (no token needed again).
+    inBuilding($this->b, fn () => acceptPage()->call('open', '')->assertSet('state', 'guest'));
 });

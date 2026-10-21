@@ -26,9 +26,11 @@ final class SecurityHeaders
     {
         $panel = $this->isPanel($request);
 
+        // Set both ways: in a long-lived process (the browser-test server, a queue worker rendering views, Octane) a
+        // resident request must not leave the CSP-safe Alpine build switched on for the next panel request.
+        config(['livewire.csp_safe' => ! $panel]);
         if (! $panel) {
             Vite::useCspNonce();
-            config(['livewire.csp_safe' => true]);
         }
 
         $response = $next($request);

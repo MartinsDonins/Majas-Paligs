@@ -6,6 +6,7 @@ namespace App\Livewire\Team;
 
 use App\Auth\LoginCompleter;
 use App\Enums\BuildingRoleType;
+use App\Http\Middleware\SetLocale;
 use App\Livewire\Me\PasskeyOffer;
 use App\Models\RoleInvitation;
 use App\Models\Section;
@@ -15,6 +16,7 @@ use App\Services\Team\TeamInvitationService;
 use App\Support\Identifiers;
 use App\Tenancy\CurrentBuilding;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
@@ -111,6 +113,15 @@ final class AcceptInvite extends Component
             'hash' => bin2hex((string) $invitation->token_hash),
             'verified' => false,
         ]);
+
+        // The accept page speaks the invitation's language (ROUND2-SPEC §2.1 `locale`) unless this device already
+        // chose one: remember it on the device and reload — the session keeps the invitation, the token is gone.
+        if (! auth()->check() && request()->cookie(SetLocale::COOKIE) === null && $invitation->locale->value !== app()->getLocale()) {
+            Cookie::queue(SetLocale::cookie($invitation->locale->value));
+            $this->redirectRoute('team.accept', ['building' => CurrentBuilding::get()->slug]);
+
+            return;
+        }
 
         $this->show($invitation);
     }
