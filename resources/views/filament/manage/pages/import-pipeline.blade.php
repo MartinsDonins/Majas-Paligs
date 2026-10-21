@@ -56,6 +56,7 @@
             <form wire:submit="uploadFile" class="mt-4 grid gap-3">
                 <label class="grid gap-1 text-sm font-medium" for="import-file">{{ __('import.upload.file') }}</label>
                 <input id="import-file" type="file" wire:model="upload" accept=".csv,.txt,text/csv,text/plain"
+                    x-on:livewire-upload-finish="$wire.uploadFile()"
                     class="block w-full max-w-full text-sm file:me-3 file:min-h-12 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 dark:file:bg-white/10">
                 <div wire:loading wire:target="upload" class="text-sm">{{ __('import.upload.sending') }}</div>
                 <div>

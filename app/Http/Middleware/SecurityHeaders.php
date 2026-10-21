@@ -28,8 +28,11 @@ final class SecurityHeaders
 
         if (! $panel) {
             Vite::useCspNonce();
-            config(['livewire.csp_safe' => true]);
         }
+        // Set per request, both ways: in a long-lived app instance (real-browser test server, a queue worker or any
+        // persistent runtime) a resident request used to leave csp_safe = true behind, and the next Filament page then
+        // booted the CSP Alpine build, which cannot run Filament's modals and collapsible groups.
+        config(['livewire.csp_safe' => ! $panel]);
 
         $response = $next($request);
 

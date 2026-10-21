@@ -191,44 +191,44 @@ final class ResidentContactResource extends Resource
             ->defaultSort('number')
             ->defaultGroup(Group::make('section_id')->label(__('roster.list.stairwell'))
                 ->getTitleFromRecordUsing(fn (Apartment $record): string => __('roster.list.stairwell_n', ['n' => $record->section->number]))
-                ->collapsible())
+            )
             ->groupingSettingsHidden()
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['section:id,number', 'residentContacts']))
             ->recordUrl(fn (): ?string => null)
             ->columns([
-                TextColumn::make('number')->label(__('roster.list.apartment'))->sortable(),
-                TextColumn::make('floor')->label(__('roster.list.floor'))->visibleFrom('md'),
-                ViewColumn::make('contacts')->label(__('roster.list.contacts'))->view('filament.manage.roster.contacts-cell'),
-            ])
+                            TextColumn::make('number')->label(__('roster.list.apartment'))->sortable(),
+                            TextColumn::make('floor')->label(__('roster.list.floor'))->visibleFrom('md'),
+                            ViewColumn::make('contacts')->label(__('roster.list.contacts'))->view('filament.manage.roster.contacts-cell'),
+                        ])
             ->filters(self::filters())
             ->recordActions([
-                Action::make('reveal')
-                    ->label(__('roster.reveal.action'))
-                    ->icon(Heroicon::OutlinedEye)
-                    ->color('warning')
-                    ->visible(fn (Apartment $record): bool => $record->residentContacts->isNotEmpty() && Gate::allows('revealApartment', [ResidentContact::class, $record]))
-                    ->mountUsing(function (Apartment $record, Component $livewire, Action $action): void {
-                        $user = self::actor();
-                        if (! app(StepUpService::class)->hasFreshMfa($user)) {
-                            $livewire->redirect(app(StepUpService::class)->ask('mfa', session()->previousUrl()));
-                            $action->cancel();
+                            Action::make('reveal')
+                                ->label(__('roster.reveal.action'))
+                                ->icon(Heroicon::OutlinedEye)
+                                ->color('warning')
+                                ->visible(fn (Apartment $record): bool => $record->residentContacts->isNotEmpty() && Gate::allows('revealApartment', [ResidentContact::class, $record]))
+                                ->mountUsing(function (Apartment $record, Component $livewire, Action $action): void {
+                                    $user = self::actor();
+                                    if (! app(StepUpService::class)->hasFreshMfa($user)) {
+                                        $livewire->redirect(app(StepUpService::class)->ask('mfa', session()->previousUrl()));
+                                        $action->cancel();
 
-                            return;
-                        }
-                        self::$revealed[(int) $record->id] = self::revealFor($user, $record);
-                    })
-                    ->modalHeading(fn (Apartment $record): string => __('roster.reveal.heading', ['apartment' => $record->number]))
-                    ->modalDescription(__('roster.reveal.logged'))
-                    ->modalContent(fn (Apartment $record): View => view('filament.manage.roster.reveal', ['result' => self::$revealed[(int) $record->id] ?? null]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel(__('common.close')),
-                Action::make('addContact')
-                    ->label(__('roster.list.add'))
-                    ->icon(Heroicon::OutlinedPlus)
-                    ->color('gray')
-                    ->visible(fn (Apartment $record): bool => Gate::allows('create', [ResidentContact::class, $record]))
-                    ->url(fn (Apartment $record): string => self::getUrl('create', ['apartment' => $record->id])),
-            ])
+                                        return;
+                                    }
+                                    self::$revealed[(int) $record->id] = self::revealFor($user, $record);
+                                })
+                                ->modalHeading(fn (Apartment $record): string => __('roster.reveal.heading', ['apartment' => $record->number]))
+                                ->modalDescription(__('roster.reveal.logged'))
+                                ->modalContent(fn (Apartment $record): View => view('filament.manage.roster.reveal', ['result' => self::$revealed[(int) $record->id] ?? null]))
+                                ->modalSubmitAction(false)
+                                ->modalCancelActionLabel(__('common.close')),
+                            Action::make('addContact')
+                                ->label(__('roster.list.add'))
+                                ->icon(Heroicon::OutlinedPlus)
+                                ->color('gray')
+                                ->visible(fn (Apartment $record): bool => Gate::allows('create', [ResidentContact::class, $record]))
+                                ->url(fn (Apartment $record): string => self::getUrl('create', ['apartment' => $record->id])),
+                        ])
             ->emptyStateHeading(__('roster.list.empty'))
             ->paginated([25, 50, 100])
             ->defaultPaginationPageOption(50);
