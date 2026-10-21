@@ -81,7 +81,7 @@
 **Dev `compose.yaml`**
 | Service | Image / build | Notes |
 |---|---|---|
-| `app` | Dockerfile target `dev` (serversideup/php:8.4-fpm-nginx-trixie-v5.0.1 + intl gd exif bcmath pdo_pgsql redis pcntl + composer from `composer:2.9` + Xdebug installed but **off by default**, `XDEBUG_MODE=off`; enable per session via `.env`). Build args `USER_ID` / `GROUP_ID` (default 1000, from `id -u`/`id -g` via `scripts/dev.sh`) remap `www-data` with serversideup's `docker-php-serversideup-set-id` so files written into the WSL2 ext4 bind mount stay owned by the host user | port 8080; `vendor/` in named volume |
+| `app` | Dockerfile target `dev` (serversideup/php:8.4.27-fpm-nginx-trixie-v5.0.2 + intl gd exif bcmath pdo_pgsql redis pcntl + composer from `composer:2.9` + Xdebug installed but **off by default**, `XDEBUG_MODE=off`; enable per session via `.env`). Build args `USER_ID` / `GROUP_ID` (default 1000, from `id -u`/`id -g` via `scripts/dev.sh`) remap `www-data` with serversideup's `docker-php-serversideup-set-id` so files written into the WSL2 ext4 bind mount stay owned by the host user | port 8080; `vendor/` in named volume |
 | `vite` | node:24-alpine, `npm run dev` | port 5173, `server.hmr.host=localhost`; `node_modules/` in named volume |
 | `pgsql` | postgres:18.6-alpine | init script `docker/pgsql/00-bootstrap.sh` runs the **same** `database/sql/roles.sql` as production (A.2a) with dev passwords, for `majas` and `majas_test` |
 | `redis` | redis:8-alpine | |

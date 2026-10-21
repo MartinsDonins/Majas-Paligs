@@ -2,7 +2,8 @@
 # Mājas Palīgs — multi-stage image (MVP-SPEC A.2).
 # Stages: base → dev → vendor → assets → prod
 
-ARG PHP_IMAGE=serversideup/php:8.4-fpm-nginx-trixie-v5.0.1
+# Exact patch tag: Coolify/buildx caches floating tags, so a minor-only tag would not pick up PHP security fixes (SEC-026).
+ARG PHP_IMAGE=serversideup/php:8.4.27-fpm-nginx-trixie-v5.0.2
 
 ############################
 # base: PHP 8.4 + extensions
@@ -16,6 +17,7 @@ RUN install-php-extensions intl gd exif bcmath pdo_pgsql redis pcntl \
 # nginx: privacy-preserving access log format (mp_noargs) + our security headers
 COPY docker/nginx/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY docker/nginx/security.conf /etc/nginx/server-opts.d/security.conf
+COPY docker/php/zz-security.ini /usr/local/etc/php/conf.d/zz-security.ini
 ENV HEALTHCHECK_PATH=/up \
     PHP_EXPOSE_PHP=Off
 USER www-data
@@ -73,7 +75,7 @@ RUN composer dump-autoload --no-dev --classmap-authoritative --no-scripts
 ############################
 # assets: Vite build (the Filament theme imports vendor/filament CSS)
 ############################
-FROM node:24-alpine AS assets
+FROM node:24.22.0-alpine AS assets
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund

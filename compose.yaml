@@ -65,7 +65,7 @@ services:
     profiles: ["browser"]
 
   vite:
-    image: node:24-alpine
+    image: node:24.22.0-alpine
     working_dir: /app
     command: ["sh", "-c", "npm run dev -- --host 0.0.0.0"]
     environment:
