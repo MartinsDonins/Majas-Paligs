@@ -274,3 +274,20 @@ function cvdFilterScript(string $vision): string
         })()
         JS;
 }
+
+it('updates the map right after saving: no "be the first", no ?report=1 left in the address bar (FIX-007.1)', function (): void {
+    $this->actingAs($this->resident);
+    $page = phone('/b/smoke-heat/heating?report=1');
+    $page->waitForText(__('heating.report.same_everywhere'));
+    $page->assertSee(__('heating.empty.section'));
+
+    $page->click('button[wire\:click="allSame(\'cold\')"]')
+        ->press(__('common.save'))
+        ->waitForText(__('heating.report.thanks'));
+
+    // The grid re-rendered behind the sheet (heating-reported) and a reload no longer reopens the sheet.
+    waitUntil($page, '!document.body.innerText.includes('.json_encode(__('heating.empty.section')).')');
+    expect($page->script('location.search'))->not->toContain('report=1');
+    $page->press(__('heating.report.ok'));
+    $page->assertNoJavaScriptErrors();
+});

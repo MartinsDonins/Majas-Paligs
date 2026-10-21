@@ -1,4 +1,4 @@
-@props(['structure', 'heating', 'mode' => 'heating', 'mine' => null, 'overlay' => null, 'myRiserIds' => [], 'canDispute' => false])
+@props(['structure', 'heating', 'mode' => 'heating', 'mine' => null, 'overlay' => null, 'myRiserIds' => [], 'canDispute' => false, 'ownState' => null])
 {{--
     Heating / outage map of ONE stairwell (DESIGN-SYSTEM §5.1): floors top-down, 32px floor gutter, cells ≥56px.
     RESIDENT mode: every cell of a column shows the column aggregate (riser + floor = apartment, so no per-floor or
@@ -48,6 +48,11 @@
                                     $state = $apt ? $apt['status']->value : 'none';
                                     $class = 'heat-'.$state;
                                     $label = $cell ? __('grid.cell_label', ['number' => $cell['number'], 'floor' => $floor]).'. '.($apt ? __('heating.cell.staff', ['state' => __('heating.state.'.$state), 'rooms' => $apt['rooms']]) : __('heating.state.none')) : __('grid.empty');
+                                } elseif ($isMine && $ownState !== null) {
+                                    // FIX-007.1: the reporter's own fresh report, shown until the projection includes it.
+                                    $state = $ownState;
+                                    $class = 'heat-'.$state;
+                                    $label = __('grid.cell_label', ['number' => $cell['number'], 'floor' => $floor]).'. '.__('heating.own.cell', ['state' => __('heating.state.'.$state)]);
                                 } else {
                                     $state = $column->displayState();
                                     $tone = $column->tone()?->value;

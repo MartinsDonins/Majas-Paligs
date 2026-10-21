@@ -1,9 +1,9 @@
-@props(['heating', 'myRiserIds' => []])
+@props(['heating', 'myRiserIds' => [], 'ownReported' => false])
 {{-- Accessible list mode ("Stāvadu kopsavilkums", worst first) — the equivalent of the grid (DESIGN-SYSTEM §5.1). --}}
 @php /** @var \App\Services\Heating\Views\HeatingSectionView $heating */ @endphp
 <section class="card stack" aria-labelledby="riser-list-h">
     <h2 id="riser-list-h" class="text-lg">{{ __('heating.list.title') }}</h2>
-    @if ($heating->risers === [])
+    @if ($heating->risers === [] && ! $ownReported)
         <p class="muted">{{ __('heating.empty.section') }}</p>
     @else
         <ul class="space-y-2">

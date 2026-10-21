@@ -107,6 +107,7 @@ final class ReportSheet extends Component
     {
         if ($this->submission !== null && $service->undo($this->user(), $this->submission)) {
             $this->undone = true;
+            $this->dispatch('heating-reported');
         }
         $this->submission = null;
     }

@@ -683,6 +683,8 @@
     "heating.empty.riser": "Šajā stāvadā vēl neviens nav ziņojis.",
     "heating.empty.column": "Šai kolonnai nav radiatoru stāvadu.",
     "heating.empty.section": "Šajā kāpņu telpā vēl neviens nav ziņojis. Esiet pirmais — tas aizņem 30 sekundes.",
+    "heating.own.pending": "Jūsu ziņojums saņemts (:state). Karte atjaunosies pēc dažām sekundēm.",
+    "heating.own.cell": "Jūsu ziņojums: :state",
     "heating.staff.floors": "Stāvi ar ziņojumiem (redz tikai personāls)",
     "heating.staff.floors_label": "Ziņojumi no stāviem: :floors",
     "heating.staff.top_floor_only": "Auksti tikai augšējos stāvos — visticamāk gaiss stāvadā. Ieteikums: atgaisošana.",

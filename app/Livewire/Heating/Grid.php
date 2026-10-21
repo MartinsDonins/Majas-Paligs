@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Heating;
 
 use App\Auth\StepUpService;
+use App\Enums\AggregateStatus;
 use App\Enums\ManagerReportKind;
 use App\Enums\SurveyRoundStatus;
 use App\Http\Controllers\ManagerReportDownloadController;
@@ -12,6 +13,7 @@ use App\Models\Apartment;
 use App\Models\HeatingReport;
 use App\Models\ManagerReport;
 use App\Models\Riser;
+use App\Models\RiserStatus;
 use App\Models\Section;
 use App\Models\SurveyRound;
 use App\Models\User;
@@ -23,11 +25,13 @@ use App\Services\Heating\SectionScope;
 use App\Services\Heating\Views\HeatingSectionView;
 use App\Services\Outages\OutageOverlay;
 use App\Tenancy\CurrentBuilding;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -84,6 +88,16 @@ final class Grid extends Component
     public function setRound(string $key): void
     {
         $this->round = HeatingGridQuery::normalizeRoundKey($key);
+    }
+
+    /**
+     * The report sheet saved (or undid) a report: re-render with the reporter's own report and stop treating the
+     * page as "open the report sheet" (?report=1 is dropped from the address bar in resources/js/app.js).
+     */
+    #[On('heating-reported')]
+    public function reported(): void
+    {
+        $this->openReport = false;
     }
 
     /**
@@ -151,6 +165,9 @@ final class Grid extends Component
             ->values();
 
         $membership = $mine !== null ? $user->membershipFor($building) : null;
+        $own = ! $staff && $mine !== null && (int) $mine->section_id === (int) $section->id
+            ? $this->ownReport($user, $mine, $section, $this->round)
+            : null;
 
         return view('livewire.heating.grid', [
             'building' => $building,
@@ -161,6 +178,7 @@ final class Grid extends Component
             'miniMap' => $query->buildingColumns($sections->pluck('floors', 'id')->map(fn ($f): int => (int) $f)->all(), $this->round),
             'staff' => $staff,
             'mine' => $mine,
+            'own' => $own,
             'canReport' => $mine !== null && Gate::forUser($user)->allows('create', [HeatingReport::class, $mine]),
             'pending' => $membership?->isPending() ?? false,
             'rounds' => $rounds,
@@ -171,6 +189,41 @@ final class Grid extends Component
             'heatingOn' => $building->settings->moduleEnabled('heating'),
             'pollSeconds' => (int) config('majas.heating.poll_seconds', 60),
         ])->title(__($this->mode === 'outage' ? 'outage.title' : 'heating.title'));
+    }
+
+    /**
+     * The signed-in reporter's OWN valid report for their apartment in this view (FIX-007.1). The grid reads the
+     * projections, which a debounced job (RecomputeRiserStatus, ~10 s) refreshes — until then the reporter used to
+     * see "Esiet pirmais" right after reporting. `pending` = the projection of this stairwell is older than the
+     * report; the page then shows the own state at once and polls every few seconds until the projection caught up.
+     * Only the person's own rows (reported_by_user_id), so no other resident's state is ever revealed.
+     *
+     * @return array{status: AggregateStatus, pending: bool}|null
+     */
+    private function ownReport(User $user, Apartment $mine, Section $section, string $roundKey): ?array
+    {
+        $reports = HeatingReport::query()
+            ->where('apartment_id', $mine->id)
+            ->where('reported_by_user_id', $user->id)
+            ->when(
+                str_starts_with($roundKey, 'round:'),
+                fn ($q) => $q->active()->where('survey_round_id', (int) substr($roundKey, 6)),
+                fn ($q) => $q->valid(),
+            )
+            ->get(['status', 'reported_at']);
+
+        if ($reports->isEmpty()) {
+            return null;
+        }
+
+        $status = AggregateStatus::worst($reports->map(fn (HeatingReport $r): AggregateStatus => AggregateStatus::fromHeating($r->status)));
+        $projectedAt = RiserStatus::query()->where('section_id', $section->id)->where('round_key', $roundKey)->max('updated_at');
+        $latest = $reports->max('reported_at');
+
+        return [
+            'status' => $status ?? AggregateStatus::None,
+            'pending' => $projectedAt === null || CarbonImmutable::parse($projectedAt)->lt($latest),
+        ];
     }
 
     private function section(): Section
