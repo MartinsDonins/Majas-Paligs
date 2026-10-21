@@ -32,7 +32,7 @@
     </section>
 
     @if ($outagesOn)
-        <livewire:outage.banner />
+        <livewire:outage.banner key="grid-outage-banner" />
     @endif
 
     @if ($flash)
@@ -82,18 +82,31 @@
     @endif
 
     @if ($mode === 'heating' && $display === 'list')
-        <x-heating.riser-list :heating="$heating" :my-riser-ids="$myRiserIds" />
+        @if ($own !== null && $own['pending'])
+            <div wire:poll.3s wire:key="own-report-pending-list" data-testid="own-report-pending">
+                <x-ui.banner variant="info" icon="circle-check">{{ __('heating.own.pending', ['state' => __('heating.state.'.$own['status']->value)]) }}</x-ui.banner>
+            </div>
+        @endif
+        <x-heating.riser-list :heating="$heating" :my-riser-ids="$myRiserIds" :own-reported="$own !== null" />
     @else
         <section class="card stack" aria-labelledby="grid-h">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <h2 id="grid-h" class="text-lg">{{ __('heating.grid.title', ['n' => $section->number]) }}</h2>
                 <span class="chip tnum shrink-0 whitespace-nowrap">{{ $structure['first'] }}–{{ $structure['last'] }}</span>
             </div>
+            @if ($mode === 'heating' && $own !== null && $own['pending'])
+                {{-- FIX-007.1: the map is recomputed a few seconds after a report; until then the reporter sees their own
+                     report (own apartment cell + this note) instead of "Esiet pirmais", and the page checks again. --}}
+                <div wire:poll.3s wire:key="own-report-pending" data-testid="own-report-pending">
+                    <x-ui.banner variant="info" icon="circle-check">{{ __('heating.own.pending', ['state' => __('heating.state.'.$own['status']->value)]) }}</x-ui.banner>
+                </div>
+            @endif
             <x-heating.grid :structure="$structure" :heating="$heating" :mode="$mode" :mine="$mine" :overlay="$overlay"
-                            :my-riser-ids="$myRiserIds" :can-dispute="$canReport" />
+                            :my-riser-ids="$myRiserIds" :can-dispute="$canReport"
+                            :own-state="$mode === 'heating' && $own !== null && $own['pending'] ? $own['status']->value : null" />
             @if ($mode === 'heating')
                 <p class="text-sm muted">{{ __($staff ? 'heating.grid.hint_staff' : 'heating.grid.hint') }}</p>
-                @if ($heating->worst() === null && collect($heating->columns)->every(fn ($c) => $c->distinctApartments === 0))
+                @if ($own === null && $heating->worst() === null && collect($heating->columns)->every(fn ($c) => $c->distinctApartments === 0))
                     <x-ui.empty-state :title="__('heating.empty.section')" />
                 @endif
                 @if (collect($heating->risers)->contains(fn ($r) => $r->isUnder()) && ! $staff)
@@ -117,7 +130,10 @@
                         </button>
                     </div>
                 </x-slot:trigger>
-                <livewire:heating.report-sheet />
+                {{-- Explicit key: Livewire 4 derives the automatic key from the blocks rendered before the tag, so a
+                     re-render with one block more or less (the empty-state note after the first report) re-mounted the
+                     sheet and wiped its thank-you (FIX-007.1). --}}
+                <livewire:heating.report-sheet key="grid-heating-report-sheet" />
             </x-ui.bottom-sheet>
         @endif
     @elseif ($mine)
@@ -129,7 +145,7 @@
                     </button>
                 </div>
             </x-slot:trigger>
-            <livewire:outage.report-sheet />
+            <livewire:outage.report-sheet key="grid-outage-report-sheet" />
         </x-ui.bottom-sheet>
     @endif
 

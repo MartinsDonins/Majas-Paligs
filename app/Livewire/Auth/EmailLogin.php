@@ -6,6 +6,7 @@ namespace App\Livewire\Auth;
 
 use App\Auth\LoginCompleter;
 use App\Auth\MagicLinkService;
+use App\Auth\PendingCodeStep;
 use App\Livewire\Concerns\AssertsPasskey;
 use App\Models\Passkey;
 use App\Models\User;
@@ -37,6 +38,14 @@ final class EmailLogin extends Component
     {
         $this->email = (string) session('login_email', '');
         $this->sent = in_array(session('status'), ['code_invalid'], true) && $this->email !== '';
+
+        // A code is already on its way (e.g. the page was reloaded by the LV/RU toggle): stay on the code step.
+        $pending = PendingCodeStep::login();
+        if (! $this->sent && $pending !== null) {
+            $this->email = $pending['email'];
+            $this->remember = $pending['remember'];
+            $this->sent = true;
+        }
     }
 
     public function send(MagicLinkService $magic): void
@@ -65,6 +74,7 @@ final class EmailLogin extends Component
 
         $this->email = $email;
         $this->sent = true;
+        PendingCodeStep::rememberLogin($email, $this->remember);
     }
 
     protected function passkeyUser(): null
@@ -81,6 +91,7 @@ final class EmailLogin extends Component
 
     public function again(): void
     {
+        PendingCodeStep::forgetLogin();
         $this->sent = false;
     }
 

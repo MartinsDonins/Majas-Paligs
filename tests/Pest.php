@@ -50,6 +50,9 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Feature', 'Unit', 'Arch');
 pest()->extend(BrowserTestCase::class)->use(RefreshDatabase::class)->in('Browser');
 
+// CI runners are slower than local Docker: a 5 s page-load timeout made the deploy gate flaky (Karen, round 1).
+pest()->browser()->timeout(15_000);
+
 /**
  * Run $callback inside a building context (test helper; app code uses the allow-listed classes only).
  *
@@ -502,18 +505,115 @@ function scaleRootText(object $page, int $percent): void
 }
 
 /**
- * Open $url on a mobile viewport and return the LIVE page. (`visit()->on()->mobile()` is a factory: every further
- * call on it would open a fresh page, so the first call's result is the page the test keeps using.)
+ * Open $url on a mobile viewport and return the LIVE, BOOTED page. (`visit()->on()->mobile()` is a factory: every
+ * further call on it would open a fresh page, so the first call's result is the page the test keeps using.)
+ *
+ * Deterministic for the CI deploy gate (Karen, round 1: page-load timeouts on GitHub runners):
+ * - the first request of a run compiles Blade views and boots the in-process server; a navigation that still
+ *   times out is retried ONCE with a fresh page (GET pages only, so a retry has no side effects);
+ * - the page is returned only after the document finished loading and Livewire/Alpine booted, so a test can never
+ *   type into a field that Livewire's wire:model binding resets a moment later.
+ *
+ * $host: e.g. 'localhost' for WebAuthn (an IP address is not a valid RP ID).
+ * $enforceCsp: the plugin opens every context with Playwright's bypassCSP; true makes Chromium ENFORCE the app's
+ * Content-Security-Policy like a real phone does (and fire `securitypolicyviolation`, see recordCspViolations()).
+ * $locale: the phone's language (e.g. 'ru-RU'; default en-US).
  */
-function phone(string $url): object
+function phone(string $url, ?string $host = null, bool $enforceCsp = false, ?string $locale = null): object
 {
-    return visit($url)->on()->mobile()->assertPathBeginsWith('/');
+    $open = static function () use ($url, $host, $enforceCsp, $locale): object {
+        $pending = visit($url, $enforceCsp ? ['bypassCSP' => false] : []);
+        if ($host !== null) {
+            $pending = $pending->withHost($host);
+        }
+        if ($locale !== null) {
+            $pending = $pending->withLocale($locale); // the browser language → Accept-Language
+        }
+
+        return $pending->on()->mobile()->assertPathBeginsWith('/');
+    };
+
+    try {
+        $page = $open();
+    } catch (Throwable $e) {
+        if (! isNavigationTimeout($e)) {
+            throw $e;
+        }
+        $page = $open();
+    }
+
+    waitForBoot($page);
+
+    return $page;
+}
+
+/**
+ * Open a URL WITH a #fragment (QR /join#c=…, mail /login/confirm#t=…) the way a phone does: a real navigation from
+ * another page. (The plugin's visit() rewrites the URL for its in-process server and drops the fragment.)
+ */
+function openWithFragment(string $pathWithFragment): object
+{
+    $page = phone('/privacy');
+    $page->script('location.assign('.json_encode($pathWithFragment).')');
+    $path = explode('#', $pathWithFragment, 2)[0];
+    waitUntil($page, 'location.pathname === '.json_encode($path));
+    waitForBoot($page);
+
+    return $page;
+}
+
+/**
+ * A Playwright navigation / page-load timeout (as opposed to a failed assertion).
+ */
+function isNavigationTimeout(Throwable $e): bool
+{
+    $message = $e->getMessage();
+
+    return str_contains($message, 'Timeout') && (str_contains($message, 'exceeded') || str_contains($message, 'navigat'));
+}
+
+/**
+ * Wait until the document is complete and, when it has Livewire components, Livewire has booted them.
+ */
+function waitForBoot(object $page, float $seconds = 15.0): void
+{
+    waitUntil($page, "document.readyState === 'complete' && !!window.Alpine && (!document.querySelector('[wire\\\\:id]') || (!!window.Livewire && Livewire.all().length > 0))", $seconds);
+}
+
+/**
+ * Start recording CSP violations (and every <style> element added to <head>, with or without a nonce) of the
+ * current document; they survive wire:navigate, which swaps the body but keeps the document. Read them back with
+ * cspViolations(). Needs a page opened with phone(…, enforceCsp: true).
+ */
+function recordCspViolations(object $page): void
+{
+    $page->script(<<<'JS'
+        window.__mpCsp = [];
+        document.addEventListener('securitypolicyviolation', (e) => {
+            window.__mpCsp.push(e.effectiveDirective + ' ' + e.blockedURI + ' ' + (e.sample || '') + ' src=' + e.sourceFile + ':' + e.lineNumber + ':' + e.columnNumber + ' target=' + (e.target && e.target.outerHTML ? e.target.outerHTML.slice(0, 200) : String(e.target)));
+        });
+        new MutationObserver((records) => records.forEach((r) => r.addedNodes.forEach((n) => {
+            if (n.tagName === 'STYLE') {
+                window.__mpCsp.push('style added ' + (n.nonce ? 'with nonce' : 'WITHOUT nonce') + ': ' + n.textContent.replace(/\s+/g, ' ').trim().slice(0, 60));
+            }
+        }))).observe(document.documentElement, { childList: true, subtree: true });
+        JS);
+}
+
+/**
+ * The CSP violations recorded since recordCspViolations() (only the violations, not the <style> log).
+ *
+ * @return list<string>
+ */
+function cspViolations(object $page): array
+{
+    return array_values(array_filter((array) $page->script('window.__mpCsp || []'), static fn ($line): bool => ! str_starts_with((string) $line, 'style added')));
 }
 
 /**
  * Poll a JavaScript expression until it is truthy (Page::waitForFunction of the plugin is lazy and never waits).
  */
-function waitUntil(object $page, string $expression, float $seconds = 5.0): void
+function waitUntil(object $page, string $expression, float $seconds = 10.0): void
 {
     $deadline = microtime(true) + $seconds;
     $probe = static function () use ($page, $expression): bool {

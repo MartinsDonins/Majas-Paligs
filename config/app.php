@@ -29,6 +29,10 @@ return [
     /* Supported UI locales. */
     'locales' => ['lv', 'ru'],
 
+    /* The language of a visitor without an account, a device choice or a supported browser language. Unlike
+       app.locale (which app()->setLocale() overwrites for the current request) this never changes at runtime. */
+    'default_locale' => env('APP_LOCALE', 'lv'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

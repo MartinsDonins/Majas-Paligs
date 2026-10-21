@@ -89,6 +89,12 @@ BEFORE INSERT trigger (SECURITY DEFINER, advisory lock), UPDATE always rejected,
 - Resident app: strict nonce CSP (`script-src 'self' 'nonce-…'`), Livewire CSP-safe Alpine build, no
   `unsafe-eval`. HSTS, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, Permissions-Policy,
   `Referrer-Policy: no-referrer`, `X-App-Version`.
+- `style-src` additionally lists **one sha256**: the exact hash of Livewire's own `<style data-livewire-style>` block,
+  taken from the served bytes of the same response (`SecurityHeaders::livewireStyleHashes`). wire:navigate parses the
+  next page with DOMParser before it swaps nonces, so that block (with the next response's nonce) was reported as a
+  `style-src-elem` violation on every navigation (Karen, round 1). No `'unsafe-inline'`, no other inline style is
+  allowed; `wire:transition` (unhashable injected styles) is not used (CspLivewireStyleTest, Browser/CspNavigateSmokeTest
+  with an enforced policy).
 - **Tracked debt:** Filament panels (`/admin/b/…`, `/admin/platform/…`; the `/admin` chooser itself keeps the strict CSP) need `'unsafe-inline' 'unsafe-eval'` (Filament 5
   renders inline scripts without nonce and evaluates Alpine expressions). Panels are behind auth + step-up.
 - `no-store` on `/join`, `/login/*`, `/step-up`, downloads, `/admin` and the panels.
@@ -96,6 +102,11 @@ BEFORE INSERT trigger (SECURITY DEFINER, advisory lock), UPDATE always rejected,
 ## Secrets in URLs and logs (A.6a)
 - Invite codes and login tokens travel only in URL **fragments** or POST bodies; legacy `?c=` / `?t=` /
   `/login/confirm/{token}` are answered with 303 and discarded.
+- The LV/RU toggle is a full reload. Only at the moment it is pressed, the invite code / link token / half-typed
+  e-mail code of `[data-locale-keep]` fields goes to `sessionStorage` (this tab only), is read back once by the
+  reloaded page of the same path within 60 s and deleted at once; it never enters a URL or the toggle's POST. The
+  "code sent" step itself lives in the session (`App\Auth\PendingCodeStep`: address + time only, no code, lapses
+  with the code's TTL).
 - nginx `mp_noargs` log format: truncated IP (/24, /48), path without query string, redacted token paths,
   no referer; Docker json-file rotation (10 MB × 5) + Coolify 14-day retention.
 - Laravel log tap `App\Logging\RedactSecrets`; Sentry/GlitchTip `App\Support\SentryScrubber`

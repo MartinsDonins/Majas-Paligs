@@ -166,12 +166,35 @@ out", "admin login is too complicated", "generating the house plan failed". Repr
   on phones, toasts for "Beigt dalību" / role revoke; audit log: translated actions and human subjects; export list polls;
   invite revoke plural; "Apvienots" column; DPA items say CoreDigify fills them; revoked letter hint; PDF columns
   without reports show "–", "Telpu ziņojumi"; Livewire navigate bar without inline <style> (CSP). - COMPLETED (0.0.22)
-  - 🆕 FIX-007.1: Siltuma režģis tūlīt pēc ziņojuma — the projection updates after the debounced RecomputeRiserStatus job
-    (~11 s), so the reporter briefly sees "be the first"; show the own report optimistically and drop ?report=1 after save.
+  - ✅ FIX-007.1: Siltuma režģis tūlīt pēc ziņojuma - COMPLETED (round-2 fixes, builder "atvertie") — the grid listens to
+    `heating-reported` (save + undo) and shows the reporter's OWN valid rows (reported_by_user_id, never a neighbour's)
+    in their cell + an "Jūsu ziņojums saņemts" note while the stairwell projection is older than the report, polling
+    every 3 s until RecomputeRiserStatus caught up; "Esiet pirmais" is never shown over an own report; ?report=1 is
+    dropped from the address bar after save. Root cause found on the way: Livewire 4 derives automatic child keys from
+    the blocks rendered before the tag, so the grid's re-render re-mounted the report sheet and wiped its thank-you —
+    the grid's nested components now carry explicit keys. Tests: Feature/Heating/OwnReportPendingTest,
+    Browser/HeatingReportSmokeTest (map updates after save).
   - 🆕 FIX-007.2: "Mans viesis" bez numuru pārbaužu limita — guest declarations share the 5/h plate-lookup quota on purpose
     (anti-enumeration); a separate, small allowance needs a privacy decision.
-  - 🆕 FIX-007.3: Valodas pārslēgšana pieteikšanās vidū — toggling during the code step / on the magic-link page reloads the
-    page and loses the Livewire state or the fragment token; keep the step (or explain it).
+  - ✅ FIX-007.3: Valodas pārslēgšana pieteikšanās vidū - COMPLETED (round-2 fixes) — the "code sent" step of /login and of
+    the e-mail step-up lives in the session (`App\Auth\PendingCodeStep`, address + time only, lapses with the code TTL,
+    cleared by "Cita adrese", login and a confirmed step-up), so the reloaded page stays on the code field; the
+    /join#c= invite code, the /login/confirm#t= token and a half-typed code are kept across the toggle in
+    sessionStorage (written only when the toggle is pressed, read once by the same path within 60 s, then deleted).
+    First visit: Accept-Language picks lv/ru (default lv) and is remembered on the device (survives the login).
+    Tests: Feature/I18n/LocaleToggleStateTest, Browser/LocaleToggleSmokeTest (QR code, code step, link token, RU phone).
+  - ✅ SEC-004.2: CSP pārkāpums pie katras wire:navigate - COMPLETED (round-2 fixes, Karen round 1) — Livewire 4 parses the
+    next page with DOMParser before swapping nonces, so the next page's `<style data-livewire-style>` was reported as a
+    `style-src-elem` violation; style-src now allows exactly the sha256 of that block (taken from the served bytes),
+    nothing else. Tests: Feature/Security/CspLivewireStyleTest, Browser/CspNavigateSmokeTest (policy ENFORCED — the
+    plugin's default bypassCSP hid it).
+  - ✅ TEST-001.2: Stabils pārlūka testu komplekts CI - COMPLETED (round-2 fixes) — `pest()->browser()->timeout(15_000)`;
+    `phone()` retries a navigation timeout once and returns only a booted page (document complete + Alpine + Livewire);
+    `waitUntil` default 10 s; `openWithFragment()` for #c= / #t= links (visit() drops fragments); opt-in enforced CSP
+    and browser language (`phone(…, enforceCsp: true, locale: 'ru-RU')`).
+  - 🆕 FIX-007.4: Iekļauto Livewire komponentu atslēgas — other parents still render nested components without an
+    explicit key (elder panel tabs, dashboard round card, parking privacy boxes, my-permits dispute); a parent re-render
+    with a different block structure re-mounts them (lost child state, as in FIX-007.1). Add explicit keys + a guard test.
 
 ## 🧭 Kārta 2 — Administrēšana, mājas atvēršana, saraksti (BRAIN/docs/ROUND2-SPEC.md)
 Owner requests 2026-10-21 (R1–R4). Build order: ADMIN-005 → ADMIN-006 → GOV-012/011/010 + UI-011 → DB-003 + PARK-012 →

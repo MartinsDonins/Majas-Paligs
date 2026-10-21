@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Auth;
 
+use App\Auth\PendingCodeStep;
 use App\Auth\StepUpService;
 use App\Auth\TrustedDevices;
 use App\Livewire\Concerns\AssertsPasskey;
@@ -46,8 +47,14 @@ final class StepUp extends Component
     public function mount(StepUpService $stepUp): void
     {
         if ($stepUp->hasFreshLevel($this->user(), $this->level())) {
+            PendingCodeStep::forgetStepUp();
             $this->redirect($this->intended());
+
+            return;
         }
+
+        // A step-up code is already on its way (e.g. the page was reloaded by the LV/RU toggle): stay on the code step.
+        $this->sent = PendingCodeStep::stepUp($this->user());
     }
 
     public function sendCode(StepUpService $stepUp): void
@@ -63,6 +70,9 @@ final class StepUp extends Component
         RateLimiter::hit($key, 15 * 60);
 
         $this->sent = $stepUp->sendEmailCode($user);
+        if ($this->sent) {
+            PendingCodeStep::rememberStepUp($user);
+        }
     }
 
     public function verify(StepUpService $stepUp, TrustedDevices $devices): void
@@ -92,6 +102,7 @@ final class StepUp extends Component
         }
 
         RateLimiter::clear($key);
+        PendingCodeStep::forgetStepUp();
 
         if ($user->hasTotp() && $this->trust) {
             $devices->trust($user, request(), 'totp');

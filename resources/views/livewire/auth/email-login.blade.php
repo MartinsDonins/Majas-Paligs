@@ -34,7 +34,8 @@
 
         {{-- Own wire:key: without it the morph REUSES the wire:submit form element above for this native POST form,
              and the browser then submitted only the `code` field (no _token / email) — found by the Lighthouse login. --}}
-        <form method="POST" action="{{ route('login.code') }}" class="card stack" novalidate wire:key="login-code-form">
+        <form method="POST" action="{{ route('login.code') }}" class="card stack" novalidate wire:key="login-code-form"
+              x-data="keepOnLocale" data-locale-keep data-target="code">
             @csrf
             <input type="hidden" name="email" value="{{ $email }}">
             <input type="hidden" name="remember" value="{{ $remember ? '1' : '0' }}">

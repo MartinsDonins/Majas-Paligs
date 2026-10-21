@@ -10,40 +10,103 @@ import {
     startRegistration,
 } from '@simplewebauthn/browser';
 
+/*
+ * Values that must survive the LV/RU toggle (a plain POST + full page reload, FIX-007.3): the invite code that came
+ * from /join#c=…, the magic-link token from /login/confirm#t=…, a half-typed e-mail code. Elements marked
+ * [data-locale-keep] (with data-target = the field name) are copied into sessionStorage (this tab only) at the
+ * moment the toggle is pressed, read back ONCE by the reloaded page of the SAME path within a minute, and deleted at
+ * once. The value never travels in a URL and the toggle never sends it to the server.
+ */
+const KEEP_PREFIX = 'mp-keep:';
+const KEEP_MAX_AGE_MS = 60 * 1000;
+
+function keepKey(target) {
+    return `${KEEP_PREFIX}${window.location.pathname}:${target}`;
+}
+
+function stashKeptFields() {
+    document.querySelectorAll('[data-locale-keep]').forEach((el) => {
+        const target = el.dataset.target;
+        const field = target ? el.querySelector(`[name="${target}"]`) : null;
+        if (!field || !field.value) {
+            return;
+        }
+        try {
+            sessionStorage.setItem(keepKey(target), JSON.stringify({ v: field.value, at: Date.now() }));
+        } catch (e) {
+            // Storage blocked (private mode): the value is simply not kept.
+        }
+    });
+}
+
+function readKept(key) {
+    try {
+        const kept = JSON.parse(sessionStorage.getItem(key) || 'null');
+        return kept && typeof kept.v === 'string' && kept.at > Date.now() - KEEP_MAX_AGE_MS ? kept.v : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function takeKeptField(target) {
+    try {
+        const key = keepKey(target);
+        const value = readKept(key);
+        // Single use; stale values of other pages of this tab go too.
+        Object.keys(sessionStorage).forEach((k) => {
+            if (k.startsWith(KEEP_PREFIX) && (k === key || readKept(k) === null)) {
+                sessionStorage.removeItem(k);
+            }
+        });
+        return value;
+    } catch (e) {
+        return null;
+    }
+}
+
+/** Put a value into a field: through Livewire for wire:model fields, else straight into the input. */
+function fillField(component, value) {
+    const target = component.$el.dataset.target;
+    if (component.$el.dataset.livewire === 'true' && component.$wire) {
+        component.$wire.set(target, value);
+        return;
+    }
+    const field = component.$el.querySelector(`[name="${target}"]`);
+    if (field) {
+        field.value = value;
+    }
+}
+
 document.addEventListener('alpine:init', () => {
     const Alpine = window.Alpine;
 
     /**
      * Copies a secret from the URL FRAGMENT (#c=CODE or #t=TOKEN) into a form field and immediately clears the
-     * fragment from the address bar and history. The value never reaches the server in a URL.
-     * Usage: <div x-data="fragmentSecret" data-param="c" data-target="code" data-livewire="true">
+     * fragment from the address bar and history. The value never reaches the server in a URL. Without a fragment,
+     * a value kept across the LV/RU toggle (data-locale-keep, see above) is restored instead.
+     * Usage: <div x-data="fragmentSecret" data-param="c" data-target="code" data-livewire="true" data-locale-keep>
      */
     Alpine.data('fragmentSecret', () => ({
         init() {
             const param = this.$el.dataset.param || 'c';
             const hash = window.location.hash.replace(/^#/, '');
-            if (!hash) {
-                return;
+            let value = null;
+            if (hash) {
+                value = new URLSearchParams(hash).get(param);
+                history.replaceState(null, '', window.location.pathname);
             }
-            const value = new URLSearchParams(hash).get(param);
-            history.replaceState(null, '', window.location.pathname);
+            if (!value && this.$el.hasAttribute('data-locale-keep')) {
+                value = takeKeptField(this.$el.dataset.target);
+            }
             if (!value) {
                 return;
             }
-            const target = this.$el.dataset.target;
-            if (this.$el.dataset.livewire === 'true' && this.$wire) {
-                this.$wire.set(target, value);
-            } else {
-                const field = this.$el.querySelector(`[name="${target}"]`);
-                if (field) {
-                    field.value = value;
-                }
-                if (this.$el.dataset.autosubmit === 'true') {
-                    const form = this.$el.closest('form') || this.$el.querySelector('form');
-                    // Never auto-submit: mail scanners must not be able to burn the token. The user taps "Ieiet".
-                    if (form) {
-                        form.dataset.ready = '1';
-                    }
+            fillField(this, value);
+            if (this.$el.dataset.livewire !== 'true' && this.$el.dataset.autosubmit === 'true') {
+                const form = this.$el.closest('form') || this.$el.querySelector('form');
+                // Never auto-submit: mail scanners must not be able to burn the token. The user taps "Ieiet".
+                if (form) {
+                    form.dataset.ready = '1';
                 }
             }
         },
@@ -64,6 +127,19 @@ document.addEventListener('alpine:init', () => {
                 history.replaceState(null, '', window.location.pathname);
             }
             this.$wire.call(this.$el.dataset.method || 'open', value || '');
+        },
+    }));
+
+    /**
+     * Restores a half-typed value (an e-mail code) after the LV/RU toggle reloaded the page.
+     * Usage: <form x-data="keepOnLocale" data-locale-keep data-target="code" [data-livewire="true"]>
+     */
+    Alpine.data('keepOnLocale', () => ({
+        init() {
+            const value = takeKeptField(this.$el.dataset.target);
+            if (value) {
+                fillField(this, value);
+            }
         },
     }));
 
@@ -543,7 +619,17 @@ document.addEventListener('submit', (event) => {
     if (input) {
         input.value = window.location.pathname + window.location.search;
     }
+    stashKeptFields();
 }, true);
+
+// Heating report saved: drop ?report=1 so a reload or "back" does not open the report sheet again (FIX-007.1).
+window.addEventListener('heating-reported', () => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('report')) {
+        url.searchParams.delete('report');
+        history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+    }
+});
 
 // Service worker: static assets only (HTML and /livewire/* are NetworkOnly).
 if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
