@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
 final class SecurityHeaders
 {
     /** Paths that must never be cached (secrets travel through these pages). */
-    private const NO_STORE = ['join', 'join/*', 'login', 'login/*', 'step-up', 'me/exports/*', 'admin', 'admin/*'];
+    private const NO_STORE = ['join', 'join/*', 'login', 'login/*', 'step-up', 'me/exports/*', 'admin', 'admin/*', 'team-invite/*'];
 
     public function handle(Request $request, Closure $next): Response
     {

@@ -83,6 +83,7 @@ final class AppServiceProvider extends ServiceProvider
         Gate::policy(Models\Apartment::class, Policies\ApartmentPolicy::class);
         Gate::policy(Models\ApartmentMembership::class, Policies\ApartmentMembershipPolicy::class);
         Gate::policy(Models\BuildingRole::class, Policies\BuildingRolePolicy::class);
+        Gate::policy(Models\RoleInvitation::class, Policies\RoleInvitationPolicy::class);
         Gate::policy(Models\ApartmentInvite::class, Policies\InvitePolicy::class);
         Gate::policy(Models\AuditEntry::class, Policies\AuditEntryPolicy::class);
         Gate::policy(Models\User::class, Policies\UserPolicy::class);

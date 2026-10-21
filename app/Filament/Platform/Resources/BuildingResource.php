@@ -8,6 +8,7 @@ use App\Audit\AuditLogger;
 use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Enums\BuildingStatus;
+use App\Enums\Locale;
 use App\Filament\Platform\Pages\BuildingGeneratorPage;
 use App\Filament\Platform\Resources\BuildingResource\Pages;
 use App\Gdpr\CoreGate;
@@ -20,6 +21,8 @@ use App\Models\User;
 use App\Platform\PlatformBuildingContext;
 use App\Platform\PlatformPurpose;
 use App\Services\Memberships\BuildingRoleService;
+use App\Services\Team\TeamInvitationRefused;
+use App\Services\Team\TeamInvitationService;
 use App\Support\BuildingSettings;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -174,6 +177,47 @@ final class BuildingResource extends Resource
                             });
 
                             Notification::make()->success()->title(__('admin.role.granted'))->send();
+                        }),
+                    // ROUND2-SPEC §2.4: invite the house's first administrator by e-mail — the owner's account does not
+                    // have to exist; it is created only after the invitee confirms the address with a code.
+                    Action::make('inviteAdmin')
+                        ->label(__('admin.building.invite_admin'))
+                        ->icon(Heroicon::OutlinedEnvelope)
+                        ->schema([
+                            TextInput::make('email')->label(__('auth.email.label'))->email()->required()->maxLength(254),
+                            TextInput::make('mandate_ref')->label(__('admin.role.mandate'))->maxLength(200),
+                            Select::make('locale')->label(__('admin.team.mail_locale'))->required()->default('lv')
+                                ->options(['lv' => 'Latviešu', 'ru' => 'Русский']),
+                        ])
+                        ->action(function (Building $record, array $data, Component $livewire): void {
+                            /** @var User $actor */
+                            $actor = auth()->user();
+
+                            if (! app(StepUpService::class)->demandStrong($actor, $livewire)) {
+                                return;
+                            }
+
+                            $refused = PlatformBuildingContext::run($record, PlatformPurpose::RoleBootstrap, function () use ($actor, $data): ?string {
+                                try {
+                                    app(TeamInvitationService::class)->invite(
+                                        $actor,
+                                        (string) $data['email'],
+                                        BuildingRoleType::BuildingAdmin,
+                                        [],
+                                        $data['mandate_ref'] ?? null,
+                                        Locale::from((string) ($data['locale'] ?? 'lv')),
+                                        platformBootstrap: true,
+                                    );
+                                } catch (TeamInvitationRefused $e) {
+                                    return $e->getMessage();
+                                }
+
+                                return null;
+                            });
+
+                            $refused === null
+                                ? Notification::make()->success()->title(__('admin.team.invited'))->send()
+                                : Notification::make()->warning()->title($refused)->send();
                         }),
                 ]),
             ]);

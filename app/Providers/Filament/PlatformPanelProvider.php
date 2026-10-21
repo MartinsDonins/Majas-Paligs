@@ -31,8 +31,8 @@ final class PlatformPanelProvider extends PanelProvider
                     ->icon(Heroicon::OutlinedBuildingOffice2)
                     ->url(static fn (): string => route('admin.entry')),
             ])
-            ->discoverResources(in: app_path('Filament/Platform/Resources'), for: 'App\Filament\Platform\Resources')
-            ->discoverPages(in: app_path('Filament/Platform/Pages'), for: 'App\Filament\Platform\Pages')
+            ->discoverResources(in: app_path('Filament/Platform/Resources'), for: 'App\\Filament\\Platform\\Resources')
+            ->discoverPages(in: app_path('Filament/Platform/Pages'), for: 'App\\Filament\\Platform\\Pages')
             ->pages([Dashboard::class])
             ->authMiddleware([
                 Authenticate::class,

@@ -103,6 +103,22 @@ Review fixes 0.0.12:
 - **CSP:** the passkey UI is two Alpine components in the Vite bundle (no inline script, no eval); the spatie package's
   routes / Blade / Livewire components are not registered (`dont-discover`).
 
+### Team invitations (0.0.26, ADMIN-006, ROUND2-SPEC §2)
+- `role_invitations` (tenant): the invitee's e-mail only as APP_KEY ciphertext (shown to building_admin), an HMAC
+  (`Keys::identifier`, label `role-invite:`) for matching and a masked hint; the 32-byte token only as SHA-256. The
+  token travels in the URL fragment (`/team-invite/{slug}#t=…`), is passed to Livewire as an action argument (never a
+  property), 7 days, single use, max 3 resends (each a new token; the old link and its codes die at once).
+- Issue / resend = granting a role to someone else: building_admin + **strong** step-up; revoke: mfa. 20 per building
+  per day; never `manager_viewer`; self-invites refused. App role has no DELETE; `prune:role-invitations` deletes rows
+  30 days after accepted / revoked / expired.
+- Accepting: lookup only inside the bound building (another slug finds nothing), the same neutral text for every
+  invalid case, 10 tries / 15 min per device. A 6-digit code (`login_tokens.purpose = team_invite`, bound to the
+  invitation, shared 10/24 h wrong-code budget) proves the address; only then is an account created (18+, account
+  notice) or the existing one signed in. Never across e-mails (HMAC compare). `BuildingRoleService::grant` skips the
+  inviter's strong check only for that open, unexpired invitation (same building, inviter, role, stairwell, token).
+- Last-admin guard: the last building_admin cannot be removed from the house panel (policy + service); hand over by
+  inviting a new admin first. Audit rows carry ids, role and stairwells — never the e-mail.
+
 ## Client IP (A04/A07)
 - nginx's realip module is the ONLY place the client IP is resolved; Laravel trusts proxies for
   `X-Forwarded-Proto/Port` only — never for the IP.

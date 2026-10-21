@@ -17,10 +17,11 @@ function grantsFor(string $role, string $table): array
 
 const APPEND_ONLY = ['audit_entries', 'plate_lookups'];
 const READ_ONLY_FOR_APP = ['audit_chain_heads', 'audit_chain_anchors'];
+const NO_DELETE_FOR_APP = ['role_invitations'];
 
 it('grants majas_app full DML on normal tables', function (): void {
     $tables = collect(DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))->pluck('tablename')
-        ->reject(fn ($t) => in_array($t, [...APPEND_ONLY, ...READ_ONLY_FOR_APP, 'migrations'], true));
+        ->reject(fn ($t) => in_array($t, [...APPEND_ONLY, ...READ_ONLY_FOR_APP, ...NO_DELETE_FOR_APP, 'migrations'], true));
 
     expect($tables)->not->toBeEmpty();
 
@@ -33,6 +34,11 @@ it('gives majas_app SELECT + INSERT only on append-only tables', function (): vo
     foreach (APPEND_ONLY as $table) {
         expect(grantsFor('majas_app', $table))->toBe(['INSERT', 'SELECT']);
     }
+});
+
+it('never lets majas_app delete team invitations; retention prunes them (ROUND2-SPEC §2.1)', function (): void {
+    expect(grantsFor('majas_app', 'role_invitations'))->toBe(['INSERT', 'SELECT', 'UPDATE'])
+        ->and(grantsFor('majas_retention', 'role_invitations'))->toBe(['DELETE', 'SELECT']);
 });
 
 it('gives majas_app SELECT only on chain heads and anchors', function (): void {

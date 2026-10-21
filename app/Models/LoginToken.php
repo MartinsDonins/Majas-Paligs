@@ -22,12 +22,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property CarbonImmutable $expires_at
  * @property CarbonImmutable|null $used_at
  * @property string|null $ip_hmac
+ * @property string|null $role_invitation_id
  */
 class LoginToken extends Model
 {
     public const UPDATED_AT = null;
 
-    protected $fillable = ['user_id', 'email_hmac', 'token_hash', 'code_hash', 'purpose', 'attempts', 'expires_at', 'used_at', 'ip_hmac'];
+    protected $fillable = ['user_id', 'email_hmac', 'token_hash', 'code_hash', 'purpose', 'attempts', 'expires_at', 'used_at', 'ip_hmac', 'role_invitation_id'];
 
     protected $hidden = ['token_hash', 'code_hash'];
 

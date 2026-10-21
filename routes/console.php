@@ -21,3 +21,6 @@ Schedule::command('prune:plate-lookups')->dailyAt('04:30')->withoutOverlapping()
 Schedule::command('prune:vehicles')->dailyAt('04:40')->withoutOverlapping();
 Schedule::command('prune:uploads')->hourly()->withoutOverlapping();
 Schedule::command('parking:maintain')->hourly()->withoutOverlapping();
+
+// Round 2 — team invitations (ROUND2-SPEC §2.1).
+Schedule::command('prune:role-invitations')->dailyAt('04:50')->withoutOverlapping();

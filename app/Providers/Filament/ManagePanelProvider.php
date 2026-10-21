@@ -53,9 +53,9 @@ final class ManagePanelProvider extends PanelProvider
                 NavigationGroup::make('parking')->label(static fn (): string => __('admin.nav.parking')),
                 NavigationGroup::make('governance')->label(static fn (): string => __('admin.nav.governance')),
             ])
-            ->discoverResources(in: app_path('Filament/Manage/Resources'), for: 'App\Filament\Manage\Resources')
-            ->discoverPages(in: app_path('Filament/Manage/Pages'), for: 'App\Filament\Manage\Pages')
-            ->discoverWidgets(in: app_path('Filament/Manage/Widgets'), for: 'App\Filament\Manage\Widgets')
+            ->discoverResources(in: app_path('Filament/Manage/Resources'), for: 'App\\Filament\\Manage\\Resources')
+            ->discoverPages(in: app_path('Filament/Manage/Pages'), for: 'App\\Filament\\Manage\\Pages')
+            ->discoverWidgets(in: app_path('Filament/Manage/Widgets'), for: 'App\\Filament\\Manage\\Widgets')
             ->pages([Dashboard::class])
             ->authMiddleware([
                 AdminPanelEntry::class,

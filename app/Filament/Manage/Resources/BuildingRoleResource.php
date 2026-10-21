@@ -42,6 +42,9 @@ final class BuildingRoleResource extends Resource
 
     protected static bool $isGloballySearchable = false;
 
+    /** Reached from "Komanda" ("Piešķirt lomu esošam iedzīvotājam"), not from the navigation (ROUND2-SPEC §2.3). */
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function getNavigationGroup(): string
     {
         return __('admin.nav.people');

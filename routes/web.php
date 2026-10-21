@@ -41,6 +41,7 @@ use App\Livewire\Parking\DeclarationWizard;
 use App\Livewire\Parking\Lookup as ParkingLookup;
 use App\Livewire\Parking\MyPermits;
 use App\Livewire\Parking\SightingSheet;
+use App\Livewire\Team\AcceptInvite;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
@@ -74,6 +75,10 @@ Route::post('/locale/{locale}', LocaleController::class)->whereIn('locale', ['lv
 Route::get('/join', RedeemInvite::class)->name('join')->middleware('discard.query');
 Route::get('/join/role', ChooseRole::class)->name('join.role')->middleware('discard.query');
 Route::get('/join/access', ChooseAccess::class)->name('join.access')->middleware('discard.query');
+
+// ---- Team invitation (ROUND2-SPEC §2.2): guest or signed in; context from the bound slug like /privacy/{slug}. The
+// token is in the fragment (#t=…), never in the URL the server sees. ----
+Route::get('/team-invite/{building:slug}', AcceptInvite::class)->middleware(['tenant', 'discard.query'])->name('team.accept');
 
 // ---- Login ----
 Route::middleware('guest')->group(function (): void {

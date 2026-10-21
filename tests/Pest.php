@@ -534,3 +534,28 @@ function waitUntil(object $page, string $expression, float $seconds = 5.0): void
         usleep(100_000);
     }
 }
+
+/**
+ * Same-origin navigation: the plugin's navigate() resolves paths against 127.0.0.1, where WebAuthn (RP ID
+ * `localhost`) cannot work.
+ */
+function openPath(object $page, string $path): void
+{
+    $page->script('window.__mpNav = true; location.assign('.json_encode($path).')');
+    $deadline = microtime(true) + 15;
+    while (true) {
+        try {
+            if ($page->script("!window.__mpNav && document.readyState === 'complete'")) {
+                usleep(300_000); // Alpine / Livewire boot
+
+                return;
+            }
+        } catch (Throwable) {
+            // The old document was torn down mid-call; ask the new one.
+        }
+        if (microtime(true) > $deadline) {
+            throw new RuntimeException("Timed out opening {$path}");
+        }
+        usleep(100_000);
+    }
+}

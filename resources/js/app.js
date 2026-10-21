@@ -49,6 +49,24 @@ document.addEventListener('alpine:init', () => {
         },
     }));
 
+    /**
+     * Reads a secret from the URL FRAGMENT, clears it from the address bar and history at once, and passes it to a
+     * Livewire action as an ARGUMENT (never a public property / snapshot). Called once per page load, with '' when
+     * there is no fragment (the component then uses what the session remembered).
+     * Usage: <div x-data="fragmentAction" data-param="t" data-method="open">
+     */
+    Alpine.data('fragmentAction', () => ({
+        init() {
+            const param = this.$el.dataset.param || 't';
+            const hash = window.location.hash.replace(/^#/, '');
+            const value = hash ? new URLSearchParams(hash).get(param) : null;
+            if (hash) {
+                history.replaceState(null, '', window.location.pathname);
+            }
+            this.$wire.call(this.$el.dataset.method || 'open', value || '');
+        },
+    }));
+
     /** Show/hide toggle for the PIN pad ("Rādīt / Показать"). */
     Alpine.data('revealToggle', () => ({
         shown: false,

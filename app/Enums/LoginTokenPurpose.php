@@ -13,6 +13,9 @@ enum LoginTokenPurpose: string
     case EmailChangeNew = 'email_change_new';
     case StepUp = 'step_up';
 
+    /** E-mail code that proves the address of ONE team invitation (login_tokens.role_invitation_id, ROUND2-SPEC §2.2). */
+    case TeamInvite = 'team_invite';
+
     protected static function labelPrefix(): string
     {
         return 'login_token_purpose';
