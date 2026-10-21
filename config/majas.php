@@ -17,6 +17,11 @@ return [
         'plate_index' => env('PLATE_INDEX_KEY'),
         // Only while rotating the plate encryption master (plates:rekey re-seals every building, then remove it).
         'plate_enc_previous' => env('PLATE_ENC_KEY_PREVIOUS'),
+        // Resident roster (SEC-011, ROUND2-SPEC §5.2): ContactVault + blind indexes. Never reuse the plate keys.
+        'contact_enc' => env('CONTACT_ENC_KEY'),
+        'contact_index' => env('CONTACT_INDEX_KEY'),
+        // Only while rotating the roster encryption master (contacts:rekey re-seals every building, then remove it).
+        'contact_enc_previous' => env('CONTACT_ENC_KEY_PREVIOUS'),
     ],
 
     /* Working host and future own domain (BUSINESS §6). */
@@ -132,5 +137,37 @@ return [
         'photo_disk' => env('PARKING_PHOTO_DISK', 'local'),
         // Legal banner key (platform legal_notices, editable in the platform panel).
         'legal_notice_key' => 'parking.riga.current_rule',
+    ],
+
+    /* Round 2 — CSV import pipeline (DB-003, ROUND2-SPEC §4). Kinds map to their ImportHandler. */
+    'import' => [
+        'handlers' => [
+            'roster' => 'App\Services\Roster\RosterImportHandler',
+            // PARK-012 (resolved only once the class exists).
+            'permits' => 'App\Services\Parking\PermitImportHandler',
+        ],
+        'max_bytes' => 2 * 1024 * 1024,
+        'max_rows' => 2000,
+        'max_columns' => 30,
+        'max_cell_chars' => 1000,
+        'resume_hours' => 24,
+        'dry_run_valid_minutes' => 30,
+        'per_day' => 10,
+        'chunk' => 100,
+        'preview_page' => 50,
+        'keep_days' => 30,
+    ],
+
+    /* Round 2 — resident roster (ADMIN-007, ROUND2-SPEC §5). */
+    'roster' => [
+        'reveal_per_day' => 100,
+        'reveal_minutes' => 5,
+        'export_per_day' => 5,
+        'list_audit_minutes' => 10,
+        'moved_out_keep_days' => 30,
+        'review_reminder_months' => 24,
+        'max_phones' => 3,
+        'name_max' => 120,
+        'comment_max' => 280,
     ],
 ];

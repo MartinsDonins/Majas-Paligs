@@ -35,7 +35,9 @@
 - 🎯 Izlemt, **kas paraksta DPA** Pūces ielai 51 (pārzinis) un kādā tvērumā. Ieteikums: uzreiz core, heating, outages,
   parking un roster. Blocks: L-core, L-R, parking L1.
 - 🎯 Pirms pirmā saraksta importa izveidot un noglabāt (Coolify vidē un paroļu pārvaldniekā) **`CONTACT_ENC_KEY`** un
-  **`CONTACT_INDEX_KEY`**. Blocks: ADMIN-007 production use.
+  **`CONTACT_INDEX_KEY`**. Blocks: ADMIN-007 production use. Izveide: `php artisan majas:keys` (izdrukā abas); ievadīt
+  Coolify kopīgajā vidē — `docker/compose.prod.yaml` tās jau padod konteineriem. Atslēgu nedrīkst ņemt no PLATE_* (sistēma
+  atteiksies startēt).
 - 🆕 (Pēc izvēles) apstiprināt versiju **0.1.0** kārtas 2 izlaidumam (minor versija tikai ar apstiprinājumu).
 
 ## Juridiskais (bloķē vilni 1 un stāvvietu)

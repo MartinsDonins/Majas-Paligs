@@ -9,8 +9,8 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
- * Gate L-R (resident roster) closed or opened — to building_admin(s) and platform admins (ROUND2-SPEC §3.1).
- * Condition keys only, never a count or a name.
+ * Roster gate L-R closed again (GOV-012) — to building_admin(s) and platform admins. Condition keys only, never a
+ * count of contacts or any contact data.
  */
 final class RosterGateChanged extends Notification
 {
@@ -21,7 +21,6 @@ final class RosterGateChanged extends Notification
      */
     public function __construct(
         public readonly string $buildingName,
-        public readonly bool $open,
         public readonly array $missing,
     ) {}
 
@@ -36,11 +35,11 @@ final class RosterGateChanged extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
-            ->subject(__($this->open ? 'gate.roster.mail.opened_subject' : 'gate.roster.mail.closed_subject', ['building' => $this->buildingName]))
-            ->line(__($this->open ? 'gate.roster.mail.opened' : 'gate.roster.mail.closed', ['building' => $this->buildingName]));
+            ->subject(__('roster.gate.mail.subject', ['building' => $this->buildingName]))
+            ->line(__('roster.gate.mail.body', ['building' => $this->buildingName]));
 
         foreach ($this->missing as $key) {
-            $mail->line('• '.__('gate.roster.missing.'.$key));
+            $mail->line('• '.__('roster.gate.missing.'.$key));
         }
 
         return $mail->salutation(__('mail.salutation'));
@@ -51,6 +50,6 @@ final class RosterGateChanged extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        return ['building' => $this->buildingName, 'open' => $this->open, 'missing' => $this->missing];
+        return ['building' => $this->buildingName, 'missing' => $this->missing];
     }
 }

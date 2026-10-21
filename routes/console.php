@@ -24,3 +24,6 @@ Schedule::command('parking:maintain')->hourly()->withoutOverlapping();
 
 // Round 2 — team invitations (ROUND2-SPEC §2.1).
 Schedule::command('prune:role-invitations')->dailyAt('04:50')->withoutOverlapping();
+// Round 2 — CSV import staging (24 h) and the resident roster (moved out + 30 d), majas_retention.
+Schedule::command('prune:imports')->hourly()->withoutOverlapping();
+Schedule::command('prune:roster')->dailyAt('04:55')->withoutOverlapping();

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Gdpr;
 
 /**
- * Result of RosterGate::status(): open + the missing condition keys (RosterGate::CONDITIONS).
+ * Result of RosterGate::status(): open, and the missing condition keys (RosterGate::CONDITIONS).
  */
 final readonly class RosterGateStatus
 {
@@ -18,10 +18,12 @@ final readonly class RosterGateStatus
     ) {}
 
     /**
+     * Plain-language labels of the missing conditions (current locale).
+     *
      * @return list<string>
      */
     public function missingLabels(): array
     {
-        return array_map(static fn (string $k): string => __('gate.roster.missing.'.$k), $this->missing);
+        return array_map(static fn (string $k): string => __('roster.gate.missing.'.$k), $this->missing);
     }
 }

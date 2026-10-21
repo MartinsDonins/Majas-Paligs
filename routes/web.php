@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PostLoginRedirect;
 use App\Http\Controllers\BuildingExportDownloadController;
 use App\Http\Controllers\DataExportDownloadController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\ImportTemplateController;
 use App\Http\Controllers\InviteLetterController;
 use App\Http\Controllers\LegacyPanelRedirect;
 use App\Http\Controllers\LocaleController;
@@ -16,6 +17,8 @@ use App\Http\Controllers\ParkingExportDownloadController;
 use App\Http\Controllers\ParkingSignController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PwaController;
+use App\Http\Controllers\RosterExportController;
+use App\Http\Controllers\RosterExtractController;
 use App\Http\Controllers\SightingPhotoController;
 use App\Http\Middleware\EnsurePinChanged;
 use App\Http\Middleware\EnsureSessionEpoch;
@@ -108,6 +111,24 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/me/passkey', PasskeyOffer::class)->name('me.passkey');
     Route::get('/me/exports/{export}', DataExportDownloadController::class)->middleware('signed')->name('me.exports.download');
 });
+
+// ---- Administration files (ROUND2-SPEC §4.7 / §5.3): next to the building panel, same tenancy chain. ----
+// Import templates hold no personal data (work below the gate); roster files are generated on demand, never stored.
+Route::prefix('/admin/b/{building:slug}/files')
+    ->middleware(['auth', 'tenant', 'member'])
+    ->group(function (): void {
+        Route::get('/import-template/{kind}.csv', ImportTemplateController::class)
+            ->middleware('role:building_admin,section_elder,parking_officer')
+            ->where('kind', '[a-z]+')
+            ->name('admin.import-template');
+        Route::get('/roster-export', RosterExportController::class)
+            ->middleware(['role:building_admin', 'step-up', 'signed'])
+            ->name('admin.roster.export');
+        Route::get('/roster-extract/{contact}', RosterExtractController::class)
+            ->middleware(['role:building_admin,section_elder', 'step-up', 'signed'])
+            ->where('contact', '[0-9a-z]{26}')
+            ->name('admin.roster.extract');
+    });
 
 // ---- Resident app: auth → SetCurrentBuilding → member (404 for non-members) → role / step-up ----
 Route::prefix('/b/{building:slug}')

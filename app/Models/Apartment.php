@@ -108,6 +108,16 @@ class Apartment extends Model
         return $this->hasMany(ApartmentInvite::class);
     }
 
+    /**
+     * Roster contacts (ADMIN-007) — admin / own-stairwell elder screens only (ResidentContactPolicy).
+     *
+     * @return HasMany<ResidentContact, $this>
+     */
+    public function residentContacts(): HasMany
+    {
+        return $this->hasMany(ResidentContact::class);
+    }
+
     public function isArchived(): bool
     {
         return $this->archived_at !== null;

@@ -464,6 +464,22 @@ example row of obviously synthetic values built in code (e.g. apartment `1`, nam
 "+371 …" with letters, not digits) so no phone-shaped string is ever tracked in git (personal-data guard). UTF-8 with
 BOM, `;` delimiter (opens correctly in Excel LV and Google Sheets).
 
+### 4.8 ImportHandler contract (as built in DB-003, round2-roster)
+`App\Services\Import\ImportHandler` — one implementation per kind, registered in `config('majas.import.handlers')`
+(`roster` → `Services\Roster\RosterImportHandler`, `permits` → `Services\Parking\PermitImportHandler`, resolved by
+`ImportRunService::handler()` once the class exists). Methods: `kind()`, `fields(): array<string, ImportField>`
+(key, required, multi, maxLength, synonyms), `closedGate(): ?list<string>` (null = open; D6 for every stage),
+`mayImport(User)`, `mayDownloadTemplate(User)`, `vaultKey()` (32-byte master for ImportVault: CONTACT_ENC_KEY /
+PLATE_ENC_KEY), `confirmations(): list<string>` (`art14` / `endorsed`, lang `import.confirm.<key>`),
+`codes(): array<code, error|warning|skip>`, `template(locale): {headers, example}`, `dedupeKeys(ImportRow, RowResult)`
+(phase 1, no DB), `prepare(ImportContext, list<RowResult>)` (load DB state per batch / commit chunk),
+`validate(ImportRow, RowResult, ImportContext)` (codes, `action` create|update|skip, `values`, masked `preview`),
+`commit(RowResult, ImportRun, User): created|updated|skipped` (inside its savepoint, via domain services).
+The pipeline owns `apartment_number` resolution (`apartment_not_found` / `apartment_merged`), `required_missing`,
+`too_long`, `duplicate_in_file`, `exists_skip` / `exists_update` severities. UI: a Filament page `use
+InteractsWithImportPipeline` + `importKind()` and the view `filament.manage.pages.import-pipeline`. Shared strings
+(fields, codes incl. the permit codes of §4.5, steps, errors) are in `lang/roster/{lv,ru}.json` under `import.*`.
+
 ---
 
 ## 5. Resident roster — "Iedzīvotāju saraksts" (ADMIN-007, SEC-011)

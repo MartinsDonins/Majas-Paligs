@@ -90,6 +90,8 @@ it('calls UserScopedQuery::for only from the allow-listed callers', function ():
         'app/Livewire/Me/WhoViewed.php',
         'app/Gdpr/GdprExporter.php',
         'app/Gdpr/AccountEraser.php',
+        // Round 2: linking roster contacts after the e-mail is verified (one pass over the user's own buildings).
+        'app/Services/Roster/RosterLinker.php',
         'app/Auth/PinAuthService.php',
         'app/Auth/StepUpService.php',
         'app/Http/Controllers/Auth/PostLoginRedirect.php',

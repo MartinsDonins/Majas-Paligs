@@ -9,7 +9,8 @@ use Illuminate\Console\Command;
 use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
- * majas:keys — generate the dedicated keys (INVITE_KEY, PLATE_ENC_KEY, PLATE_INDEX_KEY). Prints them (to put into
+ * majas:keys — generate the dedicated keys (INVITE_KEY, PLATE_ENC_KEY, PLATE_INDEX_KEY, CONTACT_ENC_KEY,
+ * CONTACT_INDEX_KEY). Prints them (to put into
  * Coolify) or, with --write, fills EMPTY values in a local .env. Never overwrites an existing key (rotation is a
  * documented procedure, docs/SECURITY.md).
  */
@@ -18,11 +19,17 @@ final class GenerateKeys extends Command
 {
     protected $signature = 'majas:keys {--write : Fill empty keys in the local .env}';
 
-    protected $description = 'Generate the dedicated invite / plate keys.';
+    protected $description = 'Generate the dedicated invite / plate / roster contact keys.';
 
     public function handle(): int
     {
-        $keys = ['INVITE_KEY' => Keys::generate(), 'PLATE_ENC_KEY' => Keys::generate(), 'PLATE_INDEX_KEY' => Keys::generate()];
+        $keys = [
+            'INVITE_KEY' => Keys::generate(),
+            'PLATE_ENC_KEY' => Keys::generate(),
+            'PLATE_INDEX_KEY' => Keys::generate(),
+            'CONTACT_ENC_KEY' => Keys::generate(),
+            'CONTACT_INDEX_KEY' => Keys::generate(),
+        ];
 
         if (! $this->option('write')) {
             foreach ($keys as $name => $value) {

@@ -10,6 +10,7 @@ use App\Livewire\Me\PasskeyOffer;
 use App\Models\User;
 use App\Services\Onboarding\JoinCompleter;
 use App\Services\Onboarding\JoinState;
+use App\Services\Roster\RosterLinker;
 use App\Support\SafeReturn;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,10 +55,16 @@ final class LoginCompleter
             app()->setLocale($deviceLocale->value);
         }
 
-        if ($user->email !== null && $user->email_verified_at === null && str_starts_with($method, 'email')) {
+        $verifiedNow = $user->email !== null && $user->email_verified_at === null && str_starts_with($method, 'email');
+        if ($verifiedNow) {
             $user->forceFill(['email_verified_at' => now()]);
         }
         $user->forceFill(['last_login_at' => now()])->save();
+
+        // Round 2: a freshly verified e-mail may link the person's roster contacts (approved memberships only).
+        if ($verifiedNow) {
+            app(RosterLinker::class)->afterEmailVerified($user);
+        }
 
         if ($user->pin_must_change) {
             return redirect()->route('login.pin.new');

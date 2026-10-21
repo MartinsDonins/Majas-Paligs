@@ -10,12 +10,13 @@ use App\Tenancy\CurrentBuilding;
 use App\Tenancy\Exceptions\MissingBuildingContext;
 
 /**
- * Resident roster gate L-R (ROUND2-SPEC D2, §3.1, GOV-012) — a pure function of buildings.settings +
- * building_privacy_notices, mirroring ParkingGate: open iff gate L-core is open, the recorded DPA scope contains
- * `roster` and the current published notice covers `roster`.
+ * Resident roster gate L-R (GOV-012, ROUND2-SPEC §3.1, decision D2) — a pure function of buildings.settings +
+ * building_privacy_notices, like CoreGate / ParkingGate: open iff gate L-core is open AND dpa_scope ∋ roster AND the
+ * current published notice covers `roster`.
  *
- * Unlocks every read / write of resident_contacts, the roster import (upload and commit) and the roster export.
- * Enforced three times: policy before(), model guard (GuardedByRosterGate) and the UI (closed card instead of data).
+ * Unlocks every read and write of resident_contacts, the roster import upload / commit and the roster export.
+ * Enforced three times: policy before() (ResidentContactPolicy, ImportRunPolicy), the model guard
+ * GuardedByRosterGate and the UI (closed card instead of the list / uploader).
  */
 final class RosterGate
 {
@@ -40,7 +41,7 @@ final class RosterGate
             $missing[] = 'privacy_notice_roster';
         }
 
-        return new RosterGateStatus(open: $missing === [], missing: $missing);
+        return new RosterGateStatus($missing === [], $missing);
     }
 
     /**
@@ -55,11 +56,13 @@ final class RosterGate
 
     public static function isOpen(): bool
     {
-        return self::current()->open ?? false;
+        $status = self::current();
+
+        return $status !== null && $status->open;
     }
 
     /**
-     * Model-guard helper: throws RosterGateClosed when the current building's gate L-R is closed.
+     * Model-guard / service helper: throws RosterGateClosed when the current building's roster gate is closed.
      */
     public static function assertOpen(): void
     {

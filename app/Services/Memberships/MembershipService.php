@@ -10,6 +10,7 @@ use App\Models\Apartment;
 use App\Models\ApartmentMembership;
 use App\Models\User;
 use App\Notifications\MembershipDecided;
+use App\Services\Roster\RosterLinker;
 use App\Tenancy\CurrentBuilding;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,9 @@ final class MembershipService
 
             AuditLogger::record('membership.approve', $membership, [(int) $membership->user_id], actorRole: $this->actorRole($actor, $membership), actorUserId: (int) $actor->id);
         });
+
+        // Round 2: the member's roster contact of this apartment (same verified e-mail) is linked to the account.
+        app(RosterLinker::class)->afterMembershipApproved($membership);
 
         $this->notifyRequester($membership, approved: true);
     }

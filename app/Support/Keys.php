@@ -8,7 +8,7 @@ use RuntimeException;
 
 /**
  * Access to the dedicated keys (PLANNING §5 A04). Each key is 32 random bytes, configured as "base64:…".
- * APP_KEY is never used for invites, plates or IP/e-mail HMACs.
+ * APP_KEY is never used for invites, plates, roster contacts or IP/e-mail HMACs.
  */
 final class Keys
 {
@@ -35,6 +35,32 @@ final class Keys
         $value = (string) config('majas.keys.plate_enc_previous');
 
         return $value === '' ? null : self::decode('plate_enc_previous', 'PLATE_ENC_KEY_PREVIOUS');
+    }
+
+    /**
+     * Resident roster encryption master (CONTACT_ENC_KEY, SEC-011) — ContactVault and the roster ImportVault payloads.
+     */
+    public static function contactEncryption(): string
+    {
+        return self::decode('contact_enc', 'CONTACT_ENC_KEY');
+    }
+
+    /**
+     * Previous roster encryption master during a master-key rotation (CONTACT_ENC_KEY_PREVIOUS), or null.
+     */
+    public static function contactEncryptionPrevious(): ?string
+    {
+        $value = (string) config('majas.keys.contact_enc_previous');
+
+        return $value === '' ? null : self::decode('contact_enc_previous', 'CONTACT_ENC_KEY_PREVIOUS');
+    }
+
+    /**
+     * Roster blind-index master (CONTACT_INDEX_KEY, SEC-011): per-building, per-field HKDF-derived HMAC keys.
+     */
+    public static function contactIndex(): string
+    {
+        return self::decode('contact_index', 'CONTACT_INDEX_KEY');
     }
 
     /**

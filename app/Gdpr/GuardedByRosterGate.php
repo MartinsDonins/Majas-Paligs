@@ -7,9 +7,10 @@ namespace App\Gdpr;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Model guard for roster rows (ROUND2-SPEC §3.1 enforcement 2): saving or deleting while gate L-R is closed throws
- * RosterGateClosed from ANY path. Retention deletes (majas_retention, query builder) and account erasure (query
- * builder) are never blocked, like GuardedByParkingGate.
+ * Model guard (ROUND2-SPEC §3.1, enforcement 2): saving or deleting a roster row while gate L-R is closed throws
+ * RosterGateClosed from ANY path (policy, Filament, import job, seeder, console, tinker). Retention deletes
+ * (prune:roster, majas_retention) and GDPR erasure (AccountEraser) delete through the query builder and are never
+ * blocked — a data subject's erasure must work even while the house's roster is closed.
  *
  * @mixin Model
  */

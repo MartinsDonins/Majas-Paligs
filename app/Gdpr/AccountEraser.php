@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Gdpr;
 
 use App\Audit\AuditLogger;
+use App\Casts\Bytea;
+use App\Enums\BuildingRoleType;
 use App\Enums\ExportStatus;
 use App\Enums\MembershipStatus;
 use App\Models\ApartmentMembership;
@@ -13,11 +15,16 @@ use App\Models\BuildingRole;
 use App\Models\DataExport;
 use App\Models\LoginToken;
 use App\Models\Passkey;
+use App\Models\ResidentContact;
 use App\Models\TrustedDevice;
 use App\Models\User;
+use App\Notifications\RosterContactsErased;
 use App\Services\Parking\VehicleRemovalService;
+use App\Services\Roster\ContactVault;
+use App\Tenancy\CurrentBuilding;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -32,8 +39,20 @@ final class AccountEraser
     {
         $userId = (int) $user->id;
 
-        UserScopedQuery::for($user)->eachBuilding(static function (Building $building) use ($userId): void {
-            DB::transaction(static function () use ($userId, $building): void {
+        $email = $user->email;
+
+        UserScopedQuery::for($user)->eachBuilding(static function (Building $building) use ($userId, $email): void {
+            DB::transaction(static function () use ($userId, $building, $email): void {
+                // Round 2 (ROUND2-SPEC §5.5): the house's roster rows about me (linked, or my e-mail by blind index).
+                // Query-builder delete: the roster gate guard never blocks an erasure. The admins learn a count only.
+                $erased = self::eraseRosterContacts($userId, $email);
+                if ($erased > 0) {
+                    AuditLogger::record('roster.erase', ['resident_contact', 'erasure'], [$userId], data: ['count' => $erased], actorRole: 'self', actorUserId: $userId);
+                    $admins = User::query()->whereIn('id', BuildingRole::query()->current()->where('role', BuildingRoleType::BuildingAdmin->value)->pluck('user_id'))
+                        ->whereKeyNot($userId)->whereNotNull('email')->whereNull('anonymised_at')->get();
+                    Notification::send($admins, new RosterContactsErased($building->name, $erased));
+                }
+
                 foreach (ApartmentMembership::query()->where('user_id', $userId)->active()->get() as $membership) {
                     $membership->forceFill(['status' => MembershipStatus::Ended, 'ended_at' => now()])->save();
                     AuditLogger::record('membership.end', $membership, [$userId], reasonCode: 'account_deleted', actorRole: 'self', actorUserId: $userId);
@@ -85,5 +104,18 @@ final class AccountEraser
 
             $user->delete(); // soft delete → deleted_at; hard delete later by prune:users after the last audit reference
         });
+    }
+
+    /**
+     * Delete the CURRENT building's roster contacts linked to the user or carrying the user's e-mail.
+     */
+    private static function eraseRosterContacts(int $userId, ?string $email): int
+    {
+        $bidx = $email !== null ? app(ContactVault::class)->bidx(CurrentBuilding::id(), 'email', ContactVault::normalizeEmail($email)) : null;
+
+        return ResidentContact::query()
+            ->where(fn ($q) => $bidx === null ? $q->where('user_id', $userId)
+                : $q->where('user_id', $userId)->orWhere('email_bidx', Bytea::literal($bidx)))
+            ->delete();
     }
 }

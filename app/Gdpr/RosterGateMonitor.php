@@ -14,10 +14,10 @@ use App\Notifications\RosterGateChanged;
 use Illuminate\Support\Facades\Notification;
 
 /**
- * Audits and alerts gate L-R transitions (ROUND2-SPEC §3.1): a regression (open → closed) is audited as
- * `gate.roster.closed` and alerts building_admin + platform admins — the roster data stays but the UI stops showing
- * it until the gate is open again; opening is audited as `gate.roster.opened`.
- * Call after any change to buildings.settings or building_privacy_notices, next to CoreGateMonitor.
+ * Audits roster gate transitions (ROUND2-SPEC §3.1): opening → `gate.roster.opened`; a regression (DPA scope or notice
+ * lost) → `gate.roster.closed` and an alert to building_admin(s) + platform admins. The rows stay stored but the UI
+ * and every policy refuse them until the gate is open again ("Saraksts slēgts: …"). Call after any change to
+ * buildings.settings or building_privacy_notices (context = the building), next to CoreGateMonitor::afterChange.
  */
 final class RosterGateMonitor
 {
@@ -30,11 +30,11 @@ final class RosterGateMonitor
             return $after;
         }
 
-        AuditLogger::record(
-            action: $after->open ? 'gate.roster.opened' : 'gate.roster.closed',
-            subject: $building,
-            data: ['missing' => $after->missing],
-        );
+        AuditLogger::record($after->open ? 'gate.roster.opened' : 'gate.roster.closed', $building, data: ['missing' => $after->missing]);
+
+        if ($after->open) {
+            return $after;
+        }
 
         $adminIds = BuildingRole::query()->current()->where('role', BuildingRoleType::BuildingAdmin->value)->pluck('user_id');
         $recipients = User::query()
@@ -43,7 +43,7 @@ final class RosterGateMonitor
             ->where(fn ($q) => $q->whereIn('id', $adminIds)->orWhere('platform_role', PlatformRole::PlatformAdmin->value))
             ->get();
 
-        Notification::send($recipients, new RosterGateChanged($building->name, $after->open, $after->missing));
+        Notification::send($recipients, new RosterGateChanged($building->name, $after->missing));
 
         return $after;
     }

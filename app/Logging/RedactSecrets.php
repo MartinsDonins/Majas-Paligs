@@ -13,7 +13,11 @@ use Monolog\LogRecord;
  */
 final class RedactSecrets
 {
-    public const KEYS = ['c', 't', 'token', 'code', 'pin', 'new_pin', 'temp_code', 'signature', 'password', 'secret', 'remember_token', 'app_authentication_secret'];
+    public const KEYS = [
+        'c', 't', 'token', 'code', 'pin', 'new_pin', 'temp_code', 'signature', 'password', 'secret', 'remember_token', 'app_authentication_secret',
+        // Round 2 (AC-R2-19): CSV import cells — the paste box, staged payloads — never reach a log or GlitchTip.
+        'paste', 'csv', 'payload', 'payload_ciphertext', 'cells',
+    ];
 
     public function __invoke(Logger $logger): void
     {

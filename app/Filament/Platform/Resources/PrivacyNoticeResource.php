@@ -63,7 +63,7 @@ final class PrivacyNoticeResource extends Resource
             Select::make('kind')->label(__('admin.privacy_notice.kind'))->options(PrivacyNoticeKind::options())->required(),
             TextInput::make('version')->label(__('admin.privacy_notice.version'))->required()->maxLength(40),
             CheckboxList::make('covers_modules')->label(__('admin.privacy_notice.covers'))
-                ->options(collect(['account', 'core', 'heating', 'outages', 'parking'])->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
+                ->options(collect(['account', 'core', 'heating', 'outages', 'parking', 'roster'])->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
                 ->columns(5),
             Textarea::make('body.lv')->label('LV')->rows(14)->required()->columnSpanFull(),
             Textarea::make('body.ru')->label('RU')->rows(14)->required()->columnSpanFull(),
