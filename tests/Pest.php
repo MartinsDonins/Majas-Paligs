@@ -49,7 +49,9 @@ use Tests\TestCase;
  */
 pest()->extend(TestCase::class)->use(RefreshDatabase::class)->in('Feature', 'Unit', 'Arch');
 pest()->extend(BrowserTestCase::class)->use(RefreshDatabase::class)->in('Browser');
-// CI runners are slower than local Docker: a 5 s page-load timeout made the deploy gate flaky (Karen, round 1).pest()->browser()->timeout(15_000);
+
+// CI runners are slower than local Docker: a 5 s page-load timeout made the deploy gate flaky (Karen, round 1).
+pest()->browser()->timeout(15_000);
 
 /**
  * Run $callback inside a building context (test helper; app code uses the allow-listed classes only).
