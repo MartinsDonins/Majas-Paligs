@@ -91,6 +91,18 @@
 - 🆕 DPA datus (datums, atsauce, tvērums) ieraksta **platformas panelī** (CoreDigify, platform_admin + TOTP), nevis mājas
   administrators — pēc DPA parakstīšanas to izdara CoreDigify.
 
+## Kārta 2 — mājas atvēršana un dokumenti (komanda-vednis, 2026-10-22)
+- 🆕 **Jurista pārbaude** dokumentu paraugiem `database/templates/*.md` (DPA + papildinājums, mājas privātuma
+  paziņojums ar stāvvietas un iedzīvotāju saraksta sadaļām, DPIA-lite, stāvvietas lēmuma paraugs) pirms pilots tos
+  paraksta. Labojumi = jauna versija platformā "Dokumentu paraugi" (publicētā versija nav maināma).
+- 🆕 **Dzimtās RU valodas pārbaude** visām jaunajām `opening.*`, `document.*`, `dpia.*`, `retention.*`, `team.*`
+  virknēm un RU paraugiem (UI-001 saraksts).
+- 🆕 Coolify vidē iestatīt **`MAJAS_PROCESSOR_NAME`**, **`MAJAS_PROCESSOR_CONTACT`** (CoreDigify juridiskais nosaukums +
+  publisks kontakts) un **`MAJAS_SUBPROCESSORS`** ("Nosaukums — mērķis — ES valsts; …"). Līdz tam DPA rāda
+  "Apakšapstrādātāju saraksts tiks pievienots pirms parakstīšanas." Blocks: pirmā DPA parakstīšana.
+- 🆕 Pūces iela 51: izlemt, kas paraksta DPA (persona / kopība) un tvērumu (ieteikums: core, heating, outages, parking,
+  roster uzreiz), tad vednī "Mājas atvēršana" sagatavot un nosūtīt; CoreDigify ieraksta "Atvēršanas pieprasījumos".
+
 ## Infrastruktūra
 - 🎯 Izveidot Coolify Docker Compose resursu + PostgreSQL 18 + Redis; kā Postgres superuser palaist `database/sql/roles.sql`
   (lomas `majas_owner`, `majas_app`, `majas_retention` ar atsevišķām parolēm; `CREATE DATABASE majas OWNER majas_owner`;

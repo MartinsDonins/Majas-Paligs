@@ -27,11 +27,14 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\HtmlString;
 use InvalidArgumentException;
 
 /**
- * Building settings (building_admin + step-up): house controller, DPIA, mandate, modules, manager-sharing flags,
- * manager contact — with the gate status L-core / L1 / L2 and its missing conditions. The DPA fields (date, ref,
+ * Building settings (building_admin + step-up): modules, enforcement mode, manager-sharing flags, manager contact,
+ * locale — with the gate status L-core / L1 / L2 and its missing conditions. Round 2 (ROUND2-SPEC §1.2): the house
+ * controller, DPIA date and mandate are written ONLY by the opening wizard (one writer per gate input) and are shown
+ * here read-only with a link "Mainīt atvēršanas vednī". The DPA fields (date, ref,
  * scope) are READ-ONLY here: CoreDigify is the processor and party to the Art. 28 DPA, so only the platform panel
  * (platform_admin + TOTP, PlatformBuildingContext, platform-chain audit) records them (review fix).
  * Every save is audited; gate transitions alert and audit (CoreGateMonitor).
@@ -108,14 +111,14 @@ final class BuildingSettingsPage extends Page
         return $schema
             ->statePath('data')
             ->components([
+                // Gate inputs have ONE writer — the opening wizard (ROUND2-SPEC §1.2): read-only here.
                 Section::make(__('admin.settings.controller'))
-                    ->description(__('admin.settings.controller_help'))
+                    ->description(fn (): HtmlString => $this->wizardLink('controller'))
                     ->columns(2)
                     ->schema([
-                        TextInput::make('controller_name')->label(__('admin.settings.controller_name'))->maxLength(200),
-                        TextInput::make('controller_contact')->label(__('admin.settings.controller_contact'))->maxLength(200)
-                            ->helperText(__('admin.settings.controller_contact_help')),
-                        TextInput::make('controller_basis_ref')->label(__('admin.settings.controller_basis'))->maxLength(200),
+                        TextInput::make('controller_name')->label(__('admin.settings.controller_name'))->disabled()->dehydrated(false),
+                        TextInput::make('controller_contact')->label(__('admin.settings.controller_contact'))->disabled()->dehydrated(false),
+                        TextInput::make('controller_basis_ref')->label(__('admin.settings.controller_basis'))->disabled()->dehydrated(false),
                     ]),
                 Section::make(__('admin.settings.dpa'))
                     ->description(__('admin.settings.dpa_platform_only'))
@@ -127,8 +130,10 @@ final class BuildingSettingsPage extends Page
                         CheckboxList::make('dpa_scope')->label(__('admin.settings.dpa_scope'))
                             ->options(collect(BuildingSettings::DPA_SCOPES)->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
                             ->columns(4)->disabled()->dehydrated(false),
-                        DatePicker::make('dpia_completed_at')->label(__('admin.settings.dpia'))->native(false)->displayFormat('d.m.Y'),
-                        TextInput::make('mandate_ref')->label(__('admin.settings.mandate'))->maxLength(200),
+                        DatePicker::make('dpia_completed_at')->label(__('admin.settings.dpia'))->native(false)->displayFormat('d.m.Y')
+                            ->disabled()->dehydrated(false)->helperText(fn (): HtmlString => $this->wizardLink('dpia')),
+                        TextInput::make('mandate_ref')->label(__('admin.settings.mandate'))->disabled()->dehydrated(false)
+                            ->helperText(fn (): HtmlString => $this->wizardLink('mandate')),
                     ]),
                 Section::make(__('admin.settings.modules'))
                     ->columns(2)
@@ -181,13 +186,6 @@ final class BuildingSettingsPage extends Page
 
         try {
             $settings = $building->settings->with([
-                'controller' => [
-                    'name' => $data['controller_name'] ?? null,
-                    'contact' => $data['controller_contact'] ?? null,
-                    'basis_ref' => $data['controller_basis_ref'] ?? null,
-                ],
-                'dpia_completed_at' => $data['dpia_completed_at'] ?? null,
-                'mandate_ref' => $data['mandate_ref'] ?? null,
                 'modules' => [
                     'heating' => (bool) ($data['module_heating'] ?? false),
                     'outages' => (bool) ($data['module_outages'] ?? false),
@@ -264,6 +262,16 @@ final class BuildingSettingsPage extends Page
         ParkingGateMonitor::afterChange($building, $parkingBefore);
 
         Notification::make()->success()->title(__('admin.settings.saved'))->send();
+    }
+
+    /**
+     * "Mainīt atvēršanas vednī" → opening#step-<step>.
+     */
+    public function wizardLink(string $step): HtmlString
+    {
+        $url = HouseOpeningWizardPage::getUrl(tenant: CurrentBuilding::get()).'#step-'.$step;
+
+        return new HtmlString('<a href="'.e($url).'" class="text-primary-600 underline">'.e(__('opening.settings_link')).'</a>');
     }
 
     public function gateStatus(): CoreGateStatus

@@ -4,28 +4,18 @@ declare(strict_types=1);
 
 namespace App\Filament\Manage\Pages;
 
-use App\Audit\AuditLogger;
-use App\Enums\PrivacyNoticeKind;
-use App\Gdpr\CoreGate;
-use App\Gdpr\CoreGateMonitor;
-use App\Gdpr\ParkingGate;
-use App\Gdpr\ParkingGateMonitor;
 use App\Models\BuildingPrivacyNotice;
-use App\Models\PrivacyNoticeVersion;
 use App\Tenancy\CurrentBuilding;
 use BackedEnum;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Livewire\Attributes\Locked;
 
 /**
- * Building privacy notice (house = controller): adopt a published template, preview LV/RU with the controller
- * filled in, publish (the previous notice is withdrawn) or withdraw. building_admin + step-up; audited; gate
- * L-core re-evaluated after each change.
+ * Building privacy notice — read-only history (ROUND2-SPEC §3.2 `notice`): the current notice (date, covered
+ * modules, public link) and every earlier version with its withdrawal date. Preparing, editing and publishing a notice
+ * moved to the opening wizard (one writer per gate input; lint + LV/RU editor there). building_admin only.
  */
 final class BuildingPrivacyNoticePage extends Page
 {
@@ -36,11 +26,6 @@ final class BuildingPrivacyNoticePage extends Page
     protected static ?string $slug = 'privacy-notice';
 
     protected string $view = 'filament.manage.pages.building-privacy-notice';
-
-    public ?int $templateId = null;
-
-    #[Locked]
-    public string $previewLocale = 'lv';
 
     public static function getNavigationGroup(): string
     {
@@ -67,86 +52,6 @@ final class BuildingPrivacyNoticePage extends Page
     public function mount(): void
     {
         abort_unless(self::canAccess(), 403);
-        $this->templateId = $this->templates()->first()?->id;
-    }
-
-    public function setLocale(string $locale): void
-    {
-        $this->previewLocale = $locale === 'ru' ? 'ru' : 'lv';
-    }
-
-    public function publish(): void
-    {
-        $building = CurrentBuilding::get();
-        Gate::authorize('manageNotices', $building);
-
-        $template = $this->templates()->firstWhere('id', $this->templateId);
-        if ($template === null) {
-            Notification::make()->danger()->title(__('admin.notice.no_template'))->send();
-
-            return;
-        }
-
-        $controller = $building->settings->controller;
-        if ($controller['name'] === null || $controller['contact'] === null) {
-            Notification::make()->warning()->title(__('admin.notice.controller_first'))->send();
-
-            return;
-        }
-
-        $before = CoreGate::status($building);
-        $parkingBefore = ParkingGate::status($building);
-
-        DB::transaction(function () use ($template, $controller): void {
-            $current = BuildingPrivacyNotice::current();
-            $current?->forceFill(['withdrawn_at' => now()])->save();
-
-            $notice = BuildingPrivacyNotice::query()->create([
-                'template_version_id' => $template->id,
-                'controller_snapshot' => ['name' => $controller['name'], 'contact' => $controller['contact']],
-                'covers_modules' => array_values(array_intersect($template->covers_modules, ['core', 'heating', 'outages', 'parking'])),
-                'published_at' => now(),
-                'published_by' => auth()->id(),
-            ]);
-
-            AuditLogger::record('privacy_notice.publish', $notice, data: ['template_version' => $template->version, 'covers' => $notice->covers_modules]);
-        });
-
-        CoreGateMonitor::afterChange($building, $before);
-        ParkingGateMonitor::afterChange($building, $parkingBefore);
-        Notification::make()->success()->title(__('admin.notice.published'))->send();
-    }
-
-    public function withdraw(): void
-    {
-        $building = CurrentBuilding::get();
-        Gate::authorize('manageNotices', $building);
-
-        $current = BuildingPrivacyNotice::current();
-        if ($current === null) {
-            return;
-        }
-
-        $before = CoreGate::status($building);
-        $parkingBefore = ParkingGate::status($building);
-        $current->forceFill(['withdrawn_at' => now()])->save();
-        AuditLogger::record('privacy_notice.withdraw', $current);
-        CoreGateMonitor::afterChange($building, $before);
-        ParkingGateMonitor::afterChange($building, $parkingBefore);
-
-        Notification::make()->warning()->title(__('admin.notice.withdrawn'))->send();
-    }
-
-    /**
-     * @return Collection<int, PrivacyNoticeVersion>
-     */
-    public function templates()
-    {
-        return PrivacyNoticeVersion::query()
-            ->where('kind', PrivacyNoticeKind::BuildingTemplate->value)
-            ->published()
-            ->orderByDesc('published_at')
-            ->get();
     }
 
     public function current(): ?BuildingPrivacyNotice
@@ -154,10 +59,16 @@ final class BuildingPrivacyNoticePage extends Page
         return BuildingPrivacyNotice::current();
     }
 
-    public function preview(): ?string
+    /**
+     * @return Collection<int, BuildingPrivacyNotice>
+     */
+    public function history(): Collection
     {
-        $template = $this->templates()->firstWhere('id', $this->templateId);
+        return BuildingPrivacyNotice::query()->whereNotNull('published_at')->orderByDesc('published_at')->orderByDesc('id')->limit(50)->get();
+    }
 
-        return $template?->render($this->previewLocale, CurrentBuilding::get()->settings->controller);
+    public function wizardUrl(): string
+    {
+        return HouseOpeningWizardPage::getUrl(tenant: CurrentBuilding::get()).'#step-notice';
     }
 }

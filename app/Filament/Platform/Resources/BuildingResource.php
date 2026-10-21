@@ -4,22 +4,18 @@ declare(strict_types=1);
 
 namespace App\Filament\Platform\Resources;
 
-use App\Audit\AuditLogger;
 use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Enums\BuildingStatus;
 use App\Enums\Locale;
 use App\Filament\Platform\Pages\BuildingGeneratorPage;
 use App\Filament\Platform\Resources\BuildingResource\Pages;
-use App\Gdpr\CoreGate;
-use App\Gdpr\CoreGateMonitor;
-use App\Gdpr\ParkingGate;
-use App\Gdpr\ParkingGateMonitor;
 use App\Models\Building;
 use App\Models\BuildingSeries;
 use App\Models\User;
 use App\Platform\PlatformBuildingContext;
 use App\Platform\PlatformPurpose;
+use App\Services\Documents\DocumentService;
 use App\Services\Memberships\BuildingRoleService;
 use App\Services\Team\TeamInvitationRefused;
 use App\Services\Team\TeamInvitationService;
@@ -232,22 +228,13 @@ final class BuildingResource extends Resource
     public static function recordDpa(Building $building, array $data): void
     {
         PlatformBuildingContext::run($building, PlatformPurpose::DpaRecord, function (Building $b) use ($data): void {
-            $before = CoreGate::status($b);
-            $parkingBefore = ParkingGate::status($b);
-
-            $b->forceFill(['settings' => $b->settings->with([
-                'dpa_signed_at' => $data['dpa_signed_at'] ?? null,
-                'dpa_ref' => $data['dpa_ref'] ?? null,
-                'dpa_scope' => array_values((array) ($data['dpa_scope'] ?? [])),
-            ])])->save();
-
-            AuditLogger::record('settings.dpa', $b, data: [
-                'dpa_signed_at' => $b->settings->dpaSignedAt,
-                'dpa_scope' => $b->settings->dpaScope,
-            ], actorRole: 'platform_admin');
-
-            CoreGateMonitor::afterChange($b, $before);
-            ParkingGateMonitor::afterChange($b, $parkingBefore);
+            // One writer of the DPA fields (also used by "Atvēršanas pieprasījumi"): audit + all three gate monitors.
+            DocumentService::applyDpa(
+                $b,
+                $data['dpa_signed_at'] ?? null,
+                $data['dpa_ref'] ?? null,
+                array_values(array_map('strval', (array) ($data['dpa_scope'] ?? []))),
+            );
         });
     }
 

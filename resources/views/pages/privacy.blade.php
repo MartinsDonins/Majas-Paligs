@@ -6,7 +6,8 @@
             <section class="card stack" aria-labelledby="house-notice-h">
                 <h2 id="house-notice-h" class="text-xl">{{ __('privacy_page.house', ['building' => $building->name]) }}</h2>
                 @if ($buildingText)
-                    <div class="whitespace-pre-line">{{ $buildingText }}</div>
+                    {{-- renderHtml(): sanitised CommonMark (html_input: strip) or escaped template text. --}}
+                    <div class="stack notice-body">{!! $buildingHtml ?? e($buildingText) !!}</div>
                 @else
                     <p class="muted">{{ __('privacy_page.house_missing') }}</p>
                 @endif

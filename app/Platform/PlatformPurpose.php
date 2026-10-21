@@ -21,4 +21,7 @@ enum PlatformPurpose: string
 
     /** Record the Art. 28 DPA (date, ref, scope) — CoreDigify is the processor, so only the platform sets it. */
     case DpaRecord = 'dpa_record';
+
+    /** "Atvēršanas pieprasījumi": read a house's sent DPA / annex (PDF preview) and record it (ROUND2-SPEC §3.6). */
+    case OpeningReview = 'opening_review';
 }

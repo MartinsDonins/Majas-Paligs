@@ -24,6 +24,18 @@ return [
 
     'platform_alert_email' => env('PLATFORM_ALERT_EMAIL'),
 
+    /*
+     * The processor named in the house documents (ROUND2-SPEC §3.4 placeholders {processor.*}, {subprocessors.list}).
+     * MANUAL-TODO: the legal entity, notice address and the sub-processor list are confirmed by the owner before the
+     * pilot signs a DPA; until then the documents show the "to be completed" line below.
+     */
+    'processor' => [
+        'name' => env('MAJAS_PROCESSOR_NAME', 'CoreDigify'),
+        'contact' => env('MAJAS_PROCESSOR_CONTACT', 'https://coredigify.com'),
+        // Semicolon-separated "Name — purpose — EU country" entries.
+        'subprocessors' => env('MAJAS_SUBPROCESSORS'),
+    ],
+
     'invites' => [
         'alphabet' => '23456789ABCDEFGHJKMNPQRSTUVWXYZ',
         'length' => 10,

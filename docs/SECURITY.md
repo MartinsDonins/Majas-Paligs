@@ -119,6 +119,25 @@ Review fixes 0.0.12:
 - Last-admin guard: the last building_admin cannot be removed from the house panel (policy + service); hand over by
   inviting a new admin first. Audit rows carry ids, role and stairwells — never the e-mail.
 
+### House opening and documents (ROUND2-SPEC §3, GOV-010 / GOV-011 / GOV-012)
+- Gate inputs have ONE writer each: controller, mandate, DPIA date and the parking switch only in the opening wizard
+  (building_admin + fresh second factor, audited `opening.*`); the DPA date / ref / scope only on the platform
+  (`PlatformBuildingContext`, purposes `dpa_record` / `opening_review`). Every change runs CoreGateMonitor,
+  ParkingGateMonitor and RosterGateMonitor; the settings page shows the gate inputs read-only.
+- Gate L-R (`RosterGate`) = L-core + DPA scope `roster` + a current notice covering `roster`; `GuardedByRosterGate`
+  is the model guard for the roster tables (ADMIN-007); a regression is audited `gate.roster.closed` and alerted.
+- Document masters (`document_templates`) are platform-only and immutable once published (DB trigger, no delete);
+  a house document (`building_documents`) is frozen in the database once it left `draft`. Only editable blocks can
+  be written (`DocumentService::saveBlocks` refuses locked keys, also from a forged Livewire call).
+- `TemplateLinter` before finalise / publish: locked blocks and text outside markers unchanged, required markers
+  present, known placeholders only, no raw HTML, https links only, no phone- or plate-shaped strings, LV + RU filled.
+- Rendering (A02/A03): placeholder values are Markdown-escaped, Markdown → HTML with league/commonmark
+  `html_input: strip` + `allow_unsafe_links: false`; DPIA answers are HTML-escaped; PDFs via dompdf (DejaVu Sans).
+  The public notice page prints only this sanitised HTML. Bodies carry no personal data besides the controller
+  name / contact the house typed.
+- `RetentionTable` is the single source of the periods shown in the notice and DPA annex B; a test checks every row
+  against its prune command.
+
 ## Client IP (A04/A07)
 - nginx's realip module is the ONLY place the client IP is resolved; Laravel trusts proxies for
   `X-Forwarded-Proto/Port` only — never for the IP.

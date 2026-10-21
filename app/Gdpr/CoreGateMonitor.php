@@ -35,6 +35,13 @@ final class CoreGateMonitor
             data: ['missing' => $after->missing],
         );
 
+        // "Māja atvērta pieteikšanai" — the first opening date is kept for display (ROUND2-SPEC §3.3; not a gate input).
+        if ($after->open && $building->settings->openingCompletedAt === null) {
+            $building->forceFill(['settings' => $building->settings->with([
+                'opening_completed_at' => now()->setTimezone('Europe/Riga')->toDateString(),
+            ])])->save();
+        }
+
         $adminIds = BuildingRole::query()->current()->where('role', BuildingRoleType::BuildingAdmin->value)->pluck('user_id');
         $recipients = User::query()
             ->whereNull('anonymised_at')

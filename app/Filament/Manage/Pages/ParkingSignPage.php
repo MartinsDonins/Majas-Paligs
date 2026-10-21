@@ -22,7 +22,7 @@ final class ParkingSignPage extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShieldCheck;
 
-    protected static ?int $navigationSort = 48;
+    protected static ?int $navigationSort = 49;
 
     protected static ?string $slug = 'parking';
 
@@ -33,9 +33,10 @@ final class ParkingSignPage extends Page
         return __('admin.nav.parking');
     }
 
+    /** "Zīme" — after "Stāvvietas statuss" in the Stāvvieta group (ROUND2-SPEC §1.2). */
     public static function getNavigationLabel(): string
     {
-        return __('admin.parking.prepare.title');
+        return __('admin.parking.sign.nav');
     }
 
     public function getTitle(): string

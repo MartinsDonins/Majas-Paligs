@@ -40,6 +40,7 @@ final class PublicPageController
         return view('pages.privacy', $this->platform() + [
             'building' => $building,
             'buildingText' => $notice?->render(app()->getLocale()),
+            'buildingHtml' => $notice?->renderHtml(app()->getLocale()),
         ]);
     }
 
