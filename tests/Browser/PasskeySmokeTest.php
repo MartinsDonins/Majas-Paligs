@@ -19,7 +19,7 @@ it('offers a passkey after an admin e-mail login, then signs in and opens the ho
     member($admin, $b, 1);
     grantRole($admin, $b, BuildingRoleType::BuildingAdmin);
 
-    $page = visit('/login')->withHost('localhost')->on()->mobile()->assertPathIs('/login');
+    $page = phone('/login', 'localhost')->assertPathIs('/login');
     virtualAuthenticator($page);
 
     // The passkey button is there (WebAuthn available) next to the e-mail form; no CSP / JS errors from the autofill.
@@ -53,8 +53,10 @@ it('offers a passkey after an admin e-mail login, then signs in and opens the ho
     $page->script("document.querySelector('form[action$=\"/logout\"] button').click()");
     waitUntil($page, "location.pathname === '/' || location.pathname === '/login'", 10);
     openPath($page, '/login');
-    waitUntil($page, "!!document.querySelector('[data-testid=\"passkey-button\"]') && document.querySelector('[data-testid=\"passkey-button\"]').offsetParent !== null");
-    // Chromium may already answer the autofill request with the virtual authenticator; otherwise the button does.
+    // Chromium may already answer the autofill (conditional UI) request with the virtual authenticator — then the
+    // page signs in and leaves /login before the button can be seen (that race made this test flaky); otherwise
+    // the button does it.
+    waitUntil($page, "location.pathname !== '/login' || (!!document.querySelector('[data-testid=\"passkey-button\"]') && document.querySelector('[data-testid=\"passkey-button\"]').offsetParent !== null)", 15);
     try {
         $page->script("location.pathname === '/login' && document.querySelector('[data-testid=\"passkey-button\"]').click()");
     } catch (Throwable) {
@@ -77,7 +79,7 @@ it('shows passkeys, trusted devices and the authenticator app in Ieeja un droš�
     $resident = makeUser($email);
     member($resident, $b, 1);
 
-    $page = visit('/login')->withHost('localhost')->on()->mobile()->assertPathIs('/login');
+    $page = phone('/login', 'localhost')->assertPathIs('/login');
     virtualAuthenticator($page);
     $page->type('email', $email)
         ->press(__('auth.email.send'))
