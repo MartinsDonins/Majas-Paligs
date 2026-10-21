@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\PermitSource;
 use App\Enums\PermitStatus;
 use App\Enums\PermitStatusReason;
 use App\Enums\PermitType;
@@ -13,6 +14,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Parking permit (PARK-001): main (plate-bound while active — DB CHECK) or guest (never plate-bound). Overlapping
@@ -33,6 +35,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property PermitStatusReason|null $status_reason
  * @property int|null $replaced_by_permit_id
  * @property string|null $note_private
+ * @property PermitSource $source
+ * @property string|null $import_run_id
  * @property CarbonImmutable $created_at
  * @property CarbonImmutable $updated_at
  * @property-read Apartment $apartment
@@ -45,10 +49,10 @@ class Permit extends Model
 
     protected $fillable = [
         'building_id', 'apartment_id', 'number', 'type', 'vehicle_id', 'issued_by', 'valid_from', 'valid_to', 'status',
-        'status_reason', 'replaced_by_permit_id', 'note_private',
+        'status_reason', 'replaced_by_permit_id', 'note_private', 'source', 'import_run_id',
     ];
 
-    protected $attributes = ['status' => 'active'];
+    protected $attributes = ['status' => 'active', 'source' => 'officer'];
 
     protected function casts(): array
     {
@@ -56,6 +60,7 @@ class Permit extends Model
             'type' => PermitType::class,
             'status' => PermitStatus::class,
             'status_reason' => PermitStatusReason::class,
+            'source' => PermitSource::class,
             'valid_from' => 'immutable_date',
             'valid_to' => 'immutable_date',
             'replaced_by_permit_id' => 'integer',
@@ -81,6 +86,16 @@ class Permit extends Model
     public function vehicle(): BelongsTo
     {
         return $this->belongsTo(Vehicle::class);
+    }
+
+    /**
+     * Guest permits only: "seen with this permit" evidence (ROUND2-SPEC §6.1, D8).
+     *
+     * @return HasMany<PermitPlateObservation, $this>
+     */
+    public function observations(): HasMany
+    {
+        return $this->hasMany(PermitPlateObservation::class);
     }
 
     /** @return BelongsTo<Permit, $this> */

@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property CarbonImmutable|null $approved_at
  * @property CarbonImmutable|null $generated_at
  * @property int|null $row_count
+ * @property bool $include_apartments
  * @property CarbonImmutable $expires_at
  */
 class ParkingExport extends Model
@@ -39,7 +40,7 @@ class ParkingExport extends Model
 
     protected $fillable = [
         'building_id', 'number', 'kind', 'format', 'requested_by', 'requested_role', 'requested_at', 'approved_by',
-        'approved_role', 'approved_at', 'generated_at', 'row_count', 'expires_at',
+        'approved_role', 'approved_at', 'generated_at', 'row_count', 'expires_at', 'include_apartments',
     ];
 
     protected function casts(): array
@@ -52,6 +53,7 @@ class ParkingExport extends Model
             'generated_at' => 'immutable_datetime',
             'expires_at' => 'immutable_datetime',
             'row_count' => 'integer',
+            'include_apartments' => 'boolean',
         ];
     }
 

@@ -19,5 +19,8 @@ Schedule::command('heating:recompute')->hourly()->withoutOverlapping();
 Schedule::command('prune:sightings')->dailyAt('04:20')->withoutOverlapping();
 Schedule::command('prune:plate-lookups')->dailyAt('04:30')->withoutOverlapping();
 Schedule::command('prune:vehicles')->dailyAt('04:40')->withoutOverlapping();
+Schedule::command('prune:permit-observations')->dailyAt('04:45')->withoutOverlapping();
+// Round 2 — CSV import runs: payload ≤ 24 h, rows ≤ 30 days (DB-003).
+Schedule::command('prune:imports')->hourly()->withoutOverlapping();
 Schedule::command('prune:uploads')->hourly()->withoutOverlapping();
 Schedule::command('parking:maintain')->hourly()->withoutOverlapping();

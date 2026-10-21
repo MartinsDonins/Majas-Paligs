@@ -37,6 +37,16 @@ final class ParkingExportPolicy
         return $this->isAdmin($user);
     }
 
+    /**
+     * Manager list WITH apartment numbers (PARK-013): building_admin, only after the house adopted parking rules.
+     */
+    public function includeApartments(User $user): bool
+    {
+        $b = $this->building();
+
+        return $this->isAdmin($user) && $b !== null && $b->settings->parkingRulesAdoptedAt !== null;
+    }
+
     public function approve(User $user, ParkingExport $export): bool
     {
         return ! $export->isApproved() && ! $export->isExpired()

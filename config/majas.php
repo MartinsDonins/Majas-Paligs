@@ -120,5 +120,14 @@ return [
         'photo_disk' => env('PARKING_PHOTO_DISK', 'local'),
         // Legal banner key (platform legal_notices, editable in the platform panel).
         'legal_notice_key' => 'parking.riga.current_rule',
+        // "Viesu caurlaide vienmēr vienam auto" (PARK-011): ≥ N observations on ≥ N distinct days spanning ≥ N days,
+        // exactly one distinct plate (blind index — no decryption).
+        'guest_same_car' => [
+            'min_observations' => (int) env('PARKING_GUEST_SAME_CAR_OBSERVATIONS', 3),
+            'min_days' => (int) env('PARKING_GUEST_SAME_CAR_DAYS', 3),
+            'min_span_days' => (int) env('PARKING_GUEST_SAME_CAR_SPAN_DAYS', 14),
+        ],
+        // Guest-permit observations are kept 6 months (prune:permit-observations), like plate lookups.
+        'observation_retention_months' => 6,
     ],
 ];

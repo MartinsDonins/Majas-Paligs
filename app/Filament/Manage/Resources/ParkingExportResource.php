@@ -14,8 +14,10 @@ use App\Services\Parking\ParkingExportService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -24,7 +26,9 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Police / manager lists (PARK-005): request (building_admin) → approve (another building_admin or the parking
  * officer — four eyes) → download through a 10-minute signed URL. Files are generated on demand and never stored;
- * this list holds metadata only (number, kind, who/when by role, row count).
+ * this list holds metadata only (number, kind, who/when by role, row count). "Caurlaižu saraksts" columns per kind
+ * (PARK-013): the manager list never has plates and has apartment numbers only when asked for after the house adopted
+ * parking rules (`include_apartments`, building_admin).
  */
 final class ParkingExportResource extends Resource
 {
@@ -66,6 +70,8 @@ final class ParkingExportResource extends Resource
                 TextColumn::make('number')->label(__('admin.parking.export.number'))->fontFamily('mono'),
                 TextColumn::make('kind')->label(__('admin.parking.export.kind'))->badge()->formatStateUsing(fn (ParkingExportKind $state) => $state->label()),
                 TextColumn::make('format')->label(__('admin.parking.export.format'))->formatStateUsing(fn (ParkingExportFormat $state) => strtoupper($state->value)),
+                TextColumn::make('include_apartments')->label(__('admin.parking.export.apartments'))
+                    ->formatStateUsing(fn (bool $state): string => $state ? __('admin.parking.export.apartments_yes') : __('admin.parking.export.apartments_no')),
                 TextColumn::make('requested_role')->label(__('admin.parking.export.requested'))
                     ->formatStateUsing(fn (?string $state, ParkingExport $record) => ($state !== null ? __('enum.building_role.'.$state) : '').' · '.$record->requested_at->setTimezone('Europe/Riga')->format('d.m.Y H:i')),
                 TextColumn::make('approved_role')->label(__('admin.parking.export.approved'))->placeholder(__('admin.parking.export.waiting'))
@@ -82,13 +88,22 @@ final class ParkingExportResource extends Resource
                     ->schema([
                         Select::make('kind')->label(__('admin.parking.export.kind'))->required()
                             ->options(fn (): array => array_filter(ParkingExportKind::options(), fn (string $k): bool => $k !== 'police' || ParkingExportService::policeEnabled(), ARRAY_FILTER_USE_KEY))
-                            ->helperText(__('admin.parking.export.police_help')),
+                            ->helperText(__('admin.parking.export.police_help'))
+                            ->live(),
+                        Toggle::make('include_apartments')->label(__('admin.parking.export.include_apartments'))
+                            ->helperText(__('admin.parking.export.include_apartments_help'))
+                            ->visible(fn (Get $get): bool => $get('kind') === 'manager' && Gate::allows('includeApartments', ParkingExport::class)),
                         Select::make('format')->label(__('admin.parking.export.format'))->options(['csv' => 'CSV', 'pdf' => 'PDF'])->default('csv')->required(),
                     ])
                     ->action(function (array $data): void {
                         Gate::authorize('create', ParkingExport::class);
                         try {
-                            $export = app(ParkingExportService::class)->request(self::actor(), ParkingExportKind::from((string) $data['kind']), ParkingExportFormat::from((string) $data['format']));
+                            $kind = ParkingExportKind::from((string) $data['kind']);
+                            $withApartments = $kind === ParkingExportKind::Manager && (bool) ($data['include_apartments'] ?? false);
+                            if ($withApartments) {
+                                Gate::authorize('includeApartments', ParkingExport::class);
+                            }
+                            $export = app(ParkingExportService::class)->request(self::actor(), $kind, ParkingExportFormat::from((string) $data['format']), $withApartments);
                         } catch (ParkingActionFailed $e) {
                             Notification::make()->danger()->title($e->label())->send();
 

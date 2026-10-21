@@ -108,6 +108,9 @@ final class AppServiceProvider extends ServiceProvider
         Gate::define('parking-analytics-apartments', [Policies\ParkingAnalyticsPolicy::class, 'viewPerApartment']);
         Gate::define('parking-import', [Policies\PermitImportPolicy::class, 'import']);
 
+        // Round 2 — shared CSV import pipeline (DB-003): abilities follow the kind's handler + gate (D6).
+        Gate::policy(Models\ImportRun::class, Policies\ImportRunPolicy::class);
+
         foreach ([Models\BuildingSeries::class, Models\SeriesSectionLayout::class, Models\SeriesApartmentType::class,
             Models\SeriesRoom::class, Models\SeriesRiser::class, Models\LegalNotice::class, Models\PrivacyNoticeVersion::class,
             Models\Organization::class] as $platformModel) {
