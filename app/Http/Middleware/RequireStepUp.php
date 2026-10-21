@@ -15,8 +15,9 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * `step-up` / `step-up:mfa` — elevated actions need a fresh confirmation (PLANNING §4.5 item 4; 2 h idle, sliding
  * while the person works here, 12 h at most — StepUpService::hasFresh).
- * `mfa` additionally requires the second factor (TOTP), e.g. for the platform panel; users holding
- * building_admin / parking_officer (or platform_admin) always need TOTP (StepUpService::requiresMfa).
+ * `mfa` additionally requires a second factor (passkey, TOTP or a trusted device), e.g. for the platform panel; users
+ * holding building_admin / parking_officer (or platform_admin) always need it (StepUpService::requiresMfa).
+ * `strong` = a passkey or TOTP proven in this session (a trusted device does not count) — dangerous actions.
  */
 final class RequireStepUp
 {
@@ -30,8 +31,12 @@ final class RequireStepUp
             abort(404);
         }
 
-        $mfa = $level === 'mfa' || $this->stepUp->requiresMfa($user);
-        $fresh = $mfa ? $this->stepUp->hasFreshMfa($user) : $this->stepUp->hasFresh($user);
+        $needed = match (true) {
+            $level === 'strong' => 'strong',
+            $level === 'mfa' || $this->stepUp->requiresMfa($user) => 'mfa',
+            default => 'any',
+        };
+        $fresh = $this->stepUp->hasFreshLevel($user, $needed);
 
         if ($fresh) {
             $this->stepUp->touch($user);
@@ -41,7 +46,7 @@ final class RequireStepUp
 
         if ($request->isMethod('GET') && ! $request->expectsJson()) {
             $request->session()->put(StepUpService::INTENDED_KEY, $this->intended($request));
-            $request->session()->put(StepUpService::LEVEL_KEY, $mfa ? 'mfa' : 'any');
+            $request->session()->put(StepUpService::LEVEL_KEY, $needed);
 
             return redirect()->route('step-up');
         }

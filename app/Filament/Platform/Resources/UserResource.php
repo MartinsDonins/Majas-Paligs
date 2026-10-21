@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Platform\Resources;
 
 use App\Audit\AuditLogger;
+use App\Auth\StepUpService;
 use App\Enums\PlatformRole;
 use App\Filament\Platform\Resources\UserResource\Pages;
 use App\Models\User;
@@ -16,6 +17,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Gate;
+use Livewire\Component;
 
 /**
  * Minimal platform user administration (MVP-SPEC A.8): lock/unlock PIN login, platform role. No residents'
@@ -74,8 +76,16 @@ final class UserResource extends Resource
                     ->visible(fn (User $r): bool => Gate::allows('changePlatformRole', $r) && $r->email !== null)
                     ->requiresConfirmation()
                     ->color('danger')
-                    ->action(function (User $r): void {
+                    ->action(function (User $r, Component $livewire): void {
                         Gate::authorize('changePlatformRole', $r);
+
+                        /** @var User $actor */
+                        $actor = auth()->user();
+
+                        // Changing someone's platform role: one passkey tap / TOTP code of this session (ADR 0006).
+                        if (! app(StepUpService::class)->demandStrong($actor, $livewire)) {
+                            return;
+                        }
                         $r->forceFill(['platform_role' => $r->isPlatformAdmin() ? null : PlatformRole::PlatformAdmin->value])->save();
                         AuditLogger::record('platform.role_change', $r, [(int) $r->id], data: ['admin' => $r->isPlatformAdmin()], platform: true, actorRole: 'platform_admin');
                     }),

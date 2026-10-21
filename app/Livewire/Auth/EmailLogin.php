@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\Auth;
 
+use App\Auth\LoginCompleter;
 use App\Auth\MagicLinkService;
+use App\Livewire\Concerns\AssertsPasskey;
+use App\Models\Passkey;
+use App\Models\User;
 use App\Support\Identifiers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\RateLimiter;
@@ -14,10 +18,15 @@ use Livewire\Component;
 /**
  * "Ieiet ar e-pastu" (AUTH-001): always the same response for known and unknown addresses; throttled
  * 3/15 min per e-mail and 10/h per IP. The mail carries the link (fragment token) and a 6-digit code.
+ *
+ * "Ieiet ar pirkstu / Face ID" (ADR 0006): a passkey button plus conditional UI (the phone offers its passkey in the
+ * e-mail field's autofill). A passkey login is MFA — no authenticator code afterwards.
  */
 #[Layout('layouts::guest')]
 final class EmailLogin extends Component
 {
+    use AssertsPasskey;
+
     public string $email = '';
 
     public bool $remember = true;
@@ -56,6 +65,18 @@ final class EmailLogin extends Component
 
         $this->email = $email;
         $this->sent = true;
+    }
+
+    protected function passkeyUser(): null
+    {
+        return null;
+    }
+
+    protected function passkeyVerified(Passkey $passkey, User $owner): void
+    {
+        $response = app(LoginCompleter::class)->login(request(), $owner, $this->remember, 'passkey');
+
+        $this->redirect($response->getTargetUrl());
     }
 
     public function again(): void

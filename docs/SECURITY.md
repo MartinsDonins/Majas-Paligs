@@ -81,6 +81,28 @@ Review fixes 0.0.12:
   lock is progressive (4 h → 24 h → 72 h, an elder reset clears it) with a count-only elder alert. The platform-wide
   `/join` monitor is alert-only and counts well-formed codes only; per-building 60/h (letter waves).
 
+### Passkeys, trusted devices, sessions (0.0.23, `docs/ADR/0006-passkeys-trusted-devices.md`)
+- **Second factor = passkey or TOTP** (replaces "TOTP only" above). A passkey login / tap (user verification
+  required, exact `APP_URL` origin, counter enforced, single-use 5-min session challenge) is MFA — no TOTP prompt
+  after it. E-mail and TOTP stay as fallbacks. Throttles: 120 option requests and 10 failed assertions per 15 min per
+  device bucket (/24, /48).
+- **Step-up levels:** `any` (e-mail code; elders) < `mfa` (passkey, TOTP or a trusted device; platform panel,
+  building_admin, parking_officer) < `strong` (passkey or TOTP of THIS session). `strong` guards break-glass, granting
+  a role to someone else (backstop in `BuildingRoleService::grant`), the platform role, adding / removing a factor.
+  Sliding 2 h idle / 12 h max as before.
+- **Adding a factor** (passkey or TOTP) needs a `strong` step-up when one exists, otherwise a fresh e-mail proof or a
+  login < 15 min ago; it is audited and mailed. Removing a passkey / disabling TOTP needs `strong` and bumps the epoch.
+- **Trusted device** (`__Host-mp_trusted`, 30 days, opt-in checkbox right after a passkey / TOTP): hash-only row bound
+  to the user AND `users.auth_epoch`; never satisfies `strong`; created / used / revoked rows on the platform chain;
+  mail on creation; revoke one / all in "Ieeja un drošība"; pruned by `prune:login-tokens`.
+- **Sessions:** with the remember cookie the session lives 7 idle days (`SESSION_REMEMBERED_LIFETIME`), without it the
+  cookie ends with the browser and the session after 120 idle minutes (`App\Http\Middleware\SessionLifetime`).
+- **Lost every device:** `php artisan majas:reset-mfa <email>` (console only, after an out-of-band identity check)
+  removes passkeys, TOTP and trusted devices, bumps the epoch, audits and mails; the person signs in by e-mail and
+  enrols a new passkey. A platform admin can also run `majas:platform-admin <email>` to get a new TOTP secret.
+- **CSP:** the passkey UI is two Alpine components in the Vite bundle (no inline script, no eval); the spatie package's
+  routes / Blade / Livewire components are not registered (`dont-discover`).
+
 ## Client IP (A04/A07)
 - nginx's realip module is the ONLY place the client IP is resolved; Laravel trusts proxies for
   `X-Forwarded-Proto/Port` only — never for the IP.
@@ -97,7 +119,7 @@ Review fixes 0.0.12:
   client's own /24 (or /48), never a Cloudflare or 172.x prefix.
 
 ## Redis and database transport
-Redis holds sessions (auth id, step-up freshness, pending TOTP secret), limiters, the PIN pause and TOTP replay
+Redis holds sessions (auth id, step-up freshness, pending TOTP secret, pending WebAuthn challenges), limiters, the PIN pause and TOTP replay
 markers: `REDIS_PASSWORD` is mandatory in `docker/compose.prod.yaml`, the app refuses to boot in production
 without it or with `DB_SSLMODE` disable/allow/prefer (`App\Support\ProductionGuard`), sessions are encrypted
 (`SESSION_ENCRYPT=true`). Keep Redis on the private Coolify network only.
@@ -109,7 +131,9 @@ platform panel** (platform_admin + TOTP, PlatformBuildingContext, audited) — C
 the Art. 28 DPA, so a building admin cannot open L-core or parking L1 on their own say-so. Section elders see only
 their own stairwells in the manage panel (memberships, apartments, disputes, rounds, reports). Self-service export (ZIP), deletion = users tombstone,
 "Kas skatīja manus datus". House data export without personal data. Retention commands: `prune:login-tokens`
-(1 d), `prune:users`, `prune:audit` (24 months), `prune:exports`.
+(1 d; also trusted devices 1 d after expiry), `prune:users`, `prune:audit` (24 months), `prune:exports`. Passkeys
+(public key material + a device label) and trusted devices (hash + label) are listed in the self-service export and
+deleted on erasure.
 
 ## Reporting a vulnerability
 E-mail the platform admin (CoreDigify). Do not open public issues with exploit details.

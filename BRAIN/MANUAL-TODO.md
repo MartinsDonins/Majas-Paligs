@@ -69,8 +69,11 @@
 - 🎯 Pēc 0.0.20 izvietošanas pārbaudīt `curl https://kaimini.coredigify.com/up/ip` no sava telefona/datora: jābūt
   SAVAM IP prefiksam, nevis `172.28.0.0/24` (tagad `TRUSTED_PROXY=local`, jo Cloudflare priekšā nav). Ja kādreiz
   ieslēdz Cloudflare starpniekserveri — pārslēgt uz `cloudflare` un atļaut 80/443 tikai no Cloudflare IP (docs/SECURITY.md).
-- 🆕 Pilota building_admin un parking_officer: **ieslēgt autentifikatora lietotni (TOTP)** — paaugstinātās darbības
-  (atklāšana, eksports, vēstuļu druka, pārvaldības panelis) tagad prasa TOTP.
+- 🆕 Pilota building_admin un parking_officer: **izveidot ieejas atslēgu (pirksts / Face ID)** — no 0.0.23 to piedāvā
+  uzreiz pēc e-pasta ieejas (ADR 0006); autentifikatora lietotne (TOTP) paliek kā rezerves variants.
+- 🆕 Pēc 0.0.23 izvietošanas (īpašnieks): ieiet ar e-pasta kodu → izveidot ieejas atslēgu telefonā **un** datorā (vai
+  paturēt TOTP kā rezervi); pārbaudīt, ka nākamā ieeja ir ar vienu pieskārienu. Pazaudētas visas ierīces →
+  `php artisan majas:reset-mfa <e-pasts>` Coolify konsolē (tikai pēc personas pārbaudes).
 - 🆕 DPA datus (datums, atsauce, tvērums) ieraksta **platformas panelī** (CoreDigify, platform_admin + TOTP), nevis mājas
   administrators — pēc DPA parakstīšanas to izdara CoreDigify.
 

@@ -33,7 +33,9 @@ it('keeps the language chosen on the login page after logging in with the e-mail
 
     $page = phone('/login');
     $page->press('RU');
-    waitUntil($page, "document.documentElement.lang === 'ru'");
+    // The reloaded page must be booted before typing: typed while the document is still loading, the value can be
+    // replaced when Livewire binds wire:model (a test-speed race — no person types within milliseconds of a reload).
+    waitUntil($page, "document.documentElement.lang === 'ru' && document.readyState === 'complete' && !!window.Livewire && Livewire.all().length > 0");
 
     $page->type('email', $email)
         ->press(trans('auth.email.send', [], 'ru'))

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Platform\Resources;
 
 use App\Audit\AuditLogger;
+use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Enums\BuildingStatus;
 use App\Filament\Platform\Pages\BuildingGeneratorPage;
@@ -36,6 +37,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Component;
 
 /**
  * Buildings (non-tenant columns only). Structure is created by the generator; the first building_admin is
@@ -154,9 +156,15 @@ final class BuildingResource extends Resource
                             TextInput::make('mandate_ref')->label(__('admin.role.mandate'))->maxLength(200),
                         ])
                         ->requiresConfirmation()
-                        ->action(function (Building $record, array $data): void {
+                        ->action(function (Building $record, array $data, Component $livewire): void {
                             /** @var User $actor */
                             $actor = auth()->user();
+
+                            // Granting a role to someone else: one passkey tap / TOTP code of this session (ADR 0006).
+                            if (! app(StepUpService::class)->demandStrong($actor, $livewire)) {
+                                return;
+                            }
+
                             $email = mb_strtolower(trim((string) $data['email']));
                             $user = User::query()->where('email', $email)->whereNull('anonymised_at')->first()
                                 ?? User::query()->create(['email' => $email]);

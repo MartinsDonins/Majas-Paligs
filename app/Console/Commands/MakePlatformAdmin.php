@@ -60,6 +60,9 @@ final class MakePlatformAdmin extends Command
 
         AuditLogger::record('platform.role_change', $user, [(int) $user->id], data: ['admin' => true], platform: true, actorRole: 'console');
         $this->info('Platform admin ready.');
+        // ADR 0006: the simple way in. The authenticator stays the fallback.
+        $this->line('Tip: sign in once with the e-mail code, then create a passkey (fingerprint / Face ID) when offered,');
+        $this->line('or later under '.route('me.security').' — from then on one tap replaces the e-mail and the code.');
 
         return self::SUCCESS;
     }

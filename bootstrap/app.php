@@ -12,6 +12,7 @@ use App\Http\Middleware\EnsureSessionEpoch;
 use App\Http\Middleware\PreventRequestForgery;
 use App\Http\Middleware\RequireStepUp;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\SessionLifetime;
 use App\Http\Middleware\SetCurrentBuilding;
 use App\Http\Middleware\SetLocale;
 use App\Tenancy\Exceptions\BuildingContextAlreadySet;
@@ -23,6 +24,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery as BasePreventRequestForgery;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Session\Middleware\StartSession;
 use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -32,9 +34,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(
+            prepend: [SessionLifetime::class],
             append: [EnsureSessionEpoch::class, SetLocale::class, EnsurePinChanged::class],
             replace: [BasePreventRequestForgery::class => PreventRequestForgery::class],
         );
+
+        // Remembered devices get a longer session; it must be decided before StartSession builds the handler.
+        $middleware->prependToPriorityList(StartSession::class, SessionLifetime::class);
 
         $middleware->prepend(SecurityHeaders::class);
 

@@ -31,8 +31,9 @@ final class BreakGlass
             throw new AuthorizationException('Break-glass requires platform_admin.');
         }
 
-        if (! app(StepUpService::class)->hasFreshMfa($admin)) {
-            throw new AuthorizationException('Break-glass requires a fresh MFA step-up.');
+        // A dangerous action (ADR 0006): a passkey / TOTP of THIS session — a trusted device is not enough.
+        if (! app(StepUpService::class)->hasFreshStrongMfa($admin)) {
+            throw new AuthorizationException('Break-glass requires a fresh passkey or TOTP step-up.');
         }
 
         $reason = trim($reason);

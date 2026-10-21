@@ -11,16 +11,19 @@
             <p class="lead">{{ __('auth.email.lead') }}</p>
         </section>
 
+        {{-- Passkey first for those who have one (one tap, no code); the phone may also offer it in the e-mail field. --}}
+        <x-auth.passkey-button :autofill="true" class="card stack" wire:key="login-passkey" />
+
         <form wire:submit="send" class="card stack" novalidate wire:key="login-email-form">
             <x-ui.field id="email" :label="__('auth.email.label')" :error="$errors->first('email')">
-                <input id="email" type="email" wire:model="email" class="input" autocomplete="email" inputmode="email" maxlength="254"
+                <input id="email" type="email" wire:model="email" class="input" autocomplete="email webauthn" inputmode="email" maxlength="254"
                        @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
             </x-ui.field>
             <label class="choice font-normal">
                 <input type="checkbox" wire:model="remember" class="size-5 accent-(--color-accent)">
                 <span>{{ __('auth.remember') }}</span>
             </label>
-            <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled">{{ __('auth.email.send') }}</button>
+            <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled" wire:target="send">{{ __('auth.email.send') }}</button>
         </form>
     @else
         <section class="card stack" role="status">

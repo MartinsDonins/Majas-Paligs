@@ -8,7 +8,9 @@ use App\Filament\InitialsAvatarProvider;
 use App\Http\Middleware\EnsurePinChanged;
 use App\Http\Middleware\EnsureSessionEpoch;
 use App\Http\Middleware\PreventRequestForgery;
+use App\Http\Middleware\SessionLifetime;
 use App\Http\Middleware\SetLocale;
+use Filament\Actions\Action;
 use Filament\FontProviders\LocalFontProvider;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -16,6 +18,7 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -41,6 +44,14 @@ final class PanelDefaults
             ->favicon('/icons/icon.svg')
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, static fn (): View => view('filament.language-switch'))
+            ->renderHook(PanelsRenderHook::SCRIPTS_AFTER, static fn (): View => view('filament.session-expired'))
+            // Passkeys, trusted devices and the authenticator app live in the resident shell (/me/security).
+            ->userMenuItems([
+                Action::make('security')
+                    ->label(static fn (): string => __('me.security.link'))
+                    ->icon(Heroicon::OutlinedFingerPrint)
+                    ->url(static fn (): string => route('me.security')),
+            ])
             ->colors([
                 'primary' => Color::generatePalette('#0B4F55'),
                 'gray' => Color::Stone,
@@ -58,6 +69,7 @@ final class PanelDefaults
             ->homeUrl(fn () => route('home.redirect'))
             ->middleware([
                 EncryptCookies::class,
+                SessionLifetime::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
                 AuthenticateSession::class,

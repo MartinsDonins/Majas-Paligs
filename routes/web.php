@@ -26,6 +26,7 @@ use App\Livewire\Elder\Panel as ElderPanel;
 use App\Livewire\Heating\Grid as HeatingGrid;
 use App\Livewire\Home\Dashboard;
 use App\Livewire\Me\Apartment as MeApartment;
+use App\Livewire\Me\PasskeyOffer;
 use App\Livewire\Me\Privacy as MePrivacy;
 use App\Livewire\Me\Security as MeSecurity;
 use App\Livewire\Onboarding\ChooseAccess;
@@ -89,6 +90,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/step-up', StepUp::class)->name('step-up');
     Route::get('/me/privacy', MePrivacy::class)->name('me.privacy');
     Route::get('/me/security', MeSecurity::class)->name('me.security');
+    Route::get('/me/passkey', PasskeyOffer::class)->name('me.passkey');
     Route::get('/me/exports/{export}', DataExportDownloadController::class)->middleware('signed')->name('me.exports.download');
 });
 

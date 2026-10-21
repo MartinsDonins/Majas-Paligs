@@ -22,10 +22,12 @@ use Filament\Panel;
 use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
+use Spatie\LaravelPasskeys\Models\Concerns\HasPasskeys;
 
 /**
  * Global platform account (CoreDigify = controller of identity/credential columns, PLANNING §5).
@@ -54,7 +56,7 @@ use Illuminate\Support\Collection;
  * @property string|null $app_authentication_secret
  * @property CarbonImmutable|null $anonymised_at
  */
-class User extends Authenticatable implements FilamentUser, HasDefaultTenant, HasLocalePreference, HasName, HasTenants
+class User extends Authenticatable implements FilamentUser, HasDefaultTenant, HasLocalePreference, HasName, HasPasskeys, HasTenants
 {
     use Notifiable;
     use SoftDeletes;
@@ -131,6 +133,54 @@ class User extends Authenticatable implements FilamentUser, HasDefaultTenant, Ha
     public function hasTotp(): bool
     {
         return filled($this->app_authentication_secret);
+    }
+
+    /**
+     * WebAuthn credentials ("ieejas atslēgas", ADR 0006).
+     *
+     * @return HasMany<Passkey, $this>
+     */
+    public function passkeys(): HasMany
+    {
+        return $this->hasMany(Passkey::class, 'authenticatable_id');
+    }
+
+    /**
+     * @return HasMany<TrustedDevice, $this>
+     */
+    public function trustedDevices(): HasMany
+    {
+        return $this->hasMany(TrustedDevice::class);
+    }
+
+    public function hasPasskeys(): bool
+    {
+        return $this->passkeys()->exists();
+    }
+
+    /**
+     * Any second factor (authenticator app or passkey). Adding or removing a factor then needs a fresh MFA.
+     */
+    public function hasMfaFactor(): bool
+    {
+        return $this->hasTotp() || $this->hasPasskeys();
+    }
+
+    /** WebAuthn user.name: shown by the phone's passkey picker. */
+    public function getPassKeyName(): string
+    {
+        return $this->email ?? ($this->login_handle ?? 'user-'.$this->id);
+    }
+
+    /** WebAuthn user handle: the opaque account id (no personal data). */
+    public function getPassKeyId(): string
+    {
+        return (string) $this->id;
+    }
+
+    public function getPassKeyDisplayName(): string
+    {
+        return $this->display_name ?? $this->getPassKeyName();
     }
 
     /**

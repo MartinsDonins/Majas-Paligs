@@ -6,6 +6,9 @@ namespace App\Livewire\Auth;
 
 use App\Auth\LoginCompleter;
 use App\Auth\PinAuthService;
+use App\Livewire\Concerns\AssertsPasskey;
+use App\Models\Passkey;
+use App\Models\User;
 use App\Support\Identifiers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -15,11 +18,14 @@ use Livewire\Component;
 
 /**
  * "Bez e-pasta — ar PIN" (AUTH-003): handle (apt-XXXX) + 6-digit PIN. Every failure kind shows the SAME
- * message; the calm cooldown screen is driven only by the IP/device counter.
+ * message; the calm cooldown screen is driven only by the IP/device counter. A resident who added a passkey in
+ * "Ieeja un drošība" can use it here as well (ADR 0006).
  */
 #[Layout('layouts::guest')]
 final class PinLogin extends Component
 {
+    use AssertsPasskey;
+
     public string $handle = '';
 
     public string $pin = '';
@@ -63,6 +69,18 @@ final class PinLogin extends Component
         $response = $completer->login(request(), $result->user, $this->remember, 'pin');
 
         return redirect()->to($response->getTargetUrl());
+    }
+
+    protected function passkeyUser(): null
+    {
+        return null;
+    }
+
+    protected function passkeyVerified(Passkey $passkey, User $owner): void
+    {
+        $response = app(LoginCompleter::class)->login(request(), $owner, $this->remember, 'passkey');
+
+        $this->redirect($response->getTargetUrl());
     }
 
     public function render(): View

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Platform\Pages;
 
 use App\Audit\AuditChainVerifier;
+use App\Auth\StepUpService;
 use App\Models\AuditEntry;
 use App\Models\Building;
 use App\Models\User;
@@ -83,6 +84,11 @@ final class AuditPage extends Page
         $building = $this->buildingId !== null ? Building::query()->find($this->buildingId) : null;
 
         if ($building === null) {
+            return;
+        }
+
+        // Break-glass always asks for a passkey tap / TOTP code of this session (a trusted device is not enough).
+        if (! app(StepUpService::class)->demandStrong($admin, $this)) {
             return;
         }
 

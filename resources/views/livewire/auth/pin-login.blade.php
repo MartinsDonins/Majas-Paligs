@@ -33,11 +33,13 @@
                 <input type="checkbox" wire:model="remember" class="size-5 accent-(--color-accent)">
                 <span>{{ __('auth.remember') }}</span>
             </label>
-            <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled">{{ __('auth.login') }}</button>
+            <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled" wire:target="login">{{ __('auth.login') }}</button>
         </form>
 
         <p class="text-sm muted">{{ __('auth.pin.forgot') }}</p>
     @endif
+
+    <x-auth.passkey-button wire:key="pin-passkey" />
 
     <a href="{{ route('login') }}" class="btn btn-block">{{ __('landing.login_email') }}</a>
 </div>

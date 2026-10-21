@@ -71,6 +71,12 @@ return [
         ],
     ],
 
+    'session' => [
+        // Idle lifetime of a session on a device with "Atcerēties šo telefonu" (App\Http\Middleware\SessionLifetime).
+        // Without the remember cookie: SESSION_LIFETIME (120) and the cookie ends with the browser.
+        'remembered_minutes' => (int) env('SESSION_REMEMBERED_LIFETIME', 60 * 24 * 7),
+    ],
+
     'step_up' => [
         // Sliding: lapses after this many minutes WITHOUT a step-up-protected request (= SESSION_LIFETIME)…
         'valid_minutes' => 120,

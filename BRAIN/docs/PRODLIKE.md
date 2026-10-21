@@ -151,4 +151,17 @@ scripts/prodlike/dc.sh exec redis sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-aut
      but there is no Cloudflare, so all visitors share one IP bucket in every IP limiter.
   3. The Filament favicon is `http://…/icons/icon.svg` (`asset()` is called at panel registration, before the
      forwarded scheme is applied), so CSP blocks it. The default `ui-avatars.com` avatars are blocked by CSP too.
+- **Passkeys (0.0.23, ADR 0006):** `scripts/prodlike/browser.sh node scripts/prodlike/passkey-verify.mjs` drives a
+  Chromium virtual authenticator (CDP `WebAuthn.*`): offer after the admin's e-mail login → passkey + trusted device →
+  passkey login → e-mail login on the trusted device without a code → break-glass still asks for a tap. It expects
+  the admin WITHOUT a passkey; before a re-run: `scripts/prodlike/dc.sh exec -T web php artisan tinker
+  --execute="App\Models\Passkey::query()->delete(); App\Models\TrustedDevice::query()->delete();"`. Once the admin has
+  a passkey, an e-mail login no longer shows the `/me/passkey` offer.
+- **TLS-scanning antivirus on the dev machine** (seen 2026-10-21: Avast "Web/Mail Shield" re-signs registry.npmjs.org):
+  `npm ci` in the image build or in the `browser` container fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. Export the
+  antivirus root (Windows: `Cert:\LocalMachine\Root`) to a PEM OUTSIDE the repo and pass it in without changing the
+  Dockerfile: `NODE_EXTRA_CA_CERTS=<pem>` for the container, or a copy of the Dockerfile whose `npm ci` /
+  `composer install` lines use `RUN --mount=type=secret,id=ca,…` with `docker build --secret id=ca,src=<pem> -f <copy>`.
+  Never put the PEM under the repo: `up.sh --worktree` sends the whole working tree (including `storage/app`) as the
+  build context.
 - Never load data from `DOC/` into this stack. It holds residents' personal data. Use only synthetic `@example.test` users.

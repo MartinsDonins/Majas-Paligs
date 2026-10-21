@@ -18,6 +18,7 @@ out. A printed letter in each mailbox is the root of trust for "lives in apartme
    Elder reset = single-use 24 h temp code that forces a new PIN, audited, members notified.
 4. "Remember this phone" via `__Host-mp_remember`; session cookie `__Host-mp_session`; no `XSRF-TOKEN` cookie.
 5. Elevated actions require a **step-up** (2 h): TOTP or e-mail code; the platform panel requires TOTP.
+   *Superseded by ADR 0006 (0.0.23): the second factor is a passkey or TOTP, optionally a 30-day trusted device.*
 
 ## Consequences
 - Filament's own login is not used; panels rely on the same session + `RequireStepUp`.

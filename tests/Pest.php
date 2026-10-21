@@ -442,6 +442,40 @@ function browserOffline(object $page, bool $offline): void
 }
 
 /**
+ * A Chromium virtual WebAuthn authenticator on the page (CDP WebAuthn domain through Playwright's CDP session):
+ * a platform authenticator with resident keys and user verification that answers every ceremony at once — the
+ * real browser half of a passkey (navigator.credentials, @simplewebauthn/browser, Alpine, Livewire) end to end.
+ * The page must be served from `localhost` (WebAuthn refuses an IP address as the RP ID): visit()->withHost().
+ */
+function virtualAuthenticator(object $page): void
+{
+    /** @var Page $playwrightPage */
+    $playwrightPage = $page->page();
+    $context = $playwrightPage->context();
+    $contextGuid = (new ReflectionProperty($context, 'guid'))->getValue($context);
+    $pageGuid = (new ReflectionProperty($playwrightPage, 'guid'))->getValue($playwrightPage);
+
+    $sessionGuid = null;
+    foreach (Client::instance()->execute($contextGuid, 'newCDPSession', ['page' => ['guid' => $pageGuid]]) as $message) {
+        $sessionGuid = $message['result']['session']['guid'] ?? $sessionGuid;
+    }
+    if (! is_string($sessionGuid)) {
+        throw new RuntimeException('Playwright did not open a CDP session.');
+    }
+
+    $send = static fn (string $method, array $params = []) => iterator_to_array(Client::instance()->execute($sessionGuid, 'send', ['method' => $method, 'params' => (object) $params]));
+    $send('WebAuthn.enable', ['enableUI' => false]);
+    $send('WebAuthn.addVirtualAuthenticator', ['options' => [
+        'protocol' => 'ctap2',
+        'transport' => 'internal',
+        'hasResidentKey' => true,
+        'hasUserVerification' => true,
+        'isUserVerified' => true,
+        'automaticPresenceSimulation' => true,
+    ]]);
+}
+
+/**
  * Layout guard for 320px / 200 % text (MVP-SPEC A.11 AC 16): the document never scrolls sideways.
  */
 function assertNoHorizontalScroll(object $page, string $label = ''): void
@@ -482,7 +516,18 @@ function phone(string $url): object
 function waitUntil(object $page, string $expression, float $seconds = 5.0): void
 {
     $deadline = microtime(true) + $seconds;
-    while (! $page->script("!!({$expression})")) {
+    $probe = static function () use ($page, $expression): bool {
+        try {
+            return (bool) $page->script("!!({$expression})");
+        } catch (Throwable $e) {
+            // Asked while the page navigates (a Livewire redirect, a passkey login): ask the next document.
+            if (str_contains($e->getMessage(), 'context was destroyed') || str_contains($e->getMessage(), 'navigat')) {
+                return false;
+            }
+            throw $e;
+        }
+    };
+    while (! $probe()) {
         if (microtime(true) > $deadline) {
             throw new RuntimeException("Timed out after {$seconds}s waiting for: {$expression}");
         }

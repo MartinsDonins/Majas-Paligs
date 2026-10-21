@@ -130,6 +130,19 @@ out", "admin login is too complicated", "generating the house plan failed". Repr
   (/me/security, heating report); context wording for house admins vs. platform; a replayed code says "wait for the next
   code"; `majas:platform-admin` keeps an existing authenticator unless `--reset-totp` (which bumps the epoch). Supersedes
   SEC-007's "no markFresh on enrolment" (the confirm code already proves possession of the new secret). - COMPLETED (0.0.20)
+  - ✅ AUTH-006: Ieeja ar pirkstu / Face ID un uzticamas ierīces - COMPLETED (0.0.23) — ADR 0006. Passkeys (WebAuthn,
+    spatie/laravel-passkeys model + web-auth verification, own ceremonies in PasskeyService; package routes/Blade/Livewire
+    not registered so the strict nonce CSP stays): "Ieiet ar pirkstu / Face ID" + conditional UI on /login and /login/pin,
+    a passkey login/tap is MFA (UV required, exact APP_URL origin, counter, single-use 5-min challenge); admins are offered
+    a passkey after an e-mail/PIN login (/me/passkey); every account manages passkeys in "Ieeja un drošība". Trusted
+    device "Uzticēties šai ierīcei 30 dienas" (`__Host-mp_trusted`, hash-only row bound to user + session epoch, audited,
+    mailed, revoke one/all, pruned). Step-up levels any < mfa < strong; strong (passkey/TOTP of this session, never a
+    trusted device) for break-glass, role grants to others, platform role, factor add/remove. Sessions with the remember
+    cookie live 7 idle days (SessionLifetime); 419 reloads instead of the English dialog. Recovery: `majas:reset-mfa`.
+    The login buttons' wire:loading is scoped to their own action (the on-load passkey options request used to
+    disable "Nosūtīt saiti" for a moment).
+    Tests: PasskeyTest (FakeAuthenticator, real CBOR + P-256 signatures), TrustedDeviceTest, Browser/PasskeySmokeTest (Chromium
+    virtual authenticator), scripts/prodlike/passkey-verify.mjs.
   - 🆕 FIX-004.1: Lomas atsaukšana bez pilnas izrakstīšanas — revoking an elder role bumps the epoch (logs the resident out
     everywhere); consider forgetting only the step-up (roles are re-checked on every request anyway). Needs a security decision.
 - ✅ FIX-005: Mājas plāna ģenerators un platformas panelis — building edit page 500 (BuildingSettings object in the Livewire
