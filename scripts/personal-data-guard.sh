@@ -11,10 +11,9 @@ set -eu
 PHONE='(\+|00)?371[ .-]?[0-9]{2}[ .-]?[0-9]{3}[ .-]?[0-9]{3}|(^|[^0-9A-Za-z])[26][0-9]{7}([^0-9]|$)|(^|[^0-9A-Za-z])[26][0-9][ .-][0-9]{3}[ .-][0-9]{3}([^0-9]|$)'
 # Latvian plate shape (2 letters + 1–4 digits), docs/BRAIN only; synthetic examples are allow-listed below.
 PLATE='(^|[^A-Za-z0-9])[A-Z]{2}[ -]?[0-9]{1,4}([^A-Za-z0-9]|$)'
-# Synthetic test plates and well-known non-plate ids of the same shape (ADR 0002, WCAG SC 2.4, MK 524, EN 301, "QA 2026",
-# WebAuthn / JWS algorithm ids ES256 RS256 PS256 HS256 …).
+# Synthetic test plates and well-known non-plate ids of the same shape (ADR 0002, WCAG SC 2.4, MK 524, EN 301, JWS ES256/RS256, QA 2026 …).
 # The allow-list is matched against the MATCHED TOKEN only, never the whole line.
-ALLOW_TOKENS='AB[ -]?1234|CD[ -]?5678|ZZ[ -]?0000|AB[ -]?34|(ADR|SC|MK|EU|EN|ISO|RFC|CVE|UTF|SHA|AES|TLS|IP|ID|UI|QR|PE|MP|AC|PR|LV|GT|SS|WP|OS|PG|DB|UX|HQ|QA|ES|RS|PS|HS)[ -]?[0-9]{1,4}'
+ALLOW_TOKENS='AB[ -]?1234|CD[ -]?5678|ZZ[ -]?0000|AB[ -]?34|(ADR|SC|MK|EU|EN|ISO|RFC|CVE|UTF|SHA|AES|TLS|IP|ID|UI|QR|PE|MP|AC|PR|LV|GT|SS|WP|OS|PG|DB|UX|HQ|ES|RS|PS|HS|QA)[ -]?[0-9]{1,4}'
 
 scan_phones() { grep -nE "$PHONE" | grep -vE '23456789ABCDEFGHJKMNPQRSTUVWXYZ' || true; }
 # input: "prefix:match" lines (git grep -o / grep -o) → only tokens that are not allow-listed

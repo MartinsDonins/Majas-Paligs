@@ -107,7 +107,7 @@ Laravel monolith — an intentional, documented deviation from the global TypeSc
 | Tests/quality | pestphp/pest ^5.3, pest-plugin-laravel ^5.0, pest-plugin-browser ^5.1, larastan ^3.13 (level 6), laravel/pint ^1.32 |
 | PWA | vite-plugin-pwa (Workbox) — NetworkOnly for HTML and `/livewire/*` |
 | Fonts/icons | Inter Variable self-hosted (`@fontsource-variable/inter`), Lucide via blade-lucide-icons |
-| Container | `serversideup/php:8.4-fpm-nginx-trixie-v5.0.1` (non-root), multi-stage Dockerfile |
+| Container | `serversideup/php:8.4.27-fpm-nginx-trixie-v5.0.2` (non-root), multi-stage Dockerfile |
 
 **Deliberately NOT used** (lead decision, keeps the solo-maintainer surface small):
 stancl/tenancy, spatie/laravel-multitenancy (wrong tenancy model), spatie/laravel-permission
