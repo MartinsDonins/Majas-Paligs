@@ -56,7 +56,7 @@ final class RequireStepUp
 
     /**
      * Where to come back after the step-up. On a /livewire/update this middleware sees Livewire's fake request (the
-     * page path WITHOUT its query, e.g. /platform/generator instead of /platform/generator?building=3); the page's
+     * page path WITHOUT its query, e.g. /admin/platform/generator instead of /admin/platform/generator?building=3); the page's
      * own GET is the session's previous URL, so prefer it when it is the same page.
      */
     private function intended(Request $request): string

@@ -29,47 +29,47 @@ it('resolves tenants without a context and without throwing', function (): void 
         ->and(CurrentBuilding::has())->toBeFalse();
 });
 
-it('opens /manage/{own building} for the admin after step-up and sets the tenant context', function (): void {
+it('opens /admin/b/{own building} for the admin after step-up and sets the tenant context', function (): void {
     steppedUp($this->adminA);
 
-    $this->actingAs($this->adminA)->get('/manage/fil-a')->assertOk();
-    $this->actingAs($this->adminA)->get('/manage/fil-a/apartments')->assertOk()->assertSee('9');
-    $this->actingAs($this->adminA)->get('/manage/fil-a/settings')->assertOk()->assertSee(__('admin.gate.core'));
-    $this->actingAs($this->adminA)->get('/manage/fil-a/invites')->assertOk();
-    $this->actingAs($this->adminA)->get('/manage/fil-a/memberships')->assertOk();
-    $this->actingAs($this->adminA)->get('/manage/fil-a/audit-entries')->assertOk();
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a')->assertOk();
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a/apartments')->assertOk()->assertSee('9');
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a/settings')->assertOk()->assertSee(__('admin.gate.core'));
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a/invites')->assertOk();
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a/memberships')->assertOk();
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a/audit-entries')->assertOk();
 });
 
 it('requires step-up for the manage panel', function (): void {
-    $this->actingAs($this->adminA)->get('/manage/fil-a')->assertRedirect(route('step-up'));
+    $this->actingAs($this->adminA)->get('/admin/b/fil-a')->assertRedirect(route('step-up'));
 });
 
 it('returns 404 for another building and never throws MissingBuildingContext', function (): void {
     steppedUp($this->adminA);
 
-    $this->actingAs($this->adminA)->get('/manage/fil-b')->assertNotFound();
-    $this->actingAs($this->adminA)->get('/manage/fil-b/apartments')->assertNotFound();
+    $this->actingAs($this->adminA)->get('/admin/b/fil-b')->assertNotFound();
+    $this->actingAs($this->adminA)->get('/admin/b/fil-b/apartments')->assertNotFound();
 });
 
-it('keeps resident-only members out of /manage', function (): void {
+it('keeps resident-only members out of /admin/b', function (): void {
     steppedUp($this->resident);
 
-    $this->actingAs($this->resident)->get('/manage/fil-a')->assertForbidden();
+    $this->actingAs($this->resident)->get('/admin/b/fil-a')->assertForbidden();
 });
 
-it('keeps non-platform-admins out of /platform and lets a TOTP-stepped-up admin in', function (): void {
+it('keeps non-platform-admins out of /admin/platform and lets a TOTP-stepped-up admin in', function (): void {
     steppedUp($this->adminA);
-    $this->actingAs($this->adminA)->get('/platform')->assertForbidden();
+    $this->actingAs($this->adminA)->get('/admin/platform')->assertForbidden();
 
     $platform = makeUser('platform@example.test', ['platform_role' => 'platform_admin']);
     steppedUp($platform, 'totp');
-    $this->actingAs($platform)->get('/platform')->assertOk();
-    $this->actingAs($platform)->get('/platform/buildings')->assertOk()->assertSee('fil-a');
-    $this->actingAs($platform)->get('/platform/building-series')->assertOk();
-    $this->actingAs($platform)->get('/platform/generator')->assertOk();
-    $this->actingAs($platform)->get('/platform/audit')->assertOk();
+    $this->actingAs($platform)->get('/admin/platform')->assertOk();
+    $this->actingAs($platform)->get('/admin/platform/buildings')->assertOk()->assertSee('fil-a');
+    $this->actingAs($platform)->get('/admin/platform/building-series')->assertOk();
+    $this->actingAs($platform)->get('/admin/platform/generator')->assertOk();
+    $this->actingAs($platform)->get('/admin/platform/audit')->assertOk();
 
     $resident = User::query()->find($this->resident->id);
     steppedUp($resident, 'totp');
-    $this->actingAs($resident)->get('/platform')->assertForbidden();
+    $this->actingAs($resident)->get('/admin/platform')->assertForbidden();
 });

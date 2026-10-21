@@ -51,9 +51,9 @@ BEFORE INSERT trigger (SECURITY DEFINER, advisory lock), UPDATE always rejected,
 - Resident app: strict nonce CSP (`script-src 'self' 'nonce-…'`), Livewire CSP-safe Alpine build, no
   `unsafe-eval`. HSTS, `frame-ancestors 'none'`, `X-Frame-Options: DENY`, Permissions-Policy,
   `Referrer-Policy: no-referrer`, `X-App-Version`.
-- **Tracked debt:** Filament panels (`/platform`, `/manage`) need `'unsafe-inline' 'unsafe-eval'` (Filament 5
+- **Tracked debt:** Filament panels (`/admin/b/…`, `/admin/platform/…`; the `/admin` chooser itself keeps the strict CSP) need `'unsafe-inline' 'unsafe-eval'` (Filament 5
   renders inline scripts without nonce and evaluates Alpine expressions). Panels are behind auth + step-up.
-- `no-store` on `/join`, `/login/*`, `/step-up`, downloads and panels.
+- `no-store` on `/join`, `/login/*`, `/step-up`, downloads, `/admin` and the panels.
 
 ## Secrets in URLs and logs (A.6a)
 - Invite codes and login tokens travel only in URL **fragments** or POST bodies; legacy `?c=` / `?t=` /

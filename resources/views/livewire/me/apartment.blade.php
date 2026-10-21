@@ -23,10 +23,11 @@
                 </a>
             @endif
             @if ($canManage)
-                <a href="{{ url('/manage/'.$building->slug) }}" class="list-row no-underline text-(--color-fg)">
+                {{-- "Administrēšana" → /admin (ROUND2-SPEC §1.1): every house the person administers + the platform. --}}
+                <a href="{{ route('admin.entry') }}" class="list-row no-underline text-(--color-fg)" data-testid="more-admin">
                     <span class="flex items-center gap-3">
-                        <x-lucide-building-2 class="size-6 text-(--color-accent)" aria-hidden="true" />
-                        <span class="font-semibold">{{ __('home.tools.admin') }}</span>
+                        <x-lucide-shield-check class="size-6 text-(--color-accent)" aria-hidden="true" />
+                        <span class="font-semibold">{{ __('home.tools.administration') }}</span>
                     </span>
                     <x-lucide-chevron-right class="size-5" aria-hidden="true" />
                 </a>

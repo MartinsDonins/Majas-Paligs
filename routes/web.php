@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\AdminEntryController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PostLoginRedirect;
 use App\Http\Controllers\BuildingExportDownloadController;
 use App\Http\Controllers\DataExportDownloadController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\InviteLetterController;
+use App\Http\Controllers\LegacyPanelRedirect;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ManagerReportDownloadController;
 use App\Http\Controllers\ParkingExportDownloadController;
@@ -83,7 +85,15 @@ Route::get('/login/confirm/{token}', fn () => redirect('/login/confirm', 303))->
 Route::post('/login/confirm', [LoginController::class, 'confirm'])->middleware('throttle:login-confirm')->name('login.confirm.submit');
 Route::post('/login/code', [LoginController::class, 'code'])->middleware('throttle:login-code')->name('login.code');
 
+// ---- Administration (ROUND2-SPEC §1.1, ADMIN-005): /admin entry; panels at /admin/b/{slug} and /admin/platform ----
+// Old panel URLs answer 301 (GET/HEAD, query kept) or 308 to the same page under /admin. Session-less: nothing to keep.
+Route::any('/manage/{rest?}', LegacyPanelRedirect::class)->where('rest', '.*')->defaults('panel', 'manage')
+    ->withoutMiddleware($sessionless)->name('legacy.manage');
+Route::any('/platform/{rest?}', LegacyPanelRedirect::class)->where('rest', '.*')->defaults('panel', 'platform')
+    ->withoutMiddleware($sessionless)->name('legacy.platform');
+
 Route::middleware('auth')->group(function (): void {
+    Route::get('/admin', AdminEntryController::class)->name('admin.entry');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/login/pin/new', SetNewPin::class)->name('login.pin.new');
     Route::get('/home', PostLoginRedirect::class)->name('home.redirect');

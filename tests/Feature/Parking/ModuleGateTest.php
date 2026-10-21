@@ -79,10 +79,10 @@ it('L0: Filament parking resources and the import page are unavailable, the prep
     steppedUp($officer);
 
     foreach (['vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports', 'permit-import', 'parking-analytics'] as $page) {
-        $this->actingAs($officer)->get("/manage/gate-l0-panel/{$page}")->assertForbidden();
+        $this->actingAs($officer)->get("/admin/b/gate-l0-panel/{$page}")->assertForbidden();
     }
-    $this->actingAs($officer)->get('/manage/gate-l0-panel/parking')->assertOk()->assertSee(__('gate.parking.missing.dpa_scope_parking'));
-    $this->actingAs($officer)->get('/manage/gate-l0-panel/parking-lots')->assertOk();
+    $this->actingAs($officer)->get('/admin/b/gate-l0-panel/parking')->assertOk()->assertSee(__('gate.parking.missing.dpa_scope_parking'));
+    $this->actingAs($officer)->get('/admin/b/gate-l0-panel/parking-lots')->assertOk();
 });
 
 it('L1: officer prepares data, residents get 404 everywhere and no nav item or tiles', function (): void {
@@ -103,7 +103,7 @@ it('L1: officer prepares data, residents get 404 everywhere and no nav item or t
 
     steppedUp($officer);
     foreach (['vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports', 'permit-import', 'parking-analytics'] as $page) {
-        $this->actingAs($officer)->get("/manage/gate-l1/{$page}")->assertOk();
+        $this->actingAs($officer)->get("/admin/b/gate-l1/{$page}")->assertOk();
     }
 });
 

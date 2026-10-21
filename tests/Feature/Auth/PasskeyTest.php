@@ -172,7 +172,7 @@ it('logs in with a passkey from the login page; the login counts as MFA so no TO
         ->and($admin->passkeys()->sole()->last_used_at)->not->toBeNull();
 
     // Straight into the platform panel: no /step-up.
-    $this->get('/platform')->assertOk();
+    $this->get('/admin/platform')->assertOk();
 });
 
 it('logs in with a passkey on the PIN page too and keeps remember-me', function (): void {
@@ -248,7 +248,7 @@ it('confirms a step-up with one passkey tap and only with a passkey of the signe
     $mine = enrolPasskey($admin);
     app(StepUpService::class)->forget();
 
-    $this->get('/platform')->assertRedirect(route('step-up'));
+    $this->get('/admin/platform')->assertRedirect(route('step-up'));
 
     $component = Livewire::test(StepUp::class);
     $options = returnedFrom($component, 'passkeyOptions');
@@ -256,18 +256,18 @@ it('confirms a step-up with one passkey tap and only with a passkey of the signe
     expect(app(StepUpService::class)->hasFreshMfa($admin))->toBeFalse();
 
     $options = returnedFrom($component, 'passkeyOptions');
-    $component->call('passkeyAssert', $mine->assert($options))->assertHasNoErrors()->assertRedirect('/platform');
+    $component->call('passkeyAssert', $mine->assert($options))->assertHasNoErrors()->assertRedirect('/admin/platform');
     expect(app(StepUpService::class)->hasFreshStrongMfa($admin))->toBeTrue();
 });
 
 it('lets an administrator without any second factor create a passkey right on the step-up page', function (): void {
     $admin = platformAdmin('pk-first@example.test');
     $this->actingAs($admin)->withSession([StepUpService::LOGIN_KEY => ['user' => $admin->id, 'at' => now()->getTimestamp(), 'method' => 'email_code']]);
-    $this->get('/platform')->assertRedirect(route('step-up'));
+    $this->get('/admin/platform')->assertRedirect(route('step-up'));
 
     $component = Livewire::test(StepUp::class)->assertViewHas('mayEnrol', true)->set('trust', true);
     $options = returnedFrom($component, 'passkeyRegisterOptions');
-    $component->call('passkeyRegister', (new FakeAuthenticator)->register($options))->assertHasNoErrors()->assertRedirect('/platform');
+    $component->call('passkeyRegister', (new FakeAuthenticator)->register($options))->assertHasNoErrors()->assertRedirect('/admin/platform');
 
     expect($admin->passkeys()->count())->toBe(1)
         ->and(app(StepUpService::class)->hasFreshMfa($admin))->toBeTrue()

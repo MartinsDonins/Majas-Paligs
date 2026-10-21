@@ -51,16 +51,16 @@ function crossSectionLinks(Building $b): int
 it('opens the building edit page (settings value object no longer breaks Livewire)', function (): void {
     $b = makeBuilding('qa-edit', 1, 1);
 
-    $this->get("/platform/buildings/{$b->slug}/edit")->assertOk();
+    $this->get("/admin/platform/buildings/{$b->slug}/edit")->assertOk();
     Livewire::actingAs($this->platform)->test(EditBuilding::class, ['record' => $b->slug])
         ->set('data.name', 'Jauna iela 1')->call('save')->assertHasNoErrors();
     expect($b->refresh()->name)->toBe('Jauna iela 1');
 });
 
 it('creates a building from the list button and continues to the generator', function (): void {
-    $this->get('/platform/buildings')->assertOk()->assertSee('/platform/buildings/create', false);
+    $this->get('/admin/platform/buildings')->assertOk()->assertSee('/admin/platform/buildings/create', false);
     foreach (['building-series', 'privacy-notices', 'legal-notices'] as $list) {
-        $this->get("/platform/{$list}")->assertOk()->assertSee("/platform/{$list}/create", false);
+        $this->get("/admin/platform/{$list}")->assertOk()->assertSee("/admin/platform/{$list}/create", false);
     }
 
     $series = series602();
@@ -132,7 +132,7 @@ it('shows the platform chain verify button and names purpose and building', func
     $b = makeBuilding('qa-audit', 1, 1);
     PlatformBuildingContext::run($b, PlatformPurpose::StructureView, static fn () => null);
 
-    $html = (string) $this->get('/platform/audit')->assertOk()->getContent();
+    $html = (string) $this->get('/admin/platform/audit')->assertOk()->getContent();
     expect($html)->toContain('wire:click="verifyPlatform"')
         ->toContain(__('admin.audit.purpose.structure_view'))
         ->toContain(e($b->name));
@@ -142,13 +142,13 @@ it('does not link published privacy notices to a 403 edit page and lists the mod
     $published = PrivacyNoticeVersion::query()->create(['kind' => 'platform_account', 'version' => 'qa-1', 'covers_modules' => ['core', 'heating'], 'body' => ['lv' => 'x', 'ru' => 'x'], 'published_at' => now()]);
 
     expect(PrivacyNoticeResource::canEdit($published))->toBeFalse();
-    $html = $this->get('/platform/privacy-notices')->assertOk()->getContent();
+    $html = $this->get('/admin/platform/privacy-notices')->assertOk()->getContent();
     expect(substr_count((string) $html, __('enum.module.heating')))->toBe(1)
-        ->and($html)->not->toContain("/platform/privacy-notices/{$published->id}/edit");
+        ->and($html)->not->toContain("/admin/platform/privacy-notices/{$published->id}/edit");
 });
 
 it('has an LV/RU switch and a local avatar in the panels, no Title Case and no raw Filament keys', function (): void {
-    $html = (string) $this->get('/platform/buildings')->assertOk()->getContent();
+    $html = (string) $this->get('/admin/platform/buildings')->assertOk()->getContent();
 
     expect($html)->toContain('data-testid="panel-language-switch"')
         ->toContain('action="'.route('locale.set', 'ru').'"')

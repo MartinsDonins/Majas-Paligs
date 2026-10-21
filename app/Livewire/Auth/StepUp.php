@@ -199,7 +199,7 @@ final class StepUp extends Component
             'mustEnrol' => $needsMfa && ! $hasFactor,
             'mayEnrol' => $needsMfa && ! $hasFactor && $stepUp->mayAddFactor($user),
             // Which wording the "set up" banner uses: platform panel vs. house administration.
-            'forPlatform' => str_starts_with($intended, '/platform') || ($user->isPlatformAdmin() && ! str_starts_with($intended, '/manage')),
+            'forPlatform' => str_starts_with($intended, '/admin/platform') || ($user->isPlatformAdmin() && ! str_starts_with($intended, '/admin/b')),
         ])->title(__('auth.step_up.title'));
     }
 }

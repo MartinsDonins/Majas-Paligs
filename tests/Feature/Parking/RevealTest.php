@@ -99,8 +99,8 @@ it('shows no plate data at all in the staff lists — not even a 2-character fra
         return str_replace($alias, ' ', html_entity_decode($html));
     };
 
-    $vehicles = $this->get('/manage/reveal-house/vehicles')->assertOk()->assertSee($alias)->getContent();
-    $permits = $this->get('/manage/reveal-house/permits')->assertOk()->getContent();
+    $vehicles = $this->get('/admin/b/reveal-house/vehicles')->assertOk()->assertSee($alias)->getContent();
+    $permits = $this->get('/admin/b/reveal-house/permits')->assertOk()->getContent();
 
     foreach ([$vehicles, $permits] as $page) {
         $text = $visible((string) $page);

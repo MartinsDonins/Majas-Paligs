@@ -51,7 +51,7 @@ function queuedTrustCookie(): ?string
 it('trusts the device after a TOTP step-up with the box ticked and skips the step-up there for 30 days', function (): void {
     [$admin, $secret] = totpAdmin('td-admin@example.test');
     $this->actingAs($admin);
-    $this->get('/platform')->assertRedirect(route('step-up'));
+    $this->get('/admin/platform')->assertRedirect(route('step-up'));
 
     Livewire::test(StepUp::class)
         ->set('trust', true)
@@ -76,15 +76,15 @@ it('trusts the device after a TOTP step-up with the box ticked and skips the ste
     // A new session two weeks later on the same device: straight into the panel, audited once.
     $this->travel(14)->days();
     session()->flush();
-    $this->actingAs($admin)->withCookie(TrustedDevices::COOKIE, (string) $cookie)->get('/platform')->assertOk();
-    $this->withCookie(TrustedDevices::COOKIE, (string) $cookie)->get('/platform')->assertOk();
+    $this->actingAs($admin)->withCookie(TrustedDevices::COOKIE, (string) $cookie)->get('/admin/platform')->assertOk();
+    $this->withCookie(TrustedDevices::COOKIE, (string) $cookie)->get('/admin/platform')->assertOk();
     expect(AuditEntry::query()->platformChain()->where('action', 'account.trusted_device_used')->count())->toBe(1)
         ->and(AuditEntry::query()->platformChain()->where('action', 'account.device_trusted')->count())->toBe(1);
 
     // …but not after 30 days.
     $this->travel(17)->days();
     session()->flush();
-    $this->actingAs($admin)->withCookie(TrustedDevices::COOKIE, (string) $cookie)->get('/platform')->assertRedirect(route('step-up'));
+    $this->actingAs($admin)->withCookie(TrustedDevices::COOKIE, (string) $cookie)->get('/admin/platform')->assertRedirect(route('step-up'));
 });
 
 it('never lets a trusted device satisfy a dangerous action — but one TOTP / passkey of this session does', function (): void {
@@ -111,14 +111,14 @@ it('asks for the strong level on the step-up page and ignores the trusted device
     [$admin, $secret] = totpAdmin('td-strong@example.test');
     $this->actingAs($admin);
     steppedUp($admin, 'trusted');
-    $url = app(StepUpService::class)->ask('strong', '/platform/audit');
+    $url = app(StepUpService::class)->ask('strong', '/admin/platform/audit');
 
     expect($url)->toBe('/step-up');
     Livewire::test(StepUp::class)->assertViewHas('strong', true)->assertNoRedirect()
         ->set('code', app(Google2FA::class)->getCurrentOtp($secret))->call('verify')
         // no passkey yet → the one-time offer first
         ->assertSet('offer', true)
-        ->call('later')->assertRedirect('/platform/audit');
+        ->call('later')->assertRedirect('/admin/platform/audit');
 });
 
 it('binds a trusted device to its account and session epoch and rejects a forged cookie', function (): void {
@@ -132,17 +132,17 @@ it('binds a trusted device to its account and session epoch and rejects a forged
     // Another account on the same browser: the cookie is ignored.
     [$other] = totpAdmin('td-bind-other@example.test');
     session()->flush();
-    $this->actingAs($other)->withCookie(TrustedDevices::COOKIE, $cookie)->get('/platform')->assertRedirect(route('step-up'));
+    $this->actingAs($other)->withCookie(TrustedDevices::COOKIE, $cookie)->get('/admin/platform')->assertRedirect(route('step-up'));
 
     // A forged secret for the right row id.
     session()->flush();
-    $this->actingAs($admin)->withCookie(TrustedDevices::COOKIE, $device->id.'|'.str_repeat('A', 43))->get('/platform')->assertRedirect(route('step-up'));
+    $this->actingAs($admin)->withCookie(TrustedDevices::COOKIE, $device->id.'|'.str_repeat('A', 43))->get('/admin/platform')->assertRedirect(route('step-up'));
 
     // "Aizmirst ierīces" / any credential change bumps the epoch: every trusted device ends.
     SessionEpoch::bump($admin);
     session()->flush();
     $this->actingAs($admin->refresh())->withSession([SessionEpoch::SESSION_KEY => $admin->auth_epoch])
-        ->withCookie(TrustedDevices::COOKIE, $cookie)->get('/platform')->assertRedirect(route('step-up'));
+        ->withCookie(TrustedDevices::COOKIE, $cookie)->get('/admin/platform')->assertRedirect(route('step-up'));
 });
 
 it('only creates a trusted device right after a real MFA of this session', function (): void {
@@ -249,7 +249,7 @@ it('logs a remembered user back in after the session expired, without losing the
     // The session is gone (expired in Redis); the device still has both cookies.
     session()->flush();
     auth()->forgetGuards();
-    $this->withCookie(RememberCookieGuard::COOKIE, $recaller)->withCookie(TrustedDevices::COOKIE, $trust)->get('/platform')->assertOk();
+    $this->withCookie(RememberCookieGuard::COOKIE, $recaller)->withCookie(TrustedDevices::COOKIE, $trust)->get('/admin/platform')->assertOk();
     $this->assertAuthenticatedAs($admin);
 });
 

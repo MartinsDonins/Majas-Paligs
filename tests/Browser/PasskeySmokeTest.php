@@ -44,9 +44,9 @@ it('offers a passkey after an admin e-mail login, then signs in and opens the ho
         ->and(TrustedDevice::query()->where('user_id', $admin->id)->where('method', 'passkey')->count())->toBe(1);
 
     // The registration counted as this session's MFA: the house panel opens without any code.
-    openPath($page, "/manage/{$b->slug}");
-    waitUntil($page, "location.pathname.startsWith('/manage/') || location.pathname === '/step-up'", 10);
-    expect($page->script('location.pathname'))->toStartWith('/manage/');
+    openPath($page, "/admin/b/{$b->slug}");
+    waitUntil($page, "location.pathname.startsWith('/admin/b/') || location.pathname === '/step-up'", 10);
+    expect($page->script('location.pathname'))->toStartWith('/admin/b/');
 
     // 3. Log out; next time a single tap on "Ieiet ar pirkstu / Face ID" is the whole login (MFA included).
     openPath($page, "/b/{$b->slug}/me");
@@ -63,9 +63,9 @@ it('offers a passkey after an admin e-mail login, then signs in and opens the ho
     waitUntil($page, "location.pathname !== '/login'", 15);
     expect($page->script('location.pathname'))->not->toBe('/me/passkey');
 
-    openPath($page, "/manage/{$b->slug}");
-    waitUntil($page, "location.pathname.startsWith('/manage/') || location.pathname === '/step-up'", 10);
-    expect($page->script('location.pathname'))->toStartWith('/manage/');
+    openPath($page, "/admin/b/{$b->slug}");
+    waitUntil($page, "location.pathname.startsWith('/admin/b/') || location.pathname === '/step-up'", 10);
+    expect($page->script('location.pathname'))->toStartWith('/admin/b/');
 
     expect($admin->passkeys()->first()?->last_used_at)->not->toBeNull();
 });

@@ -125,7 +125,7 @@ it('renders every Filament parking page for building_admin and the officer', fun
             if ($page === 'settings' && $user === $this->officer) {
                 continue;
             }
-            $this->actingAs($user)->get("/manage/pages-house/{$page}")->assertOk();
+            $this->actingAs($user)->get("/admin/b/pages-house/{$page}")->assertOk();
         }
     }
 });

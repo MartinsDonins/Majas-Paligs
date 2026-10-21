@@ -93,6 +93,7 @@ it('calls UserScopedQuery::for only from the allow-listed callers', function ():
         'app/Auth/PinAuthService.php',
         'app/Auth/StepUpService.php',
         'app/Http/Controllers/Auth/PostLoginRedirect.php',
+        'app/Http/Controllers/Admin/AdminEntryController.php',
         'app/Models/User.php',
     ];
 

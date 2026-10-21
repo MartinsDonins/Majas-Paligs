@@ -1231,5 +1231,7 @@
     "audit.subject.user": "Учётная запись",
     "audit.subject.passkey": "Ключ входа",
     "audit.subject.trusted_device": "Доверенное устройство",
-    "audit.action.parking_task.close": "Задача парковки закрыта"
+    "audit.action.parking_task.close": "Задача парковки закрыта",
+
+    "home.tools.administration": "Администрирование"
 }

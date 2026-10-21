@@ -23,7 +23,7 @@ use Illuminate\Support\Collection;
  * user's id inside this class and returns DTOs/collections — never a Builder the caller could widen.
  *
  * Allowed callers (Arch test): Shell\BuildingSwitcher, Me\Privacy, Me\WhoViewed, GdprExporter, AccountEraser,
- * PinAuthService, Auth\PostLoginRedirect and App\Models\User (getTenants/canAccessTenant/getDefaultTenant).
+ * PinAuthService, Auth\PostLoginRedirect, Admin\AdminEntryController and App\Models\User (getTenants/canAccessTenant/getDefaultTenant).
  */
 final class UserScopedQuery
 {

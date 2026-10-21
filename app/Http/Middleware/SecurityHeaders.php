@@ -13,14 +13,14 @@ use Symfony\Component\HttpFoundation\Response;
  * Security headers (PLANNING §5 A02, SEC-004, MVP-SPEC A.6a).
  *
  * Resident app: strict nonce CSP + Livewire's CSP-safe Alpine build (no 'unsafe-eval').
- * Filament panels (/platform, /manage): Filament 5 renders inline scripts without a nonce and Alpine
+ * Filament panels (/admin/b/…, /admin/platform/…): Filament 5 renders inline scripts without a nonce and Alpine
  * expressions that need eval → 'unsafe-inline' 'unsafe-eval' for those paths only. TRACKED DEBT (docs/SECURITY.md).
  * Everywhere: HSTS, frame-ancestors none, Permissions-Policy, Referrer-Policy no-referrer, X-App-Version.
  */
 final class SecurityHeaders
 {
     /** Paths that must never be cached (secrets travel through these pages). */
-    private const NO_STORE = ['join', 'join/*', 'login', 'login/*', 'step-up', 'me/exports/*', 'manage/*', 'platform/*'];
+    private const NO_STORE = ['join', 'join/*', 'login', 'login/*', 'step-up', 'me/exports/*', 'admin', 'admin/*'];
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -59,7 +59,8 @@ final class SecurityHeaders
     private function isPanel(Request $request): bool
     {
         // Livewire update responses are JSON: the page's own CSP applies to them.
-        return $request->is('platform', 'platform/*', 'manage', 'manage/*', 'filament/*');
+        // The /admin chooser itself is a resident-shell page (strict CSP); only the two panels below it are Filament.
+        return $request->is('admin/b', 'admin/b/*', 'admin/platform', 'admin/platform/*', 'filament/*');
     }
 
     private function csp(bool $panel): string

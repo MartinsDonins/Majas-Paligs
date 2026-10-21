@@ -21,6 +21,8 @@ final class PostLoginRedirect
     {
         /** @var User $user */
         $user = $request->user();
+        // A message meant for the page after /home (e.g. "no administration role" from /admin) survives this hop.
+        $request->session()->reflash();
         $scoped = UserScopedQuery::for($user);
 
         $memberships = $scoped->memberships();
@@ -41,7 +43,7 @@ final class PostLoginRedirect
         }
 
         if ($user->isPlatformAdmin()) {
-            return redirect('/platform');
+            return redirect('/admin/platform');
         }
 
         // Rejected or ended: say so (with the reason the admin gave) instead of the generic "no apartment yet".

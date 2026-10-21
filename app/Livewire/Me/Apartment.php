@@ -14,6 +14,7 @@ use App\Models\Apartment as ApartmentModel;
 use App\Models\ApartmentMembership;
 use App\Models\User;
 use App\Tenancy\CurrentBuilding;
+use Filament\Facades\Filament;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -109,7 +110,8 @@ final class Apartment extends Component
         // Elder / admin tools are reachable from "Vairāk" too (review fix): the Home tools card was the only way in.
         $isAdmin = $current->contains(fn ($r) => $r->role === BuildingRoleType::BuildingAdmin);
         $isElder = $current->contains(fn ($r) => $r->role === BuildingRoleType::SectionElder);
-        $canManage = $isAdmin || $current->contains(fn ($r) => $r->role === BuildingRoleType::ParkingOfficer);
+        // "Administrēšana" (→ /admin) for anyone with a manage role in ANY house, or a platform_admin (ROUND2-SPEC §1.1).
+        $canManage = $user->isPlatformAdmin() || $user->canAccessPanel(Filament::getPanel('manage'));
         $pendingForMe = ($isAdmin || $isElder)
             ? ApartmentMembership::query()->pending()
                 ->when(! $isAdmin, fn ($q) => $q->whereIn('apartment_id', ApartmentModel::query()->whereIn('section_id', $user->elderSectionIds($building))->select('id')))

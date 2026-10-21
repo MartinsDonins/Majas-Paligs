@@ -34,6 +34,9 @@
     </header>
 
     <main id="main" class="page">
+        @if (session('status') === 'no_admin_role')
+            <x-ui.banner variant="info" class="mb-4">{{ __('admin.entry.no_role') }}</x-ui.banner>
+        @endif
         {{ $slot }}
         <x-ui.footer :building="$building" />
     </main>

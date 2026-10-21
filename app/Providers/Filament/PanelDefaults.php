@@ -28,7 +28,7 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 /**
- * Shared configuration of both Filament panels: our session/CSRF stack (no XSRF-TOKEN cookie), LV/RU locale (with
+ * Shared configuration of both Filament panels (both under /admin, ROUND2-SPEC §1): our session/CSRF stack (no XSRF-TOKEN cookie), LV/RU locale (with
  * an LV/RU switch in the top bar), petrol palette and Inter from the shared theme (tokens.css), no global search, no
  * Filament login (users sign in through the resident app: magic link / PIN; panels then require step-up), local
  * initials avatars and a relative favicon (CSP: img-src 'self' data: blob:).
@@ -38,7 +38,8 @@ final class PanelDefaults
     public static function apply(Panel $panel): Panel
     {
         return $panel
-            ->brandName('Mājas Palīgs')
+            // "Mājas Palīgs · Administrēšana"; the brand link goes to the /admin chooser (ROUND2-SPEC §1.1).
+            ->brandName(static fn (): string => __('admin.brand'))
             // Relative: asset() runs at panel registration, before the forwarded https scheme is known, and produced
             // an http:// URL that CSP blocked on every page.
             ->favicon('/icons/icon.svg')
@@ -47,6 +48,10 @@ final class PanelDefaults
             ->renderHook(PanelsRenderHook::SCRIPTS_AFTER, static fn (): View => view('filament.session-expired'))
             // Passkeys, trusted devices and the authenticator app live in the resident shell (/me/security).
             ->userMenuItems([
+                Action::make('residentApp')
+                    ->label(static fn (): string => __('admin.entry.back_to_app'))
+                    ->icon(Heroicon::OutlinedHome)
+                    ->url(static fn (): string => route('home.redirect')),
                 Action::make('security')
                     ->label(static fn (): string => __('me.security.link'))
                     ->icon(Heroicon::OutlinedFingerPrint)
@@ -66,7 +71,7 @@ final class PanelDefaults
             ->maxContentWidth(Width::SevenExtraLarge)
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
-            ->homeUrl(fn () => route('home.redirect'))
+            ->homeUrl(static fn (): string => route('admin.entry'))
             ->middleware([
                 EncryptCookies::class,
                 SessionLifetime::class,

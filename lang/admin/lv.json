@@ -1,6 +1,6 @@
 {
-    "admin.nav.structure": "Struktūra",
-    "admin.nav.people": "Iedzīvotāji",
+    "admin.nav.structure": "Māja",
+    "admin.nav.people": "Cilvēki",
     "admin.nav.governance": "Pārvaldība",
     "admin.nav.catalogue": "Sēriju katalogs",
     "admin.nav.buildings": "Mājas",
@@ -301,7 +301,7 @@
     "admin.pin_pause.paused": "PIN ieeja apturēta.",
     "admin.pin_pause.resumed": "PIN ieeja atjaunota.",
 
-    "admin.nav.heating": "Siltums un atslēgumi",
+    "admin.nav.heating": "Siltums un ūdens",
     "admin.settings.sharing_step_up": "Datu kopīgošanas maiņai vajadzīgs svaigs apstiprinājums (step-up). Apstipriniet un mēģiniet vēlreiz.",
 
     "admin.round.label": "Apsekojuma kārta",
@@ -543,5 +543,17 @@
     "admin.parking.error.unknown_apartment": "Šāda dzīvokļa nav.",
     "admin.parking.error.invalid_date": "Datums neder (dd.mm.gggg).",
     "admin.parking.error.invalid_row": "Rindu nevarēja nolasīt.",
-    "admin.parking.error.too_many_rows": "Pārāk daudz rindu — importētas pirmās 1000."
+    "admin.parking.error.too_many_rows": "Pārāk daudz rindu — importētas pirmās 1000.",
+
+    "admin.brand": "Mājas Palīgs · Administrēšana",
+    "admin.entry.title": "Administrēšana",
+    "admin.entry.lead": "Izvēlieties, ko pārvaldīt. Katrā mājā redzat tikai to, ko atļauj Jūsu loma.",
+    "admin.entry.platform": "Platforma",
+    "admin.entry.platform_help": "Sēriju katalogs, mājas, juridiskie teksti, audits",
+    "admin.entry.core_open": "Pieteikšanās atvērta",
+    "admin.entry.core_closed": "Pieteikšanās vēl slēgta",
+    "admin.entry.back_to_app": "Uz mājas lietotni",
+    "admin.entry.all_buildings": "Visas mājas",
+    "admin.entry.house_admin": "Mājas administrēšana",
+    "admin.entry.no_role": "Jums nav administrēšanas lomas."
 }

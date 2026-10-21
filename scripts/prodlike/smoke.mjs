@@ -3,7 +3,7 @@
 //
 // REQUIRED (exit 1 on failure): /up 200 · /login renders in LV · /login renders in RU after the RU toggle ·
 //   e-mail code login end to end (code read from Mailpit) for the platform admin.
-// EXTENDED (reported as WARN, exit 0): the toggle returns to the same page · TOTP step-up into /platform ·
+// EXTENDED (reported as WARN, exit 0): the toggle returns to the same page · TOTP step-up into /admin/platform ·
 //   RU after login · no JS errors / 5xx.
 // Screenshots: storage/app/prodlike/screens/*.png
 import { createHmac } from 'node:crypto';
@@ -117,7 +117,7 @@ try {
 
     // 5. Platform panel: TOTP step-up with the secret saved by up.sh.
     try {
-        if (!afterLogin.startsWith('/platform')) await page.goto(`${BASE}/platform`);
+        if (!afterLogin.startsWith('/admin/platform')) await page.goto(`${BASE}/admin/platform`);
         if (new URL(page.url()).pathname.startsWith('/step-up')) {
             const secret = readFileSync(`${DIR}/admin-totp.txt`, 'utf8').trim();
             // A time step is accepted once (replay markers): a run right after another may hit a used step, so on a
@@ -125,7 +125,7 @@ try {
             for (let attempt = 1; attempt <= 2; attempt++) {
                 await page.fill('#code', totp(secret));
                 await page.locator('form[wire\\:submit="verify"] button[type="submit"]').click();
-                const ok = await page.waitForURL((u) => u.pathname.startsWith('/platform'), { timeout: 10_000 }).then(() => true, () => false);
+                const ok = await page.waitForURL((u) => u.pathname.startsWith('/admin/platform'), { timeout: 10_000 }).then(() => true, () => false);
                 if (ok) break;
                 if (attempt === 2) throw new Error('TOTP code rejected twice');
                 await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 1_000);
@@ -133,10 +133,10 @@ try {
         }
         await page.waitForLoadState('networkidle');
         const path = new URL(page.url()).pathname;
-        record('extended', 'TOTP step-up → /platform', path.startsWith('/platform'), `at ${path}`);
+        record('extended', 'TOTP step-up → /admin/platform', path.startsWith('/admin/platform'), `at ${path}`);
         await shot(page, '04-platform');
     } catch (e) {
-        record('extended', 'TOTP step-up → /platform', false, `${e.message.split('\n')[0]} (at ${new URL(page.url()).pathname})`);
+        record('extended', 'TOTP step-up → /admin/platform', false, `${e.message.split('\n')[0]} (at ${new URL(page.url()).pathname})`);
         await shot(page, '04-platform');
     }
 
@@ -148,9 +148,9 @@ try {
             record('extended', 'RU after login', false, 'no RU toggle on /me/security');
         } else {
             await Promise.all([page.waitForNavigation({ timeout: 15_000 }).catch(() => {}), toggle.click()]);
-            await page.goto(`${BASE}/platform`);
+            await page.goto(`${BASE}/admin/platform`);
             await page.waitForLoadState('networkidle');
-            record('extended', 'RU after login', (await lang(page)) === 'ru', `/platform lang=${await lang(page)}`);
+            record('extended', 'RU after login', (await lang(page)) === 'ru', `/admin/platform lang=${await lang(page)}`);
             await shot(page, '05-platform-ru');
         }
     } catch (e) {

@@ -1231,5 +1231,7 @@
     "audit.subject.user": "Konts",
     "audit.subject.passkey": "Ieejas atslēga",
     "audit.subject.trusted_device": "Uzticama ierīce",
-    "audit.action.parking_task.close": "Stāvvietas uzdevums slēgts"
+    "audit.action.parking_task.close": "Stāvvietas uzdevums slēgts",
+
+    "home.tools.administration": "Administrēšana"
 }

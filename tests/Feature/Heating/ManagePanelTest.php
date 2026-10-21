@@ -31,9 +31,9 @@ it('renders every Package B page for building_admin', function (): void {
 
     steppedUp($this->admin);
     foreach (['survey-rounds', 'incidents', 'manager-reports', 'riser-disputes', 'heating-reports', 'risers'] as $page) {
-        $this->actingAs($this->admin)->get("/manage/panel-heat/{$page}")->assertOk();
+        $this->actingAs($this->admin)->get("/admin/b/panel-heat/{$page}")->assertOk();
     }
-    $this->actingAs($this->admin)->get('/manage/panel-heat/manager-reports')->assertSee('MP-');
+    $this->actingAs($this->admin)->get('/admin/b/panel-heat/manager-reports')->assertSee('MP-');
 });
 
 it('shows elders only their own stairwell in rounds, reports and heating reports', function (): void {
@@ -45,8 +45,8 @@ it('shows elders only their own stairwell in rounds, reports and heating reports
     $r2 = inBuilding($this->b, fn () => app(ManagerReportGenerator::class)->generate($this->elder, ManagerReportKind::Heating, SectionScope::fromIds([$s2])));
 
     steppedUp($this->elder);
-    $this->actingAs($this->elder)->get('/manage/panel-heat/survey-rounds')->assertOk()->assertSee('Kārta-divi')->assertDontSee('Kārta-viens');
-    $this->actingAs($this->elder)->get('/manage/panel-heat/manager-reports')->assertOk()->assertSee($r2->number)->assertDontSee($r1->number);
+    $this->actingAs($this->elder)->get('/admin/b/panel-heat/survey-rounds')->assertOk()->assertSee('Kārta-divi')->assertDontSee('Kārta-viens');
+    $this->actingAs($this->elder)->get('/admin/b/panel-heat/manager-reports')->assertOk()->assertSee($r2->number)->assertDontSee($r1->number);
 });
 
 it('keeps plain residents out of the panel', function (): void {
@@ -54,5 +54,5 @@ it('keeps plain residents out of the panel', function (): void {
     member($resident, $this->b, 1);
     steppedUp($resident);
 
-    $this->actingAs($resident)->get('/manage/panel-heat/heating-reports')->assertForbidden();
+    $this->actingAs($resident)->get('/admin/b/panel-heat/heating-reports')->assertForbidden();
 });

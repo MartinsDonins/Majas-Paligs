@@ -134,7 +134,7 @@ cat <<INFO
 
 Prodlike stack is RUNNING (image: $image)
   App        https://localhost:8443          (self-signed: accept the warning or import storage/app/prodlike/caddy-root.crt)
-  Platform   https://localhost:8443/platform (admin: $admin_email — code via mail, then TOTP)
+  Platform   https://localhost:8443/admin/platform (admin: $admin_email — code via mail, then TOTP)
   Mailpit    http://127.0.0.1:8036
   Mail code  scripts/prodlike/mail-code.sh $admin_email
   TOTP code  scripts/prodlike/totp.sh

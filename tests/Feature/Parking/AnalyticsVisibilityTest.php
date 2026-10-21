@@ -35,7 +35,7 @@ it('gives officer/admin aggregate tiles only', function (): void {
 
 it('hides apartment numbers until the house adopted parking rules', function (): void {
     steppedUp($this->officer);
-    $this->actingAs($this->officer)->get('/manage/analytics-house/parking-analytics')->assertOk()
+    $this->actingAs($this->officer)->get('/admin/b/analytics-house/parking-analytics')->assertOk()
         ->assertSee(__('admin.parking.analytics.rules_needed'))
         ->assertDontSee(__('admin.parking.analytics.two_main_list'));
     expect(inBuilding($this->b, fn () => Gate::forUser($this->officer)->allows('parking-analytics-apartments')))->toBeFalse();
@@ -45,7 +45,7 @@ it('hides apartment numbers until the house adopted parking rules', function ():
         ->and(inBuilding($this->b, fn () => app(ParkingAnalytics::class)->perApartment()))->toBe([5]);
 
     steppedUp($this->officer);
-    $this->actingAs($this->officer)->get('/manage/analytics-house/parking-analytics')->assertOk()
+    $this->actingAs($this->officer)->get('/admin/b/analytics-house/parking-analytics')->assertOk()
         ->assertSee(__('admin.parking.analytics.two_main_list'));
 });
 
@@ -54,7 +54,7 @@ it('keeps residents out of the analytics page and shows them per-stairwell rings
 
     expect(inBuilding($this->b, fn () => Gate::forUser($resident)->allows('parking-analytics')))->toBeFalse();
     steppedUp($resident);
-    $this->actingAs($resident)->get('/manage/analytics-house/parking-analytics')->assertForbidden();
+    $this->actingAs($resident)->get('/admin/b/analytics-house/parking-analytics')->assertForbidden();
     $this->actingAs($resident)->get('/b/analytics-house/parking/progress')->assertOk()
         ->assertSee(__('parking.progress.stairwells'))
         ->assertDontSee('AB1234');

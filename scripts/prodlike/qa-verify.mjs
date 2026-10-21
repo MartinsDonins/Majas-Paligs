@@ -96,32 +96,32 @@ try {
     check('language kept after login', (await lang(page)) === 'ru', `lang=${await lang(page)}`);
 
     // Platform: TOTP step-up, then the pages that failed.
-    await page.goto(`${BASE}/platform`);
+    await page.goto(`${BASE}/admin/platform`);
     if (path(page).startsWith('/step-up')) {
         const secret = readFileSync(`${DIR}/admin-totp.txt`, 'utf8').trim();
         for (let attempt = 1; attempt <= 2; attempt++) {
             await page.fill('#code', totp(secret));
             await page.locator('form[wire\\:submit="verify"] button[type="submit"]').click();
-            if (await page.waitForURL((u) => u.pathname.startsWith('/platform'), { timeout: 10_000 }).then(() => true, () => false)) break;
+            if (await page.waitForURL((u) => u.pathname.startsWith('/admin/platform'), { timeout: 10_000 }).then(() => true, () => false)) break;
             await page.waitForTimeout(30_000 - (Date.now() % 30_000) + 1_000);
         }
     }
-    check('TOTP step-up → /platform', path(page).startsWith('/platform'), path(page));
+    check('TOTP step-up → /admin/platform', path(page).startsWith('/admin/platform'), path(page));
 
-    const list = await page.goto(`${BASE}/platform/buildings`);
+    const list = await page.goto(`${BASE}/admin/platform/buildings`);
     await page.waitForLoadState('networkidle');
-    check('/platform/buildings has a Create button', list.status() === 200 && (await page.locator('a[href$="/platform/buildings/create"]').count()) > 0);
+    check('/admin/platform/buildings has a Create button', list.status() === 200 && (await page.locator('a[href$="/admin/platform/buildings/create"]').count()) > 0);
     check('panel LV/RU switch present', (await page.locator('[data-testid="panel-language-switch"]').count()) > 0);
     check('no ui-avatars.com image', (await page.locator('img[src*="ui-avatars.com"]').count()) === 0);
     await shot(page, '02-buildings');
 
-    const edit = await page.goto(`${BASE}/platform/buildings/${SLUG}/edit`);
+    const edit = await page.goto(`${BASE}/admin/platform/buildings/${SLUG}/edit`);
     await page.waitForLoadState('networkidle');
-    check(`/platform/buildings/${SLUG}/edit opens`, edit.status() === 200, `HTTP ${edit.status()}`);
+    check(`/admin/platform/buildings/${SLUG}/edit opens`, edit.status() === 200, `HTTP ${edit.status()}`);
     await shot(page, '03-building-edit');
 
     // Generator: loads the stored stairwells; an emptied field and a conflicting input never 500.
-    await page.goto(`${BASE}/platform/generator`);
+    await page.goto(`${BASE}/admin/platform/generator`);
     await page.waitForLoadState('networkidle');
     const picker = page.locator('select[wire\\:model\\.live="building"]');
     const value = await picker.locator('option', { hasText: process.env.PRODLIKE_BUILDING_NAME ?? 'Pūces' }).first().getAttribute('value');
@@ -138,7 +138,7 @@ try {
     check('conflicting re-run is refused with a message', (await page.locator('[data-testid="generator-conflicts"] li').count()) > 0);
     await shot(page, '04-generator-conflict');
 
-    const audit = await page.goto(`${BASE}/platform/audit`);
+    const audit = await page.goto(`${BASE}/admin/platform/audit`);
     await page.waitForLoadState('networkidle');
     check('audit verify button rendered', audit.status() === 200 && (await page.locator('[wire\\:click="verifyPlatform"]').count()) > 0);
 

@@ -1,6 +1,6 @@
 {
-    "admin.nav.structure": "Структура",
-    "admin.nav.people": "Жители",
+    "admin.nav.structure": "Дом",
+    "admin.nav.people": "Люди",
     "admin.nav.governance": "Управление",
     "admin.nav.catalogue": "Каталог серий",
     "admin.nav.buildings": "Дома",
@@ -301,7 +301,7 @@
     "admin.pin_pause.paused": "Вход по PIN приостановлен.",
     "admin.pin_pause.resumed": "Вход по PIN возобновлён.",
 
-    "admin.nav.heating": "Тепло и отключения",
+    "admin.nav.heating": "Тепло и вода",
     "admin.settings.sharing_step_up": "Для изменения передачи данных нужно свежее подтверждение (step-up). Подтвердите и попробуйте снова.",
 
     "admin.round.label": "Обход",
@@ -543,5 +543,17 @@
     "admin.parking.error.unknown_apartment": "Такой квартиры нет.",
     "admin.parking.error.invalid_date": "Дата не подходит (дд.мм.гггг).",
     "admin.parking.error.invalid_row": "Строку не удалось прочитать.",
-    "admin.parking.error.too_many_rows": "Слишком много строк — импортированы первые 1000."
+    "admin.parking.error.too_many_rows": "Слишком много строк — импортированы первые 1000.",
+
+    "admin.brand": "Mājas Palīgs · Администрирование",
+    "admin.entry.title": "Администрирование",
+    "admin.entry.lead": "Выберите, чем управлять. В каждом доме вы видите только то, что разрешает ваша роль.",
+    "admin.entry.platform": "Платформа",
+    "admin.entry.platform_help": "Каталог серий, дома, юридические тексты, аудит",
+    "admin.entry.core_open": "Регистрация открыта",
+    "admin.entry.core_closed": "Регистрация ещё закрыта",
+    "admin.entry.back_to_app": "В приложение дома",
+    "admin.entry.all_buildings": "Все дома",
+    "admin.entry.house_admin": "Администрирование домов",
+    "admin.entry.no_role": "У вас нет роли администрирования."
 }

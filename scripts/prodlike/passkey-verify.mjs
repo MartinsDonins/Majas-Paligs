@@ -108,8 +108,8 @@ try {
         && trusted.expires * 1000 > Date.now() + 29 * 86_400_000,
         trusted ? JSON.stringify({ domain: trusted.domain, path: trusted.path, secure: trusted.secure, httpOnly: trusted.httpOnly, sameSite: trusted.sameSite }) : 'missing');
 
-    await page.goto(`${BASE}/platform`);
-    check('/platform right after creating the passkey (no code)', path(page).startsWith('/platform'), path(page));
+    await page.goto(`${BASE}/admin/platform`);
+    check('/admin/platform right after creating the passkey (no code)', path(page).startsWith('/admin/platform'), path(page));
 
     // 2. Signed out: one tap on "Ieiet ar pirkstu / Face ID" is the whole login, MFA included.
     await dropSession(context);
@@ -119,8 +119,8 @@ try {
     await shot(page, '02-login');
     if (path(page) === '/login') await button.click().catch(() => {});
     check('passkey login leaves /login', await waitPath(page, (p) => p !== '/login'), path(page));
-    await page.goto(`${BASE}/platform`);
-    check('/platform after a passkey login (no TOTP)', path(page).startsWith('/platform'), path(page));
+    await page.goto(`${BASE}/admin/platform`);
+    check('/admin/platform after a passkey login (no TOTP)', path(page).startsWith('/admin/platform'), path(page));
     check('remember cookie set by the passkey login', (await context.cookies()).some((c) => c.name === '__Host-mp_remember'));
 
     // 3. Signed out again, e-mail login on the trusted device: no offer (has a passkey) and no step-up. The virtual
@@ -131,12 +131,12 @@ try {
     await emailLogin(page);
     await cdp.send('WebAuthn.setUserVerified', { authenticatorId, isUserVerified: true });
     check('e-mail login of an admin with a passkey → no offer', path(page) !== '/me/passkey', path(page));
-    await page.goto(`${BASE}/platform`);
-    check('/platform on the trusted device without any code', path(page).startsWith('/platform'), path(page));
+    await page.goto(`${BASE}/admin/platform`);
+    check('/admin/platform on the trusted device without any code', path(page).startsWith('/admin/platform'), path(page));
     await shot(page, '03-platform');
 
     // 4. Break-glass is a dangerous action: even the trusted device must tap the passkey again.
-    await page.goto(`${BASE}/platform/audit`);
+    await page.goto(`${BASE}/admin/platform/audit`);
     await page.waitForLoadState('networkidle');
     await page.selectOption('#break-glass-building', { index: 1 });
     await page.fill('input[wire\\:model="reason"]', 'Prodlike passkey verification run');
@@ -144,7 +144,7 @@ try {
     check('break-glass on a trusted device asks for the step-up', await waitPath(page, (p) => p === '/step-up'), path(page));
     await shot(page, '04-step-up-strong');
     await page.locator('[data-testid="passkey-button"]').click();
-    check('one passkey tap returns to the audit page', await waitPath(page, (p) => p.startsWith('/platform/audit')), path(page));
+    check('one passkey tap returns to the audit page', await waitPath(page, (p) => p.startsWith('/admin/platform/audit')), path(page));
 
     // 5. "Ieeja un drošība" lists the passkey and this trusted device.
     await page.goto(`${BASE}/me/security`);

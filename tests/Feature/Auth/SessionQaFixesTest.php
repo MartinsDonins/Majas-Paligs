@@ -208,14 +208,14 @@ it('counts a first TOTP enrolment as the step-up, refuses the same code again an
     $this->actingAs($admin);
     $stepUp = app(StepUpService::class);
 
-    // /manage asks for TOTP → the banner page remembers /manage/enrol-house for after the enrolment.
-    $this->get('/manage/enrol-house')->assertRedirect(route('step-up'));
+    // /admin/b asks for TOTP → the banner page remembers /admin/b/enrol-house for after the enrolment.
+    $this->get('/admin/b/enrol-house')->assertRedirect(route('step-up'));
     Livewire::actingAs($admin)->test(StepUp::class)->assertSee(__('auth.step_up.mfa_required_building'));
 
     $stepUp->markFresh($admin, 'email');
     $c = Livewire::actingAs($admin)->test(Security::class)->call('start');
     $code = app(Google2FA::class)->getCurrentOtp((string) session('mp.totp.pending'));
-    $c->set('code', $code)->call('confirm')->assertHasNoErrors()->assertRedirect('/manage/enrol-house');
+    $c->set('code', $code)->call('confirm')->assertHasNoErrors()->assertRedirect('/admin/b/enrol-house');
 
     expect($stepUp->hasFreshMfa($admin->refresh()))->toBeTrue()
         ->and($stepUp->verifyTotp($admin, $code))->toBeFalse()

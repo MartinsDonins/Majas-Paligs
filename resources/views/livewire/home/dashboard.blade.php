@@ -59,7 +59,7 @@
                 </span>
             </a>
             @if ($isAdmin)
-                <a href="{{ url('/manage/'.$building->slug) }}" class="list-row no-underline text-(--color-fg)">
+                <a href="{{ url('/admin/b/'.$building->slug) }}" class="list-row no-underline text-(--color-fg)">
                     <span class="flex items-center gap-3">
                         <x-lucide-building-2 class="size-6 text-(--color-accent)" aria-hidden="true" />
                         <span class="font-semibold">{{ __('home.tools.admin') }}</span>
