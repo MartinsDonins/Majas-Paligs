@@ -72,6 +72,18 @@ it('gives majas_retention exactly the Package C prune grants (MVP-SPEC A.2a / C.
     expect($columns)->toBe(['permits.status', 'permits.status_reason', 'permits.updated_at', 'sightings.photo_deleted_at', 'sightings.photo_path']);
 });
 
+it('gives majas_retention the round-2 prune grants for imports and guest-permit observations (ROUND2-SPEC §7)', function (): void {
+    expect(grantsFor('majas_retention', 'import_runs'))->toBe(['DELETE', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'permit_plate_observations'))->toBe(['DELETE', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'import_mapping_presets'))->toBe([]);
+
+    $columns = collect(DB::select(
+        "SELECT column_name FROM information_schema.column_privileges WHERE grantee = 'majas_retention' AND privilege_type = 'UPDATE' AND table_name = 'import_runs'"
+    ))->pluck('column_name')->sort()->values()->all();
+
+    expect($columns)->toBe(['payload_ciphertext', 'status', 'updated_at']);
+});
+
 it('rejects UPDATE and DELETE on plate_lookups for majas_app (append-only, trigger + grants)', function (): void {
     expect(DB::selectOne("SELECT count(*) AS c FROM pg_trigger WHERE tgrelid = 'plate_lookups'::regclass AND NOT tgisinternal")->c)->toBe(2)
         ->and(DB::selectOne("SELECT prosecdef FROM pg_proc WHERE proname = 'plate_lookups_delete_guard'")->prosecdef)->toBeFalse();

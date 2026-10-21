@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Parking;
 
 use App\Audit\AuditLogger;
+use App\Enums\PermitSource;
 use App\Enums\PermitStatus;
 use App\Enums\PermitStatusReason;
 use App\Enums\PermitType;
@@ -38,6 +39,8 @@ final class PermitService
         ?CarbonImmutable $validTo = null,
         ?string $issuedBy = null,
         ?string $note = null,
+        PermitSource $source = PermitSource::Officer,
+        ?string $importRunId = null,
     ): Permit {
         $number = $this->normalizeNumber($number);
 
@@ -62,6 +65,8 @@ final class PermitService
             'valid_to' => $validTo?->toDateString(),
             'status' => PermitStatus::Active,
             'note_private' => $note !== null && trim($note) !== '' ? mb_substr(trim($note), 0, 500) : null,
+            'source' => $source,
+            'import_run_id' => $importRunId,
         ]));
 
         AuditLogger::record('permit.issue', $permit, data: ['type' => $type->value, 'permit_number' => $permit->number]);
@@ -95,6 +100,7 @@ final class PermitService
                 'valid_from' => $today->toDateString(),
                 'valid_to' => $old->valid_to !== null && $old->valid_to->greaterThanOrEqualTo($today) ? $old->valid_to->toDateString() : null,
                 'status' => PermitStatus::Active,
+                'source' => PermitSource::ChangeVehicle,
             ]));
 
             $old->forceFill(['replaced_by_permit_id' => $new->id])->save();
@@ -124,7 +130,77 @@ final class PermitService
         AuditLogger::record('permit.status', $permit, data: ['status' => $status->value, 'permit_number' => $permit->number]);
     }
 
-    private function normalizeNumber(string $number): string
+    /**
+     * Permit issuer's list in "Izveidot vai atjaunināt" mode (PARK-012): validity / status / issued_by of an existing
+     * ACTIVE permit with the same number + type in the same apartment. Never moves a permit to another apartment and
+     * never touches its vehicle. Returns whether anything changed.
+     *
+     * @throws ParkingActionFailed invalid_period | overlap
+     */
+    public function updateFromImport(
+        User $officer,
+        Permit $permit,
+        ?CarbonImmutable $validFrom,
+        ?CarbonImmutable $validTo,
+        PermitStatus $status,
+        ?string $issuedBy,
+    ): bool {
+        $changes = [];
+        $from = $validFrom ?? $permit->valid_from;
+        $to = $validTo ?? $permit->valid_to;
+
+        if ($to !== null && $to->lessThan($from)) {
+            throw new ParkingActionFailed('invalid_period');
+        }
+        if ($validFrom !== null && ! $validFrom->equalTo($permit->valid_from)) {
+            $changes['valid_from'] = $validFrom->toDateString();
+        }
+        if ($validTo !== null && ($permit->valid_to === null || ! $validTo->equalTo($permit->valid_to))) {
+            $changes['valid_to'] = $validTo->toDateString();
+        }
+        $issuedBy = $issuedBy !== null && trim($issuedBy) !== '' ? mb_substr(trim($issuedBy), 0, 120) : null;
+        if ($issuedBy !== null && $issuedBy !== $permit->issued_by) {
+            $changes['issued_by'] = $issuedBy;
+        }
+        if ($status !== $permit->status) {
+            $changes['status'] = $status;
+            $changes['status_reason'] = $status === PermitStatus::Revoked ? PermitStatusReason::Officer : null;
+        }
+
+        if ($changes === []) {
+            return false;
+        }
+
+        $this->guarded(fn () => $permit->forceFill($changes)->save());
+        AuditLogger::record('permit.update', $permit, data: ['permit_number' => $permit->number, 'fields' => array_keys($changes), 'source' => 'import']);
+
+        return true;
+    }
+
+    /**
+     * Bulk "Pagarināt līdz…" (PARK-011): new end date for an active permit (never before its start).
+     *
+     * @throws ParkingActionFailed invalid_status | invalid_period | overlap
+     */
+    public function extend(User $officer, Permit $permit, CarbonImmutable $validTo): void
+    {
+        if ($permit->status !== PermitStatus::Active) {
+            throw new ParkingActionFailed('invalid_status');
+        }
+        if ($validTo->lessThan($permit->valid_from)) {
+            throw new ParkingActionFailed('invalid_period');
+        }
+
+        $this->guarded(fn () => $permit->forceFill(['valid_to' => $validTo->toDateString()])->save());
+        AuditLogger::record('permit.extend', $permit, data: ['permit_number' => $permit->number, 'valid_to' => $validTo->toDateString()]);
+    }
+
+    /**
+     * Canonical permit number (upper case, single spaces, 1–32 characters) — the import validator uses the same rule.
+     *
+     * @throws ParkingActionFailed invalid_number
+     */
+    public static function canonicalNumber(string $number): string
     {
         $number = strtoupper(trim((string) preg_replace('/\s+/', ' ', $number)));
 
@@ -133,6 +209,11 @@ final class PermitService
         }
 
         return $number;
+    }
+
+    private function normalizeNumber(string $number): string
+    {
+        return self::canonicalNumber($number);
     }
 
     /**

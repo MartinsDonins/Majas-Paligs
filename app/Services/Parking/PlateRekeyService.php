@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * plates:rekey (MVP-SPEC C.1 Rotation): moves the CURRENT building to plate key version + 1 in ONE transaction
  * holding pg_advisory_xact_lock('plates:'||building_id) — re-seal ciphertext and recompute the blind index of every
- * vehicle and sighting, bump settings.plate_index_key_version, rebuild plate_sighting_stats. All rows of the building
+ * vehicle, sighting and guest-permit observation (VaultContext::TABLES), bump settings.plate_index_key_version, rebuild plate_sighting_stats. All rows of the building
  * switch together, so the partial UNIQUE on active bidx stays valid; a duplicate aborts that building's transaction
  * and alerts the platform admin. Old plate_lookups rows keep their old bidx and age out (6 months).
  */
@@ -27,7 +27,7 @@ final class PlateRekeyService
     ) {}
 
     /**
-     * @return array{from: int, to: int, vehicles: int, sightings: int}
+     * @return array{from: int, to: int, vehicles: int, sightings: int, observations: int}
      */
     public function rekey(): array
     {
@@ -63,9 +63,9 @@ final class PlateRekeyService
                 $building->forceFill(['settings' => $building->settings->with(['plate_index_key_version' => $to])])->save();
                 $this->stats->rebuild();
 
-                AuditLogger::record('plates.rekey', $building, data: ['from' => $from, 'to' => $to, 'vehicles' => $counts['vehicles'], 'sightings' => $counts['sightings']]);
+                AuditLogger::record('plates.rekey', $building, data: ['from' => $from, 'to' => $to, 'vehicles' => $counts['vehicles'], 'sightings' => $counts['sightings'], 'observations' => $counts['permit_plate_observations']]);
 
-                return ['from' => $from, 'to' => $to, 'vehicles' => $counts['vehicles'], 'sightings' => $counts['sightings']];
+                return ['from' => $from, 'to' => $to, 'vehicles' => $counts['vehicles'], 'sightings' => $counts['sightings'], 'observations' => $counts['permit_plate_observations']];
             });
         } catch (QueryException|PlateVaultException $e) {
             $this->alerts->platform('plates-rekey-failed', 'run', 1, 1);

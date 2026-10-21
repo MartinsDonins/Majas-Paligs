@@ -294,5 +294,10 @@
     "import.commit.inform_reminder": "Neaizmirstiet mēneša laikā informēt kaimiņus, ka viņu kontakti tagad ir šeit.",
     "import.commit.failed": "Imports neizdevās: :code. Fails izdzēsts — augšupielādējiet vēlreiz.",
     "import.commit.again": "Jauns imports",
-    "import.commit.back": "Uz sarakstu"
+    "import.commit.back": "Uz sarakstu",
+    "import.code.date_serial": "Datums no Excel skaitļa — pārbaudiet",
+    "import.code.inactive_skip": "Nav aktīva — netiks importēta",
+    "import.code.plate_invalid_guest": "Auto numurs neizskatās pareizs — viesu caurlaidi ielādēsim bez auto",
+    "import.template.example_issuer": "Pārvaldnieks",
+    "import.value.yes": "Jā"
 }

@@ -4,35 +4,39 @@ declare(strict_types=1);
 
 namespace App\Filament\Manage\Pages;
 
+use App\Filament\Manage\Pages\Concerns\InteractsWithImportPipeline;
+use App\Filament\Manage\Resources\PermitResource;
+use App\Gdpr\ParkingGate;
 use App\Models\User;
-use App\Services\Parking\PermitImportService;
 use BackedEnum;
-use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Facades\Gate;
 
 /**
- * Permit issuer list import (PARK-001.2) — ONLY at parking gate L1 (controller named + DPA covering parking) and
- * with the permit issuer's endorsement. Paste CSV; the report lists counts and skipped row numbers with reasons only
- * (never a plate). Audit-logged.
+ * Permit issuer's list import (PARK-012 on DB-003, ROUND2-SPEC §6.3): the shared 5-step pipeline UI (Augšupielāde →
+ * Kartēšana → Pārbaude → Izmēģinājums → Imports, resumable for 24 h) for the kind `permits`.
+ *
+ * Parking staff reach the page at any level; below parking gate L1 it shows the explanation card with the missing
+ * items instead of the uploader, and every action — including the Livewire signed-upload request — is refused
+ * server-side (D6). Commit: a dry-run younger than 30 min, the issuer-endorsement confirmation and a fresh MFA
+ * step-up. Preview cells mask plates (`AB••34`); no cell value is ever a public property.
  */
 final class PermitImportPage extends Page
 {
+    use InteractsWithImportPipeline;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowUpTray;
 
     protected static ?int $navigationSort = 56;
 
     protected static ?string $slug = 'permit-import';
 
-    protected string $view = 'filament.manage.pages.permit-import';
+    protected string $view = 'filament.manage.pages.import-pipeline';
 
-    public string $csv = '';
-
-    public bool $endorsed = false;
-
-    /** @var array{permits: int, vehicles: int, skipped: list<array{row: int, reason: string}>}|null */
-    public ?array $report = null;
+    protected static function importKind(): string
+    {
+        return 'permits';
+    }
 
     public static function getNavigationGroup(): string
     {
@@ -44,42 +48,29 @@ final class PermitImportPage extends Page
         return __('admin.parking.import.title');
     }
 
+    /**
+     * Navigation shows the import only from L1 (ROUND2-SPEC §1.2); the status page links here below it.
+     */
+    public static function shouldRegisterNavigation(): bool
+    {
+        return (ParkingGate::current()?->l1() ?? false) && auth()->user() instanceof User && self::canAccess();
+    }
+
     public function getTitle(): string
     {
         return __('admin.parking.import.title');
     }
 
-    public static function canAccess(): bool
+    /**
+     * @return array<string, string>
+     */
+    public function getBreadcrumbs(): array
     {
-        return Gate::allows('parking-import');
+        return [PermitResource::getUrl() => __('admin.parking.permit.plural'), __('admin.parking.import.title')];
     }
 
-    public function mount(): void
+    public function backUrl(): string
     {
-        abort_unless(self::canAccess(), 403);
-    }
-
-    public function import(PermitImportService $imports): void
-    {
-        abort_unless(self::canAccess(), 403);
-
-        if (! $this->endorsed) {
-            Notification::make()->warning()->title(__('admin.parking.import.endorse_first'))->send();
-
-            return;
-        }
-
-        if (strlen($this->csv) > 200_000 || trim($this->csv) === '') {
-            Notification::make()->danger()->title(__('admin.parking.import.empty'))->send();
-
-            return;
-        }
-
-        /** @var User $user */
-        $user = auth()->user();
-        $this->report = $imports->import($user, $this->csv);
-        $this->csv = '';
-
-        Notification::make()->success()->title(__('admin.parking.import.done', ['permits' => $this->report['permits']]))->send();
+        return PermitResource::getUrl();
     }
 }

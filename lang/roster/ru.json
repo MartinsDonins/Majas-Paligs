@@ -294,5 +294,10 @@
     "import.commit.inform_reminder": "Не забудьте в течение месяца сообщить соседям, что их контакты теперь здесь.",
     "import.commit.failed": "Импорт не удался: :code. Файл удалён — загрузите снова.",
     "import.commit.again": "Новый импорт",
-    "import.commit.back": "К списку"
+    "import.commit.back": "К списку",
+    "import.code.date_serial": "Дата из числа Excel — проверьте",
+    "import.code.inactive_skip": "Не действует — не будет импортирован",
+    "import.code.plate_invalid_guest": "Номер машины выглядит неверно — гостевой пропуск загрузим без машины",
+    "import.template.example_issuer": "Управляющий",
+    "import.value.yes": "Да"
 }

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Gdpr;
 
 /**
- * Formula-injection-safe CSV (OWASP): cells starting with = + - @ TAB CR are prefixed with an apostrophe.
+ * Formula-injection-safe CSV (OWASP): cells starting with = + - @ TAB CR are prefixed with an apostrophe. Delimiter `,`
+ * by default; `;` for the lists Excel LV opens directly (ROUND2-SPEC §6.4).
  */
 final class CsvWriter
 {

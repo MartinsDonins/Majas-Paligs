@@ -14,6 +14,8 @@ use App\Models\ApartmentParkingDeclaration;
 use App\Models\BuildingPrivacyNotice;
 use App\Models\ColumnStatus;
 use App\Models\HeatingReport;
+use App\Models\ImportMappingPreset;
+use App\Models\ImportRun;
 use App\Models\Incident;
 use App\Models\IncidentConfirmation;
 use App\Models\ManagerReport;
@@ -21,6 +23,7 @@ use App\Models\ParkingExport;
 use App\Models\ParkingLot;
 use App\Models\ParkingOfficerTask;
 use App\Models\Permit;
+use App\Models\PermitPlateObservation;
 use App\Models\PlateLookup;
 use App\Models\PlateSightingStat;
 use App\Models\PrivacyNoticeVersion;
@@ -135,7 +138,8 @@ it('keeps building A parking rows unreachable from building B (scope → 404, fa
     $this->actingAs($this->adminOfB)->get($export)->assertNotFound();
 
     foreach ([Vehicle::class, Permit::class, Sighting::class, PlateLookup::class, ParkingLot::class, ParkingOfficerTask::class,
-        ApartmentParkingDeclaration::class, ParkingExport::class, PlateSightingStat::class] as $model) {
+        ApartmentParkingDeclaration::class, ParkingExport::class, PlateSightingStat::class, PermitPlateObservation::class,
+        ImportRun::class, ImportMappingPreset::class] as $model) {
         expect(fn () => $model::query()->count())->toThrow(MissingBuildingContext::class);
     }
 

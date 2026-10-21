@@ -18,7 +18,8 @@ use App\Models\Permit;
 use App\Models\PlateLookup;
 use App\Models\Sighting;
 use App\Models\Vehicle;
-use App\Services\Parking\PermitImportService;
+use App\Services\Import\ImportRefused;
+use App\Services\Import\ImportRunService;
 use App\Services\Parking\VehicleRegistry;
 use Filament\Facades\Filament;
 use Illuminate\Support\Str;
@@ -61,7 +62,7 @@ it('L0: refuses every personal-data write from any path but allows lots', functi
             ->and(fn () => ApartmentParkingDeclaration::query()->create(['apartment_id' => $apartment->id, 'declared_at' => now(), 'has_no_vehicle' => true]))->toThrow(ParkingGateClosed::class)
             ->and(fn () => PlateLookup::query()->create(['user_id' => $officer->id, 'plate_bidx' => random_bytes(32), 'result' => false, 'reason_code' => LookupReason::Other]))->toThrow(ParkingGateClosed::class)
             ->and(fn () => Sighting::query()->create(['id' => strtolower((string) Str::ulid()), 'parking_lot_id' => 1, 'plate_ciphertext' => 'x', 'plate_bidx' => random_bytes(32), 'plate_key_version' => 1, 'seen_at' => now(), 'reporter_apartment_id' => $apartment->id]))->toThrow(ParkingGateClosed::class)
-            ->and(fn () => app(PermitImportService::class)->import($officer, 'P-1;guest;;1;01.10.2026;;Tests'))->toThrow(ParkingGateClosed::class);
+            ->and(fn () => app(ImportRunService::class)->upload($officer, 'permits', "Nr;Veids;Dzīvoklis\nP-1;viesu;1"))->toThrow(ImportRefused::class, 'import refused: gate_closed');
 
         // Policies deny officer abilities below L1.
         expect($officer->can('viewAny', Vehicle::class))->toBeFalse()
@@ -73,14 +74,19 @@ it('L0: refuses every personal-data write from any path but allows lots', functi
     expect(inBuilding($b, fn () => Vehicle::query()->count()))->toBe(0);
 });
 
-it('L0: Filament parking resources and the import page are unavailable, the preparation page is not', function (): void {
+it('L0: Filament parking resources are unavailable, the preparation page and the import explanation card are not', function (): void {
     $b = parkingHouse('gate-l0-panel', level: 0);
     $officer = parkingOfficer($b);
     steppedUp($officer);
 
-    foreach (['vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports', 'permit-import', 'parking-analytics'] as $page) {
+    foreach (['vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports', 'parking-analytics'] as $page) {
         $this->actingAs($officer)->get("/admin/b/gate-l0-panel/{$page}")->assertForbidden();
     }
+    // ROUND2-SPEC §6.3 / AC-R2-16: below L1 the import page explains what is missing instead of offering an upload.
+    $this->actingAs($officer)->get('/admin/b/gate-l0-panel/permit-import')->assertOk()
+        ->assertSee(__('import.gate.title'))
+        ->assertSee(__('gate.parking.missing.dpa_scope_parking'))
+        ->assertDontSee('type="file"', false);
     $this->actingAs($officer)->get('/admin/b/gate-l0-panel/parking')->assertOk()->assertSee(__('gate.parking.missing.dpa_scope_parking'));
     $this->actingAs($officer)->get('/admin/b/gate-l0-panel/parking-lots')->assertOk();
 });
@@ -93,8 +99,16 @@ it('L1: officer prepares data, residents get 404 everywhere and no nav item or t
     $vehicle = activeVehicle($b, 1, 'AB1234', $officer);
     expect($vehicle->status->value)->toBe('active');
 
-    $report = inBuilding($b, fn () => app(PermitImportService::class)->import($officer, "P-1;pamata;CD5678;2;01.10.2026;;Tests\nV-1;viesu;;2;01.10.2026;;Tests"));
-    expect($report['permits'])->toBe(2)->and($report['skipped'])->toBe([]);
+    $this->actingAs($officer);
+    $run = inBuilding($b, function () use ($officer) {
+        $imports = app(ImportRunService::class);
+        $run = $imports->upload($officer, 'permits', "Nr;Veids;Auto;Dzīvoklis;No\nP-1;pamata;CD5678;2;01.10.2026\nV-1;viesu;;2;01.10.2026");
+        $imports->map($officer, $run, $run->mapping, 'create_only');
+        $run = $imports->dryRun($officer, $run->refresh());
+
+        return $imports->commit($officer, $run, ['endorsed']);
+    });
+    expect($run->committed_counts['created'])->toBe(2)->and($run->committed_counts['skipped'])->toBe(0);
 
     residentParking404('gate-l1', $this, $resident);
     $this->actingAs($resident)->get('/b/gate-l1')->assertOk()

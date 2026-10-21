@@ -37,7 +37,7 @@ final class RekeyPlates extends Command
             try {
                 $r = $rekey->rekey();
                 $done++;
-                $this->info("{$building->slug}: v{$r['from']} → v{$r['to']} ({$r['vehicles']} vehicles, {$r['sightings']} sightings)");
+                $this->info("{$building->slug}: v{$r['from']} → v{$r['to']} ({$r['vehicles']} vehicles, {$r['sightings']} sightings, {$r['observations']} observations)");
             } catch (Throwable $e) {
                 $failed++;
                 $this->error("{$building->slug}: re-key aborted — ".$e::class);

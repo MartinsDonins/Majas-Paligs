@@ -63,6 +63,16 @@ Retention: `prune:roster` ("Izvācies" + 30 d, contacts of archived apartments),
 GDPR: a contact is linked to an account only by a VERIFIED e-mail of an APPROVED member of the same apartment; the
 self-service export contains the person's roster rows, account erasure deletes them (also below the gate) and tells the
 admins a count only.
+Permit register (round 2, PARK-011…013): guest permits stay NOT plate-bound — "seen with this guest permit" is a
+separate `permit_plate_observations` row (PlateVault AD table `permit_plate_observations`, guest-only trigger, gate
+L1 model guard, re-keyed by `plates:rekey`, `prune:permit-observations` after 6 months); register flags ("> 1
+caurlaide", "viesu caurlaide vienmēr vienam auto") are SQL over blind indexes, never a decryption. The permit
+issuer's CSV runs through the shared import pipeline: upload refused below L1 (D6, even the Livewire signed-upload request),
+the file only as ImportVault ciphertext (XChaCha20-Poly1305 under PLATE_ENC_KEY for the kind `permits`, AD
+`mp:import:v1|b:|r:|k:`), payload nulled at commit / discard / 24 h (`prune:imports`), preview masked (`AB••34`),
+reports / audit / logs carry row numbers and codes only, commit needs a fresh dry-run, the issuer endorsement and an
+MFA step-up. The manager list never contains plates; apartment numbers only with `include_apartments` after
+`parking_rules_adopted_at` (DB CHECK manager-only + policy + service).
 
 ## Tenancy (A01)
 Fail-closed row-level tenancy, composite FKs, allow-listed context setters and scope lifts — see
