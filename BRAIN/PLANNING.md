@@ -17,6 +17,11 @@
 > CI pushes the tested image to GHCR (ADR 0002), rem type scale / senior mode, A4 invite letter, LV/RU plurals.
 > Governance: build-order item closed as superseded; wave-1 limit and the `kaimini` host are PROPOSALS, not owner
 > decisions (§1.1, §4.1, MANUAL-TODO).
+> Revision 5 (2026-10-21, 0.0.24): round 2 specified in `BRAIN/docs/ROUND2-SPEC.md`: admin area `/admin`
+> (panels at `/admin/b/{slug}` and `/admin/platform`, old URLs 301), Komanda e-mail invitations, house opening wizard
+> + templates, new gate **L-R** (DPA scope / notice module `roster`), shared CSV import, admin-only resident roster
+> (decision D1 reverses "no names/phones" for the roster only, pending owner approval), permit register. Where
+> ROUND2-SPEC and this file differ, ROUND2-SPEC §0.1 is the newer decision.
 > Detailed specs: `BRAIN/docs/MVP-SPEC.md` (build packages A/B/C), `BRAIN/docs/DESIGN-SYSTEM.md`,
 > `BRAIN/docs/BUSINESS.md`. Tasks: `BRAIN/TASK.md`. Human blockers: `BRAIN/MANUAL-TODO.md`.
 

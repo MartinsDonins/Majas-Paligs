@@ -24,6 +24,20 @@
   **Arhitekta priekšlikums** (nav īpašnieka sarakstā, pieņemt vai noraidīt): majaspaligs.lv (nosaukums = adrese;
   pieejamība nav pārbaudīta) — skat. BUSINESS §6.
 
+## Kārta 2 (BRAIN/docs/ROUND2-SPEC.md §14, 2026-10-21)
+- 🎯 **Apstiprināt lēmumu D1:** iedzīvotāju saraksts ar vārdiem, telefoniem un e-pastiem, ko redz tikai mājas
+  administrators un attiecīgās kāpņu telpas vecākais. Tas maina iepriekšējo noteikumu "MVP nevāc vārdus un telefonus".
+  Iedzīvotājiem saraksts netiek rādīts. Blocks: ADMIN-007.
+- 🆕 Atsūtīt Google tabulas un caurlaižu saraksta **tikai kolonnu nosaukumus** (bez datiem), lai pārbaudītu automātisko
+  kolonnu atpazīšanu (DB-003).
+- 🆕 Juridiski pārbaudīt DPA, privātuma paziņojuma un DPIA-lite paraugus, kā arī nodot dzimtās krievu valodas recenzentam
+  visus jaunos tekstus (GOV-011, UI-001).
+- 🎯 Izlemt, **kas paraksta DPA** Pūces ielai 51 (pārzinis) un kādā tvērumā. Ieteikums: uzreiz core, heating, outages,
+  parking un roster. Blocks: L-core, L-R, parking L1.
+- 🎯 Pirms pirmā saraksta importa izveidot un noglabāt (Coolify vidē un paroļu pārvaldniekā) **`CONTACT_ENC_KEY`** un
+  **`CONTACT_INDEX_KEY`**. Blocks: ADMIN-007 production use.
+- 🆕 (Pēc izvēles) apstiprināt versiju **0.1.0** kārtas 2 izlaidumam (minor versija tikai ar apstiprinājumu).
+
 ## Juridiskais (bloķē vilni 1 un stāvvietu)
 - 🎯 **Pamata vārti L-core — bloķē vilni 1.** Noteikt **datu pārzini** pilotam (mājas pilnvarotā persona, kopība vai
   biedrība: vārds/nosaukums + kontakts), parakstīt **DPA** ar CoreDigify kā apstrādātāju ar tvērumu
