@@ -33,9 +33,9 @@
                     <button type="button" wire:click="sendCode" class="btn btn-primary btn-block">{{ __('auth.step_up.send') }}</button>
                     @error('code') <span class="field-error" role="alert">{{ $message }}</span> @enderror
                 @else
-                    <form wire:submit="verify" class="stack" novalidate>
+                    <form wire:submit="verify" class="stack" novalidate x-data="keepOnLocale" data-locale-keep data-target="code" data-livewire="true">
                         <x-ui.field id="code" :label="__('auth.email.code_label')" :help="__('auth.step_up.email_sent')" :error="$errors->first('code')">
-                            <input id="code" wire:model="code" class="input input-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-describedby="code-help">
+                            <input id="code" name="code" wire:model="code" class="input input-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-describedby="code-help">
                         </x-ui.field>
                         <button type="submit" class="btn btn-primary btn-block">{{ __('auth.step_up.confirm') }}</button>
                     </form>
@@ -60,7 +60,7 @@
                     <p class="text-sm muted">{{ __('auth.passkey.or_code') }}</p>
                 @endif
                 <x-ui.field id="code" :label="__('auth.step_up.totp_label')" :help="__('auth.step_up.totp_help')" :error="$errors->first('code')">
-                    <input id="code" wire:model="code" class="input input-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-describedby="code-help">
+                    <input id="code" name="code" wire:model="code" class="input input-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-describedby="code-help">
                 </x-ui.field>
                 <button type="submit" class="btn {{ $hasPasskeys ? '' : 'btn-primary' }} btn-block">{{ __('auth.step_up.confirm') }}</button>
             </form>
@@ -71,9 +71,9 @@
                     <button type="button" wire:click="sendCode" class="btn btn-primary btn-block">{{ __('auth.step_up.send') }}</button>
                     @error('code') <span class="field-error" role="alert">{{ $message }}</span> @enderror
                 @else
-                    <form wire:submit="verify" class="stack" novalidate>
+                    <form wire:submit="verify" class="stack" novalidate x-data="keepOnLocale" data-locale-keep data-target="code" data-livewire="true">
                         <x-ui.field id="code" :label="__('auth.email.code_label')" :help="__('auth.step_up.email_sent')" :error="$errors->first('code')">
-                            <input id="code" wire:model="code" class="input input-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-describedby="code-help">
+                            <input id="code" name="code" wire:model="code" class="input input-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" aria-describedby="code-help">
                         </x-ui.field>
                         <button type="submit" class="btn btn-primary btn-block">{{ __('auth.step_up.confirm') }}</button>
                     </form>

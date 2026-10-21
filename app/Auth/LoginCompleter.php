@@ -34,6 +34,7 @@ final class LoginCompleter
 
         Auth::guard('web')->login($user, $remember);
         session()->regenerate();
+        PendingCodeStep::forgetLogin();
         SessionEpoch::sync($user);
 
         // What this login proved (ADR 0006): a passkey (user verification required) is a second factor, so no TOTP

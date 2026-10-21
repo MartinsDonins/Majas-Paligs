@@ -9,7 +9,7 @@
         </section>
 
         <form method="POST" action="{{ route('login.confirm.submit') }}" class="card stack"
-              x-data="fragmentSecret" data-param="t" data-target="t">
+              x-data="fragmentSecret" data-param="t" data-target="t" data-locale-keep>
             @csrf
             <input type="hidden" name="t" value="">
             {{-- An unchecked checkbox is not submitted at all: send 0 first so it never defaults to "remember". --}}

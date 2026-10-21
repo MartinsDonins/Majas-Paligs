@@ -31,19 +31,49 @@ final class SetLocale
         $cookie = $request->cookie(self::COOKIE);
 
         $locale = $user instanceof User ? $user->locale->value : $cookie;
+        $fromBrowser = false;
 
         if (! is_string($locale) || ! in_array($locale, $supported, true)) {
-            $locale = (string) config('app.locale', 'lv');
+            // First visit (no account, no device choice yet): the browser's language list decides (ru, ru-RU,
+            // "en-GB,ru;q=0.8" → ru), anything else gets the default LV.
+            $detected = self::fromAcceptLanguage($request, $supported);
+            $locale = $detected ?? (string) config('app.default_locale', 'lv');
+            $fromBrowser = $detected !== null;
         }
 
         app()->setLocale($locale);
         CarbonImmutable::setLocale($locale);
 
-        if ($user instanceof User && $cookie !== $locale) {
+        // A signed-in user's cookie follows users.locale; a first-visit guest's detected language is remembered on
+        // the device, so it survives the login (LoginCompleter prefers the device cookie) and later visits.
+        if (($user instanceof User && $cookie !== $locale) || ($fromBrowser && $request->hasSession())) {
             Cookie::queue(self::cookie($locale));
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        if ($fromBrowser) {
+            $response->headers->set('Vary', trim($response->headers->get('Vary', '').', Accept-Language', ', '));
+        }
+
+        return $response;
+    }
+
+    /**
+     * The first supported language in the browser's Accept-Language list (quality order), or null.
+     *
+     * @param  array<int, mixed>  $supported
+     */
+    public static function fromAcceptLanguage(Request $request, array $supported): ?string
+    {
+        foreach ($request->getLanguages() as $language) {
+            $primary = strtolower(explode('_', str_replace('-', '_', $language), 2)[0]);
+            if (in_array($primary, $supported, true)) {
+                return $primary;
+            }
+        }
+
+        return null;
     }
 
     /**

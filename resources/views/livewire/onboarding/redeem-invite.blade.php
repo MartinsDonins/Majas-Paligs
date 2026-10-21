@@ -38,7 +38,7 @@
         </section>
 
         <form wire:submit="submit" class="card stack" novalidate>
-            <div x-data="fragmentSecret" data-param="c" data-target="code" data-livewire="true">
+            <div x-data="fragmentSecret" data-param="c" data-target="code" data-livewire="true" data-locale-keep>
                 <x-ui.field id="code" :label="__('onboarding.code.label')" :help="__('onboarding.code.help')" :error="$error">
                     <input id="code" type="text" wire:model="code" name="code"
                            class="input input-code" inputmode="text" autocomplete="one-time-code" autocapitalize="characters"
