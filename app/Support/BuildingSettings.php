@@ -9,14 +9,14 @@ use InvalidArgumentException;
 
 /**
  * Validated DTO for buildings.settings (MVP-SPEC A.4). Unknown keys are dropped, missing keys get defaults.
- * Gate inputs (controller, DPA, DPIA, mandate) live here; CoreGate / ParkingGate are pure functions of
+ * Gate inputs (controller, DPA, DPIA, mandate) live here; CoreGate / ParkingGate / RosterGate are pure functions of
  * this DTO plus building_privacy_notices.
  */
 final readonly class BuildingSettings
 {
     public const MODULES = ['heating', 'outages', 'parking'];
 
-    public const DPA_SCOPES = ['core', 'heating', 'outages', 'parking'];
+    public const DPA_SCOPES = ['core', 'heating', 'outages', 'parking', 'roster'];
 
     public const ENFORCEMENT_MODES = ['visible_permit', 'plate_list', 'both'];
 
@@ -48,6 +48,7 @@ final readonly class BuildingSettings
         public array $pinLimits = ['building_hour' => 100],
         public ?string $pinPausedUntil = null,
         public int $plateIndexKeyVersion = 1,
+        public ?string $rosterInformedAt = null,
     ) {
         if (! in_array($this->parkingEnforcementMode, self::ENFORCEMENT_MODES, true)) {
             throw new InvalidArgumentException('Invalid parking_enforcement_mode.');
@@ -129,6 +130,7 @@ final readonly class BuildingSettings
             pinLimits: ['building_hour' => max(1, (int) ($data['pin_limits']['building_hour'] ?? 100))],
             pinPausedUntil: self::str($data['pin_paused_until'] ?? null),
             plateIndexKeyVersion: max(1, (int) ($data['plate_index_key_version'] ?? 1)),
+            rosterInformedAt: self::str($data['roster_informed_at'] ?? null),
         );
     }
 
@@ -156,6 +158,7 @@ final readonly class BuildingSettings
             'pin_limits' => $this->pinLimits,
             'pin_paused_until' => $this->pinPausedUntil,
             'plate_index_key_version' => $this->plateIndexKeyVersion,
+            'roster_informed_at' => $this->rosterInformedAt,
         ];
     }
 

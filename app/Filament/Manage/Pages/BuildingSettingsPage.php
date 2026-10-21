@@ -11,6 +11,8 @@ use App\Gdpr\CoreGateStatus;
 use App\Gdpr\ParkingGate;
 use App\Gdpr\ParkingGateMonitor;
 use App\Gdpr\ParkingGateStatus;
+use App\Gdpr\RosterGate;
+use App\Gdpr\RosterGateMonitor;
 use App\Models\Building;
 use App\Support\BuildingSettings;
 use App\Tenancy\CurrentBuilding;
@@ -178,6 +180,7 @@ final class BuildingSettingsPage extends Page
         $data = $this->form->getState();
         $before = CoreGate::status($building);
         $parkingBefore = ParkingGate::status($building);
+        $rosterBefore = RosterGate::status($building);
 
         try {
             $settings = $building->settings->with([
@@ -262,6 +265,7 @@ final class BuildingSettingsPage extends Page
 
         CoreGateMonitor::afterChange($building, $before);
         ParkingGateMonitor::afterChange($building, $parkingBefore);
+        RosterGateMonitor::afterChange($building, $rosterBefore);
 
         Notification::make()->success()->title(__('admin.settings.saved'))->send();
     }

@@ -11,8 +11,9 @@ final class CsvWriter
 {
     /**
      * @param  list<list<scalar|null>>  $rows
+     * @param  string  $delimiter  `,` (default) or `;` (Excel in a Latvian locale, roster files)
      */
-    public static function toString(array $rows): string
+    public static function toString(array $rows, string $delimiter = ','): string
     {
         $handle = fopen('php://temp', 'r+');
         if ($handle === false) {
@@ -22,7 +23,7 @@ final class CsvWriter
         fwrite($handle, "\xEF\xBB\xBF"); // UTF-8 BOM for spreadsheet apps (Latvian diacritics, Cyrillic)
 
         foreach ($rows as $row) {
-            fputcsv($handle, array_map(self::safe(...), $row), ',', '"', '');
+            fputcsv($handle, array_map(self::safe(...), $row), $delimiter, '"', '');
         }
 
         rewind($handle);

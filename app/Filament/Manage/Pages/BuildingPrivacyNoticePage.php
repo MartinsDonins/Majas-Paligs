@@ -10,6 +10,8 @@ use App\Gdpr\CoreGate;
 use App\Gdpr\CoreGateMonitor;
 use App\Gdpr\ParkingGate;
 use App\Gdpr\ParkingGateMonitor;
+use App\Gdpr\RosterGate;
+use App\Gdpr\RosterGateMonitor;
 use App\Models\BuildingPrivacyNotice;
 use App\Models\PrivacyNoticeVersion;
 use App\Tenancy\CurrentBuilding;
@@ -96,6 +98,7 @@ final class BuildingPrivacyNoticePage extends Page
 
         $before = CoreGate::status($building);
         $parkingBefore = ParkingGate::status($building);
+        $rosterBefore = RosterGate::status($building);
 
         DB::transaction(function () use ($template, $controller): void {
             $current = BuildingPrivacyNotice::current();
@@ -104,7 +107,7 @@ final class BuildingPrivacyNoticePage extends Page
             $notice = BuildingPrivacyNotice::query()->create([
                 'template_version_id' => $template->id,
                 'controller_snapshot' => ['name' => $controller['name'], 'contact' => $controller['contact']],
-                'covers_modules' => array_values(array_intersect($template->covers_modules, ['core', 'heating', 'outages', 'parking'])),
+                'covers_modules' => array_values(array_intersect($template->covers_modules, ['core', 'heating', 'outages', 'parking', 'roster'])),
                 'published_at' => now(),
                 'published_by' => auth()->id(),
             ]);
@@ -114,6 +117,7 @@ final class BuildingPrivacyNoticePage extends Page
 
         CoreGateMonitor::afterChange($building, $before);
         ParkingGateMonitor::afterChange($building, $parkingBefore);
+        RosterGateMonitor::afterChange($building, $rosterBefore);
         Notification::make()->success()->title(__('admin.notice.published'))->send();
     }
 
@@ -129,10 +133,12 @@ final class BuildingPrivacyNoticePage extends Page
 
         $before = CoreGate::status($building);
         $parkingBefore = ParkingGate::status($building);
+        $rosterBefore = RosterGate::status($building);
         $current->forceFill(['withdrawn_at' => now()])->save();
         AuditLogger::record('privacy_notice.withdraw', $current);
         CoreGateMonitor::afterChange($building, $before);
         ParkingGateMonitor::afterChange($building, $parkingBefore);
+        RosterGateMonitor::afterChange($building, $rosterBefore);
 
         Notification::make()->warning()->title(__('admin.notice.withdrawn'))->send();
     }

@@ -13,6 +13,7 @@ enum Module: string
     case Heating = 'heating';
     case Outages = 'outages';
     case Parking = 'parking';
+    case Roster = 'roster';
 
     protected static function labelPrefix(): string
     {

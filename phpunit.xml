@@ -57,6 +57,8 @@
         <env name="INVITE_KEY" value="base64:aW52aXRlLWtleS10ZXN0LW9ubHktMDAwMDAwMDAwMDA=" force="true"/>
         <env name="PLATE_ENC_KEY" value="base64:cGxhdGUtZW5jLWtleS10ZXN0LW9ubHktMDAwMDAwMDA=" force="true"/>
         <env name="PLATE_INDEX_KEY" value="base64:cGxhdGUtaWR4LWtleS10ZXN0LW9ubHktMDAwMDAwMDA=" force="true"/>
+        <env name="CONTACT_ENC_KEY" value="base64:Y29udGFjdC1lbmMta2V5LXRlc3Qtb25seS0wMDAwMDA=" force="true"/>
+        <env name="CONTACT_INDEX_KEY" value="base64:Y29udGFjdC1pZHgta2V5LXRlc3Qtb25seS0wMDAwMDA=" force="true"/>
         <env name="MAJAS_ARGON_MEMORY" value="1024" force="true"/>
         <env name="MAJAS_ARGON_TIME" value="1" force="true"/>
         <env name="PULSE_ENABLED" value="false"/>

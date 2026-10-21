@@ -61,6 +61,8 @@ final class AppServiceProvider extends ServiceProvider
 
         // Admin panel strings live in lang/admin/{lv,ru}.json (same parity check as the resident strings).
         $this->app->make('translator')->addJsonPath(lang_path('admin'));
+        // Round 2 roster + CSV import strings (lang/roster/{lv,ru}.json, same parity check).
+        $this->app->make('translator')->addJsonPath(lang_path('roster'));
 
         // Filament shows labels exactly as translated: its default English Title Case turned "Kāpņu telpas" into
         // "Kāpņu Telpas" and "Сообщения о тепле" into "Сообщения О Тепле" (QA 2026-10-20).
@@ -107,6 +109,10 @@ final class AppServiceProvider extends ServiceProvider
         Gate::define('parking-analytics', [Policies\ParkingAnalyticsPolicy::class, 'view']);
         Gate::define('parking-analytics-apartments', [Policies\ParkingAnalyticsPolicy::class, 'viewPerApartment']);
         Gate::define('parking-import', [Policies\PermitImportPolicy::class, 'import']);
+
+        // Round 2 — resident roster (gate L-R in before()) and the shared CSV import pipeline (ROUND2-SPEC §4–§5).
+        Gate::policy(Models\ResidentContact::class, Policies\ResidentContactPolicy::class);
+        Gate::policy(Models\ImportRun::class, Policies\ImportRunPolicy::class);
 
         foreach ([Models\BuildingSeries::class, Models\SeriesSectionLayout::class, Models\SeriesApartmentType::class,
             Models\SeriesRoom::class, Models\SeriesRiser::class, Models\LegalNotice::class, Models\PrivacyNoticeVersion::class,

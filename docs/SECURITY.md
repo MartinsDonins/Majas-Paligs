@@ -10,10 +10,13 @@ Baseline: OWASP Top 10 (2025) + GDPR. Architecture context: `BRAIN/PLANNING.md` 
 | `INVITE_KEY` | HMAC of invite codes; HKDF-derived key for e-mail/IP/token HMACs | rotated without re-printing letters |
 | `PLATE_ENC_KEY` | XChaCha20-Poly1305 plate ciphertext (Package C) | shared with any other purpose |
 | `PLATE_INDEX_KEY` | per-building HKDF → HMAC blind index (Package C) | shared with any other purpose |
+| `CONTACT_ENC_KEY` (+ `CONTACT_ENC_KEY_PREVIOUS`) | XChaCha20-Poly1305 roster ciphertext (name, phones, e-mail, comment; AD binds building + table + row + field) and the sealed roster import files (round 2, SEC-011) | shared with the plate keys or any other purpose (ProductionGuard refuses reuse) |
+| `CONTACT_INDEX_KEY` | per-building, per-field HKDF → HMAC blind index of roster phones / e-mails | shared with any other purpose |
 
 - Generate: `php artisan majas:keys` (prints) or `--write` (fills empty values in a local `.env` only).
 - Production values live only in Coolify environment variables, never in git.
-- **Offline escrow:** after generating production keys, the platform admin stores all four values in two
+- **Offline escrow:** after generating production keys, the platform admin stores all of them (APP_KEY, INVITE_KEY,
+  the two plate keys and the two roster keys) in two
   places offline (sealed envelope at the CoreDigify office safe + an encrypted password-manager vault entry
   with a separate master). Record the date and key version in `BRAIN/MANUAL-TODO.md` (no key material).
 - **Restore drill (every 6 months):** restore the latest encrypted DB backup into a scratch Coolify project,
@@ -23,6 +26,11 @@ Baseline: OWASP Top 10 (2025) + GDPR. Architecture context: `BRAIN/PLANNING.md` 
   (all buildings, one transaction each). Rotate `PLATE_ENC_KEY` by setting the new value, putting the old one in
   `PLATE_ENC_KEY_PREVIOUS`, running `php artisan plates:rekey`, verifying a lookup, then removing
   `PLATE_ENC_KEY_PREVIOUS` and escrowing the new key. A failed building aborts alone and alerts the platform admin.
+- **Roster keys (round 2, SEC-011):** generate `CONTACT_ENC_KEY` + `CONTACT_INDEX_KEY` (`php artisan majas:keys`) and
+  escrow them BEFORE the first roster import — without them nothing can be stored or read. Rotate with
+  `php artisan contacts:rekey` (one transaction per building: every field re-sealed with the next key version, blind
+  indexes recomputed); for a new encryption master put the old one in `CONTACT_ENC_KEY_PREVIOUS` during the run, then
+  remove it and escrow the new key. Losing `CONTACT_ENC_KEY` loses the roster (the house can re-import its sheet).
 
 ## Parking data (Package C)
 Two-level gate (L1 processing / L2 resident-facing) in policies, model guards and routes; plates only as
@@ -35,6 +43,26 @@ re-encoded without EXIF and served by 5-minute signed URLs; police lists need fo
 Retention: `prune:sightings` (photos 30 d, records 12 mo), `prune:plate-lookups` (6 mo, append-only guard),
 `prune:vehicles` (30 d after permit / membership end or an unanswered re-confirmation, through
 VehicleRemovalService), `prune:uploads` (Livewire temporary files, hourly).
+
+## Resident roster and CSV imports (round 2, ADMIN-007 / DB-003)
+Admin-only contact register of the house (decision D1): gate **L-R** (L-core + DPA scope `roster` + a notice covering
+the roster) in the policy `before()`, the model guard (`GuardedByRosterGate`) and the UI. Names, phones, e-mails and
+comments only as ContactVault ciphertext + per-building blind indexes; lists show masked values (`+371 2•••••45`,
+`j•••@…`); "Rādīt kontaktus" / opening a contact need a fresh SECOND factor, are capped (100 per user per day) and
+audited with the linked accounts as data subjects; the masked list itself is audited once per 10 minutes per filter
+set; the CSV export needs building_admin + a strong step-up (passkey / TOTP of this session), 5 per building per day,
+signed 10 minutes, never stored, formula-safe. Section elders see and edit only their own stairwells (404 for others);
+officers, volunteers, residents, the manager and platform admins never reach it; it is excluded from the building
+export, manager reports and every resident query. CSV imports (roster now, permits next): the upload itself is refused
+below the kind's gate (the Livewire upload URL is not even issued); caps 2 MB / 2000 rows / 30 columns / 1000 chars per
+cell, `.csv`/`.txt` + finfo; the file is sealed at once (ImportVault, AD = building + run + kind) and deleted at commit /
+discard / 24 h (`prune:imports`); preview masks phones / e-mails; summaries and audit rows carry counts and codes only —
+never cell values or file names; `paste` / `csv` / `payload` keys are redacted from logs and GlitchTip; the commit job
+re-validates every row inside its savepoint under an advisory lock and reports failures by exception class only.
+Retention: `prune:roster` ("Izvācies" + 30 d, contacts of archived apartments), `prune:imports` (24 h / 30 d).
+GDPR: a contact is linked to an account only by a VERIFIED e-mail of an APPROVED member of the same apartment; the
+self-service export contains the person's roster rows, account erasure deletes them (also below the gate) and tells the
+admins a count only.
 
 ## Tenancy (A01)
 Fail-closed row-level tenancy, composite FKs, allow-listed context setters and scope lifts — see

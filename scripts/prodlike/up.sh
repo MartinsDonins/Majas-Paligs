@@ -47,6 +47,9 @@ INVITE_KEY=$(rand_key)
 PLATE_ENC_KEY=$(rand_key)
 PLATE_INDEX_KEY=$(rand_key)
 PLATE_ENC_KEY_PREVIOUS=
+CONTACT_ENC_KEY=$(rand_key)
+CONTACT_INDEX_KEY=$(rand_key)
+CONTACT_ENC_KEY_PREVIOUS=
 PG_SUPERUSER_PASSWORD=$(rand_hex 16)
 DB_HOST=pgsql
 DB_PORT=5432
@@ -68,6 +71,10 @@ PLATFORM_ALERT_EMAIL=alerts@example.test
 ENV
   echo "Secrets written to storage/app/prodlike/prodlike.env"
 fi
+# Round 2 (SEC-011): stacks created before the roster keys existed get them appended once.
+for k in CONTACT_ENC_KEY CONTACT_INDEX_KEY; do
+  grep -q "^$k=" "$env_file" || echo "$k=$(rand_key)" >> "$env_file"
+done
 
 # 2. Image.
 case "$mode" in

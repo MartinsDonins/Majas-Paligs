@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Gdpr;
 
+use App\Casts\Bytea;
 use App\Enums\ExportStatus;
 use App\Enums\LookupReason;
 use App\Models\Apartment;
@@ -16,6 +17,7 @@ use App\Models\IncidentConfirmation;
 use App\Models\Passkey;
 use App\Models\Permit;
 use App\Models\PlateLookup;
+use App\Models\ResidentContact;
 use App\Models\Section;
 use App\Models\Sighting;
 use App\Models\TrustedDevice;
@@ -23,6 +25,8 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\Parking\SightingService;
 use App\Services\Parking\VehicleRegistry;
+use App\Services\Roster\ContactVault;
+use App\Tenancy\CurrentBuilding;
 use App\Tenancy\Data\AuditEntryData;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Bus\Queueable;
@@ -150,6 +154,9 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                         'result' => in_array($l->reason_code, self::SHOWN_RESULT, true) ? $l->result : null,
                         'at' => $l->created_at->toIso8601String(),
                     ])->values()->all(),
+                // Round 2 (ROUND2-SPEC §5.5): the house's roster rows about me — linked to my account or carrying my
+                // e-mail (blind index) — decrypted, whatever the state of gate L-R (an Art. 15 right never waits).
+                'roster_contacts' => self::rosterContacts($user),
                 'sightings_reported' => Sighting::query()->where('reporter_user_id', $user->id)->with('lot:id,name')->orderBy('seen_at')->get()
                     ->map(static fn (Sighting $s): array => [
                         'plate' => app(SightingService::class)->plateOf($s),
@@ -196,6 +203,44 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                 'reason' => $e->reasonCode,
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * Roster contacts of the CURRENT building that are about $user (user_id = me OR e-mail blind index = mine).
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function rosterContacts(User $user): array
+    {
+        $vault = app(ContactVault::class);
+        $buildingId = CurrentBuilding::id();
+        $emailBidx = $user->email !== null ? $vault->bidx($buildingId, 'email', ContactVault::normalizeEmail($user->email)) : null;
+
+        $contacts = ResidentContact::query()
+            ->where(fn ($q) => $emailBidx === null ? $q->where('user_id', $user->id)
+                : $q->where('user_id', $user->id)->orWhere('email_bidx', Bytea::literal($emailBidx)))
+            ->with('apartment:id,number')
+            ->orderBy('created_at')
+            ->get();
+
+        return $contacts->map(static function (ResidentContact $c) use ($vault): array {
+            $phones = $vault->openField($c, 'phones');
+
+            return [
+                'apartment' => $c->apartment->number,
+                'relation' => $c->relation->value,
+                'name' => $vault->openField($c, 'name'),
+                'phones' => $phones !== null ? (array) json_decode($phones, true) : [],
+                'email' => $vault->openField($c, 'email'),
+                'bis_registered' => $c->bis_registered,
+                'whatsapp_member' => $c->whatsapp_member,
+                'comment' => $vault->openField($c, 'comment'),
+                'source' => $c->source->value,
+                'reviewed_at' => $c->reviewed_at?->toIso8601String(),
+                'moved_out_at' => $c->moved_out_at?->toIso8601String(),
+                'created_at' => $c->created_at->toIso8601String(),
+            ];
+        })->values()->all();
     }
 
     /**

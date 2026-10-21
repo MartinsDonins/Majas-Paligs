@@ -14,6 +14,8 @@ use App\Gdpr\CoreGate;
 use App\Gdpr\CoreGateMonitor;
 use App\Gdpr\ParkingGate;
 use App\Gdpr\ParkingGateMonitor;
+use App\Gdpr\RosterGate;
+use App\Gdpr\RosterGateMonitor;
 use App\Models\Building;
 use App\Models\BuildingSeries;
 use App\Models\User;
@@ -190,6 +192,7 @@ final class BuildingResource extends Resource
         PlatformBuildingContext::run($building, PlatformPurpose::DpaRecord, function (Building $b) use ($data): void {
             $before = CoreGate::status($b);
             $parkingBefore = ParkingGate::status($b);
+            $rosterBefore = RosterGate::status($b);
 
             $b->forceFill(['settings' => $b->settings->with([
                 'dpa_signed_at' => $data['dpa_signed_at'] ?? null,
@@ -204,6 +207,7 @@ final class BuildingResource extends Resource
 
             CoreGateMonitor::afterChange($b, $before);
             ParkingGateMonitor::afterChange($b, $parkingBefore);
+            RosterGateMonitor::afterChange($b, $rosterBefore);
         });
     }
 

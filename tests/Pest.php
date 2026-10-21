@@ -534,3 +534,8 @@ function waitUntil(object $page, string $expression, float $seconds = 5.0): void
         usleep(100_000);
     }
 }
+
+/*
+ * ---- Round 2 helpers (roster + CSV import pipeline) ----
+ */
+require_once __DIR__.'/Support/RosterHelpers.php';
