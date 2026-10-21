@@ -50,10 +50,14 @@ x-app: &app
     SENTRY_LARAVEL_DSN: ${SENTRY_LARAVEL_DSN:-}
     PLATFORM_ALERT_EMAIL: ${PLATFORM_ALERT_EMAIL:-}
     LOG_CHANNEL: stderr
-    # nginx realip (serversideup trusted-proxy/cloudflare.conf): CF-Connecting-IP only from Cloudflare / Docker
-    # ranges → REMOTE_ADDR. Laravel trusts proxies for the scheme only, never for the IP (bootstrap/app.php).
+    # nginx realip (serversideup trusted-proxy/local.conf): X-Forwarded-For from the Docker / private ranges only,
+    # walked right-to-left (real_ip_recursive) → the first untrusted address = the visitor, written by Coolify's
+    # Traefik → REMOTE_ADDR. Production has NO Cloudflare in front: with `cloudflare` here every visitor was the
+    # Traefik container (172.28.0.x) and shared one bucket in every IP limiter (QA 2026-10-20). If Cloudflare is ever
+    # put in front (orange cloud), switch to `cloudflare` (CF-Connecting-IP) and lock the origin to Cloudflare IPs.
+    # Laravel trusts proxies for the scheme only, never for the IP (bootstrap/app.php).
     # Smoke test after deploy: curl https://<host>/up/ip from a known client must show THAT client's prefix.
-    TRUSTED_PROXY: cloudflare
+    TRUSTED_PROXY: local
   logging: &logging
     driver: json-file
     options:

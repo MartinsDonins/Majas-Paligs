@@ -62,7 +62,8 @@
     @if ($mode === 'heating')
         <div class="flex flex-wrap items-center gap-2">
             @if ($rounds->isNotEmpty())
-                <div class="segmented flex-1" role="group" aria-label="{{ __('heating.round.label') }}">
+                {{-- Own full-width row: next to Režģis/Saraksts it was squeezed to ~55px and broke words letter by letter. --}}
+                <div class="segmented segmented-wrap basis-full" role="group" aria-label="{{ __('heating.round.label') }}">
                     <button type="button" wire:click="setRound('rolling')" aria-pressed="{{ $round === 'rolling' ? 'true' : 'false' }}">{{ __('heating.round.rolling_short') }}</button>
                     @foreach ($rounds as $r)
                         <button type="button" wire:click="setRound('{{ $r->roundKey() }}')" aria-pressed="{{ $round === $r->roundKey() ? 'true' : 'false' }}">{{ $r->title }}</button>

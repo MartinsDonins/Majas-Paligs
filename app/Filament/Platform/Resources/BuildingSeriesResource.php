@@ -68,7 +68,7 @@ final class BuildingSeriesResource extends Resource
                 Textarea::make('notes.ru')->label(__('admin.series.notes').' (RU)'),
             ]),
             Section::make(__('admin.series.sources'))->schema([
-                Repeater::make('sources')->hiddenLabel()->columns(3)->schema([
+                Repeater::make('sources')->hiddenLabel()->columns(3)->defaultItems(0)->addActionLabel(__('admin.series.add_source'))->schema([
                     TextInput::make('title')->label(__('admin.series.source_title'))->required(),
                     TextInput::make('url')->label('URL')->url(),
                     DatePicker::make('accessed_at')->label(__('admin.series.accessed_at')),

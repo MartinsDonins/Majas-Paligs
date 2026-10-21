@@ -15,6 +15,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Apartment types of the series with their rooms (codes kitchen|bath|wc|hall|room1..5, radiators, towel dryer).
@@ -31,7 +32,7 @@ final class ApartmentTypesRelationManager extends RelationManager
             TextInput::make('area_m2_typical')->label(__('admin.apartment.area'))->numeric(),
             TextInput::make('label.lv')->label(__('admin.series.type_label').' (LV)')->required(),
             TextInput::make('label.ru')->label(__('admin.series.type_label').' (RU)')->required(),
-            Repeater::make('rooms')->relationship()->label(__('admin.series.rooms'))->columns(3)
+            Repeater::make('rooms')->relationship()->label(__('admin.series.rooms'))->addActionLabel(__('admin.series.add_room'))->columns(3)
                 ->mutateRelationshipDataBeforeFillUsing(function (array $data): array {
                     $data['label'] = is_string($data['label'] ?? null) ? (json_decode($data['label'], true) ?: []) : ($data['label'] ?? []);
 
@@ -49,6 +50,11 @@ final class ApartmentTypesRelationManager extends RelationManager
                     Toggle::make('towel_dryer'),
                 ])->columnSpanFull(),
         ]);
+    }
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('admin.series.types');
     }
 
     public function table(Table $table): Table

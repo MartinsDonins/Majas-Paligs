@@ -10,16 +10,29 @@ use App\Models\LoginToken;
 use App\Models\User;
 use App\Notifications\StepUpCode;
 use App\Support\Identifiers;
+use App\Support\SafeReturn;
 use App\Tenancy\Data\RoleData;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Support\Facades\Cache;
+use Livewire\Component;
 use PragmaRX\Google2FA\Google2FA;
 
 /**
  * Step-up confirmation for elevated actions (PLANNING §4.5 item 4): approvals, reveals, exports, panels.
- * Valid 2 h. Methods: TOTP (MFA — required for platform_admin, building_admin and parking_officer, and the only
- * method accepted once an account has an authenticator) or a 6-digit e-mail code (section elders; also the
- * confirmation before a FIRST authenticator enrolment). Elevated roles therefore need an e-mail.
+ * Valid while the person keeps working: it lapses after `valid_minutes` (120) WITHOUT a step-up-protected request
+ * (RequireStepUp touches it) and at the latest `max_minutes` (720) after the confirmation.
+ *
+ * Methods (ADR 0006):
+ * - `passkey` — a passkey login or tap (user verification required): MFA, phishing-resistant.
+ * - `totp` — authenticator app code: MFA.
+ * - `trusted` — this browser was marked "Uzticēties šai ierīcei 30 dienas" right after a real MFA (TrustedDevices):
+ *   counts as MFA for the normal step-up, NEVER for a dangerous action (hasFreshStrongMfa).
+ * - `email` — 6-digit e-mail code, or an e-mail login in this session (same factor, same proof). Section elders;
+ *   also the first-factor proof before a FIRST second factor is added. Never counts once the account has TOTP.
+ *
+ * Levels: any (hasFresh) < mfa (hasFreshMfa: passkey / totp / trusted; required for platform_admin,
+ * building_admin, parking_officer) < strong (hasFreshStrongMfa: passkey / totp in THIS session — break-glass, granting
+ * a role to someone else, adding or removing a sign-in factor).
  */
 class StepUpService
 {
@@ -34,33 +47,174 @@ class StepUpService
 
     public const LEVEL_KEY = 'mp.step_up_level';
 
-    public function __construct(private readonly Google2FA $google2fa) {}
+    /** Methods that are a second factor. */
+    public const MFA_METHODS = ['passkey', 'totp', 'trusted'];
+
+    /** Methods proven in THIS session (a trusted device does not count). */
+    public const STRONG_METHODS = ['passkey', 'totp'];
+
+    /** Last login of this session: ['user' => id, 'at' => timestamp, 'method' => …] (LoginCompleter). */
+    public const LOGIN_KEY = 'mp.login';
+
+    /** How recent a login must be to count as the first-factor proof before a FIRST second factor is added. */
+    private const RECENT_LOGIN_MINUTES = 15;
+
+    public function __construct(
+        private readonly Google2FA $google2fa,
+        private readonly TrustedDevices $trustedDevices,
+    ) {}
 
     public function hasFresh(User $user): bool
+    {
+        $state = $this->state($user);
+
+        // An account with an authenticator only counts a second factor (an e-mail step-up taken before the
+        // authenticator was enrolled no longer counts either).
+        if ($state !== null && (! $user->hasTotp() || in_array($state['method'], self::MFA_METHODS, true))) {
+            return true;
+        }
+
+        return $this->adoptTrustedDevice($user);
+    }
+
+    /**
+     * Fresh step-up performed with a second factor (passkey, TOTP) or on a trusted device.
+     */
+    public function hasFreshMfa(User $user): bool
+    {
+        $state = $this->state($user);
+
+        if ($state !== null && in_array($state['method'], self::MFA_METHODS, true)) {
+            return true;
+        }
+
+        return $this->adoptTrustedDevice($user);
+    }
+
+    /**
+     * Fresh second factor proven in THIS session (passkey or TOTP) — for dangerous actions. A trusted device never
+     * satisfies it, but one passkey tap does.
+     */
+    public function hasFreshStrongMfa(User $user): bool
+    {
+        $state = $this->state($user);
+
+        return $state !== null && in_array($state['method'], self::STRONG_METHODS, true);
+    }
+
+    /**
+     * Fresh check for a RequireStepUp / StepUp level: 'any', 'mfa' or 'strong'.
+     */
+    public function hasFreshLevel(User $user, string $level): bool
+    {
+        return match ($level) {
+            'strong' => $this->hasFreshStrongMfa($user),
+            'mfa' => $this->hasFreshMfa($user),
+            default => $this->hasFresh($user),
+        };
+    }
+
+    /**
+     * Who may ADD a sign-in factor (passkey or authenticator app): an account that already has one needs a fresh
+     * second factor in this session (otherwise a mailbox or session thief could add their own and bypass it); an
+     * account without one needs a fresh first-factor proof — an e-mail step-up, or a login in the last 15 minutes.
+     */
+    public function mayAddFactor(User $user): bool
+    {
+        if ($user->hasMfaFactor()) {
+            return $this->hasFreshStrongMfa($user);
+        }
+
+        if ($this->hasFresh($user)) {
+            return true;
+        }
+
+        $login = session(self::LOGIN_KEY);
+
+        return is_array($login) && (int) ($login['user'] ?? 0) === (int) $user->id
+            && (int) ($login['at'] ?? 0) >= now()->subMinutes(self::RECENT_LOGIN_MINUTES)->getTimestamp();
+    }
+
+    /**
+     * The level to ask for before adding a factor (see mayAddFactor).
+     */
+    public function addFactorLevel(User $user): string
+    {
+        return $user->hasMfaFactor() ? 'strong' : 'any';
+    }
+
+    /**
+     * Remember where to come back to and which level is needed; returns the step-up URL to redirect to.
+     */
+    public function ask(string $level, ?string $returnTo): string
+    {
+        session()->put(self::INTENDED_KEY, SafeReturn::path($returnTo) ?? route('home.redirect', absolute: false));
+        session()->put(self::LEVEL_KEY, in_array($level, ['any', 'mfa', 'strong'], true) ? $level : 'mfa');
+
+        return route('step-up', absolute: false);
+    }
+
+    /**
+     * Before a dangerous action in a Livewire / Filament component: true when a passkey / TOTP of THIS session is
+     * fresh; otherwise sends the person to the step-up (one passkey tap or code) and back to the page they are on
+     * (the session's previous URL — the page GET, never the /livewire/update endpoint).
+     */
+    public function demandStrong(User $user, Component $livewire): bool
+    {
+        if ($this->hasFreshStrongMfa($user)) {
+            return true;
+        }
+
+        $livewire->redirect($this->ask('strong', session()->previousUrl()));
+
+        return false;
+    }
+
+    /**
+     * The fresh step-up state of this session for $user (method + times), or null.
+     *
+     * @return array{user: int, at: int, seen: int, method: string}|null
+     */
+    private function state(User $user): ?array
     {
         $state = session(self::SESSION_KEY);
 
         if (! is_array($state) || (int) ($state['user'] ?? 0) !== (int) $user->id) {
-            return false;
+            return null;
         }
 
-        $minutes = (int) config('majas.step_up.valid_minutes', 120);
+        $at = (int) ($state['at'] ?? 0);
+        $seen = max($at, (int) ($state['seen'] ?? 0));
+        $idle = (int) config('majas.step_up.valid_minutes', 120);
+        $max = max($idle, (int) config('majas.step_up.max_minutes', 720));
 
-        if ((int) ($state['at'] ?? 0) < now()->subMinutes($minutes)->getTimestamp()) {
-            return false;
+        if ($seen < now()->subMinutes($idle)->getTimestamp() || $at < now()->subMinutes($max)->getTimestamp()) {
+            return null;
         }
 
-        // An account with an authenticator only counts a TOTP step-up (an e-mail step-up taken before the
-        // authenticator was enrolled no longer counts either).
-        return ! $user->hasTotp() || ($state['method'] ?? null) === 'totp';
+        return ['user' => (int) $state['user'], 'at' => $at, 'seen' => $seen, 'method' => (string) ($state['method'] ?? '')];
     }
 
     /**
-     * Fresh step-up performed with a second factor (TOTP).
+     * A genuine trusted-device cookie of this account (same session epoch, not expired) starts a 'trusted' step-up
+     * for this session — audited once per session, not per request.
      */
-    public function hasFreshMfa(User $user): bool
+    private function adoptTrustedDevice(User $user): bool
     {
-        return $this->hasFresh($user) && (session(self::SESSION_KEY)['method'] ?? null) === 'totp';
+        if (! app()->bound('request') || ! app()->bound('session')) {
+            return false;
+        }
+
+        $device = $this->trustedDevices->current($user, request());
+
+        if ($device === null) {
+            return false;
+        }
+
+        $this->trustedDevices->markUsed($device);
+        $this->markFresh($user, 'trusted');
+
+        return true;
     }
 
     /**
@@ -89,7 +243,23 @@ class StepUpService
 
     public function markFresh(User $user, string $method): void
     {
-        session()->put(self::SESSION_KEY, ['user' => (int) $user->id, 'at' => now()->getTimestamp(), 'method' => $method]);
+        $now = now()->getTimestamp();
+        session()->put(self::SESSION_KEY, ['user' => (int) $user->id, 'at' => $now, 'seen' => $now, 'method' => $method]);
+    }
+
+    /**
+     * Activity on a step-up-protected page keeps a still-fresh step-up alive (sliding idle window). Never revives
+     * an expired one and never extends past max_minutes after the confirmation.
+     */
+    public function touch(User $user): void
+    {
+        if ($this->state($user) === null) {
+            return;
+        }
+
+        $state = (array) session(self::SESSION_KEY);
+        $state['seen'] = now()->getTimestamp();
+        session()->put(self::SESSION_KEY, $state);
     }
 
     public function forget(): void
@@ -122,7 +292,7 @@ class StepUpService
             'expires_at' => now()->addMinutes((int) config('majas.step_up.code_ttl_minutes', 10)),
         ]);
 
-        $user->notify(new StepUpCode($code));
+        $user->notify((new StepUpCode($code))->locale(app()->getLocale()));
 
         return true;
     }
@@ -164,6 +334,32 @@ class StepUpService
         $this->markFresh($user, 'email');
 
         return true;
+    }
+
+    /**
+     * True when the code is right but its 30-second window was already used (replay protection) — the person only
+     * has to wait for the next code. Used for a clearer message than "Kods neder".
+     */
+    public function totpWasReplayed(User $user, #[\SensitiveParameter] string $code): bool
+    {
+        if (! $user->hasTotp()) {
+            return false;
+        }
+
+        $code = (string) preg_replace('/\D/', '', $code);
+
+        return $code !== '' && $this->google2fa->verifyKey((string) $user->app_authentication_secret, $code, 1) === true;
+    }
+
+    /**
+     * Enrolment just proved possession of the new authenticator with a valid code: count it as the TOTP step-up
+     * (one prompt per login instead of a second code right after enrolling) and burn that time step for replays.
+     */
+    public function markEnrolled(User $user, #[\SensitiveParameter] string $secret, #[\SensitiveParameter] string $code): void
+    {
+        $timestamp = $this->google2fa->verifyKeyNewer($secret, (string) preg_replace('/\D/', '', $code), (int) Cache::get($this->replayKey($user), 0), 1);
+        Cache::put($this->replayKey($user), is_int($timestamp) ? $timestamp : $this->google2fa->getTimestamp(), now()->addMinutes(10));
+        $this->markFresh($user, 'totp');
     }
 
     public function verifyTotp(User $user, #[\SensitiveParameter] string $code): bool

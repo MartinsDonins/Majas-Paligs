@@ -94,7 +94,9 @@ return [
 
     'locale' => env('APP_LOCALE', 'lv'),
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'lv'),
+    // English, not lv: a key missing in a vendor lv/ru pack (Filament) then reads as English instead of printing the
+    // raw 'package::key' (QA 2026-10-20). The app's own lv/ru JSON is kept complete by LangParityTest.
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'lv_LV'),
 

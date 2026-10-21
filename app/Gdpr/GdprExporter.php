@@ -13,10 +13,12 @@ use App\Models\BuildingRole;
 use App\Models\DataExport;
 use App\Models\HeatingReport;
 use App\Models\IncidentConfirmation;
+use App\Models\Passkey;
 use App\Models\Permit;
 use App\Models\PlateLookup;
 use App\Models\Section;
 use App\Models\Sighting;
+use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Services\Parking\SightingService;
@@ -173,6 +175,17 @@ final class GdprExporter implements ShouldBeEncrypted, ShouldQueue
                 'privacy_notice_version' => $user->notice_version_accepted,
                 'has_pin' => $user->pin_hash !== null,
                 'has_totp' => $user->hasTotp(),
+                // Passkeys hold only public material; the export lists what the account can sign in with.
+                'passkeys' => $user->passkeys()->orderBy('id')->get()->map(static fn (Passkey $p): array => [
+                    'name' => $p->name,
+                    'created_at' => $p->created_at?->toIso8601String(),
+                    'last_used_at' => $p->last_used_at?->toIso8601String(),
+                ])->values()->all(),
+                'trusted_devices' => TrustedDevice::query()->validFor($user)->orderBy('id')->get()->map(static fn (TrustedDevice $d): array => [
+                    'device' => $d->label,
+                    'created_at' => $d->created_at?->toIso8601String(),
+                    'expires_at' => $d->expires_at->toIso8601String(),
+                ])->values()->all(),
             ],
             'buildings' => $buildings,
             'who_viewed_my_data' => $scoped->auditAboutMe(limit: 1000)->map(static fn (AuditEntryData $e): array => [

@@ -5,32 +5,50 @@ declare(strict_types=1);
 namespace App\Livewire\Me;
 
 use App\Audit\AuditLogger;
+use App\Auth\Passkeys\PasskeyService;
 use App\Auth\SessionEpoch;
 use App\Auth\StepUpService;
+use App\Auth\TrustedDevices;
+use App\Livewire\Concerns\RegistersPasskey;
+use App\Models\Passkey;
+use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Notifications\Alerts;
 use App\Notifications\TotpChangedNotice;
+use App\Support\SafeReturn;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use PragmaRX\Google2FAQRCode\Google2FA;
 
 /**
- * Second factor (TOTP authenticator app) for elevated roles — required for platform_admin, building_admin and
- * parking_officer (StepUpService::requiresMfa), optional for elders (PLANNING §4.5 item 4). The pending secret lives
- * only in the server session until confirmed with a valid code; then it is stored encrypted.
+ * "Ieeja un drošība" (/me/security, ADR 0006) — for every account:
+ * 1. Passkeys ("ieejas atslēgas": fingerprint / Face ID / screen lock) — add, list, remove. The primary way in for
+ *    administrators: a passkey login is MFA, a passkey tap satisfies every step-up.
+ * 2. Trusted devices ("Uzticēties šai ierīcei 30 dienas") — list, revoke one, revoke all; trust this one right after
+ *    a real MFA.
+ * 3. Authenticator app (TOTP) — the fallback second factor (required before 0.0.23, still accepted).
  *
- * Review fix (drošība): the second factor can never be replaced with the first factor alone.
- * - Enrolment (start / confirm) is refused while an authenticator exists — replace = disable first.
- * - A FIRST enrolment needs a fresh step-up (e-mail code); disabling needs a fresh TOTP step-up.
- * - Enrolment never marks the session as MFA-fresh: the next elevated action asks for a TOTP code.
- * - Every enable / disable: audit (platform chain), e-mail notice to the account, session epoch bump (other
- *   sessions end) and, for platform_admin, a count-only platform alert.
+ * Factor rules (review fix, drošība; extended to passkeys): a second factor can never be added or removed with the
+ * first factor alone.
+ * - Adding (passkey or TOTP): StepUpService::mayAddFactor — with an existing factor a fresh passkey/TOTP of THIS
+ *   session; without one a fresh first-factor proof (e-mail step-up or a login < 15 min ago).
+ * - Removing a passkey or disabling TOTP: a fresh passkey/TOTP of THIS session (a trusted device is not enough).
+ * - TOTP enrolment is refused while a secret exists — replace = disable first.
+ * - The confirm code of a FIRST TOTP enrolment counts as this session's TOTP step-up (StepUpService::markEnrolled).
+ * - Every change: platform audit chain + e-mail to the account; TOTP changes and passkey removal also bump the
+ *   session epoch (other sessions, remember cookies and trusted devices end); adding a passkey does not, so adding the
+ *   second phone does not sign the first one out.
  */
 #[Layout('layouts::guest')]
 final class Security extends Component
 {
+    use RegistersPasskey;
+
     private const PENDING = 'mp.totp.pending';
+
+    /** The page that sent the person here to enrol (the step-up banner), resumed after a successful enrolment. */
+    public const AFTER_ENROL = 'mp.totp.after';
 
     public string $code = '';
 
@@ -68,8 +86,15 @@ final class Security extends Component
         session()->forget(self::PENDING);
         AuditLogger::record('account.totp_enabled', $user, [(int) $user->id], platform: true, actorRole: 'self');
         $this->announce($user, enabled: true);
+        $stepUp->markEnrolled($user, $secret, $code);
 
         session()->flash('status', 'totp_enabled');
+
+        // Back to where the person was going (e.g. /manage, via the step-up banner) once the authenticator works.
+        $next = SafeReturn::path(session()->pull(self::AFTER_ENROL));
+        if ($next !== null) {
+            $this->redirect($next);
+        }
     }
 
     public function disable(StepUpService $stepUp): void
@@ -80,8 +105,8 @@ final class Security extends Component
             return;
         }
 
-        if (! $stepUp->hasFreshMfa($user)) {
-            $this->askStepUp('mfa');
+        if (! $stepUp->hasFreshStrongMfa($user)) {
+            $this->askStepUp('strong');
 
             return;
         }
@@ -94,8 +119,77 @@ final class Security extends Component
         session()->flash('status', 'totp_disabled');
     }
 
+    public function removePasskey(int $id, PasskeyService $passkeys, StepUpService $stepUp): void
+    {
+        $user = $this->user();
+        $passkey = $user->passkeys()->whereKey($id)->first();
+
+        if (! $passkey instanceof Passkey) {
+            return;
+        }
+
+        if (! $stepUp->hasFreshStrongMfa($user)) {
+            $this->askStepUp('strong');
+
+            return;
+        }
+
+        $passkeys->remove($user, $passkey);
+        session()->flash('status', 'passkey_removed');
+        $this->redirectRoute('me.security');
+    }
+
+    public function trustThisDevice(StepUpService $stepUp, TrustedDevices $devices): void
+    {
+        $user = $this->user();
+
+        if (! $stepUp->hasFreshStrongMfa($user)) {
+            $this->askStepUp('strong');
+
+            return;
+        }
+
+        // TrustedDevices::trust only accepts a passkey / TOTP from the last 10 minutes.
+        if ($devices->trust($user, request(), (string) (session(StepUpService::SESSION_KEY)['method'] ?? 'totp')) === null) {
+            $this->askStepUp('strong');
+
+            return;
+        }
+
+        session()->flash('status', 'device_trusted');
+        $this->redirectRoute('me.security');
+    }
+
+    public function revokeDevice(int $id, TrustedDevices $devices): void
+    {
+        $devices->revoke($this->user(), $id);
+        session()->flash('status', 'device_revoked');
+        $this->redirectRoute('me.security');
+    }
+
+    public function revokeAllDevices(TrustedDevices $devices): void
+    {
+        $devices->revokeAll($this->user());
+        session()->flash('status', 'device_revoked');
+        $this->redirectRoute('me.security');
+    }
+
+    protected function passkeyReturnTo(): string
+    {
+        return route('me.security', absolute: false);
+    }
+
+    protected function passkeyRegistered(Passkey $passkey, User $user): void
+    {
+        session()->flash('status', 'passkey_added');
+
+        $next = SafeReturn::path(session()->pull(self::AFTER_ENROL));
+        $this->redirect($next ?? route('me.security', absolute: false));
+    }
+
     /**
-     * Enrolment only without an existing authenticator, and only after a fresh step-up.
+     * TOTP enrolment only without an existing authenticator, and only with the proof StepUpService::mayAddFactor
+     * asks for.
      */
     private function mayEnrol(User $user, StepUpService $stepUp): bool
     {
@@ -105,8 +199,8 @@ final class Security extends Component
             return false;
         }
 
-        if (! $stepUp->hasFresh($user)) {
-            $this->askStepUp('any');
+        if (! $stepUp->mayAddFactor($user)) {
+            $this->askStepUp($stepUp->addFactorLevel($user));
 
             return false;
         }
@@ -116,9 +210,7 @@ final class Security extends Component
 
     private function askStepUp(string $level): void
     {
-        session()->put(StepUpService::INTENDED_KEY, route('me.security'));
-        session()->put(StepUpService::LEVEL_KEY, $level);
-        $this->redirectRoute('step-up');
+        $this->redirect(app(StepUpService::class)->ask($level, route('me.security', absolute: false)));
     }
 
     private function announce(User $user, bool $enabled): void
@@ -139,7 +231,7 @@ final class Security extends Component
         return $user;
     }
 
-    public function render(Google2FA $google2fa): View
+    public function render(Google2FA $google2fa, StepUpService $stepUp, TrustedDevices $devices): View
     {
         $user = $this->user();
         $pending = $user->hasTotp() ? null : session(self::PENDING);
@@ -153,8 +245,17 @@ final class Security extends Component
             );
         }
 
+        $thisDevice = $devices->current($user, request());
+
         return view('livewire.me.security', [
             'enabled' => $user->hasTotp(),
+            'passkeys' => $user->passkeys()->orderBy('id')->get(),
+            'devices' => TrustedDevice::query()->validFor($user)->orderByDesc('id')->get(),
+            'thisDeviceId' => $thisDevice?->id,
+            'canTrust' => $thisDevice === null && $stepUp->hasFreshStrongMfa($user),
+            'elevated' => $stepUp->requiresMfa($user),
+            // Back to the panel that sent the person here (step-up banner), otherwise Home.
+            'back' => SafeReturn::path(session(self::AFTER_ENROL)) ?? route('home.redirect'),
             'pending' => is_string($pending) ? trim(chunk_split($pending, 4, ' ')) : null,
             'qr' => $qr,
         ])->title(__('me.security.title'));

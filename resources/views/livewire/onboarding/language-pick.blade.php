@@ -9,8 +9,9 @@
         <h2 id="lang-h" class="text-lg">{{ __('landing.choose_language') }} · Выберите язык</h2>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             @foreach (['lv' => 'Latviešu', 'ru' => 'Русский'] as $code => $name)
-                <form method="POST" action="{{ route('locale.set', $code) }}">
+                <form method="POST" action="{{ route('locale.set', $code) }}" data-locale-form>
                     @csrf
+                    <input type="hidden" name="return" value="{{ \App\Support\SafeReturn::current() }}">
                     <button type="submit" lang="{{ $code }}" class="choice min-h-16 justify-center text-lg" aria-pressed="{{ app()->getLocale() === $code ? 'true' : 'false' }}">
                         @if (app()->getLocale() === $code)
                             <x-lucide-check class="size-5" aria-hidden="true" />

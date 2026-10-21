@@ -15,6 +15,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -64,7 +65,9 @@ final class Privacy extends Component
     {
         $expected = mb_strtoupper(__('privacy.delete.word'));
 
-        if (mb_strtoupper(trim($this->deleteWord)) !== $expected) {
+        // DZĒST = DZEST = dzest: many phone keyboards hide Ē (QA 2026-10-20). Same for УДАЛИТЬ.
+        $fold = static fn (string $w): string => mb_strtoupper(Str::ascii(trim($w)));
+        if ($fold($this->deleteWord) !== $fold($expected)) {
             $this->addError('deleteWord', __('privacy.delete.word_mismatch', ['word' => $expected]));
 
             return;

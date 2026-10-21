@@ -1,0 +1,26 @@
+# Traefik stand-in for the prodlike stack: TLS terminates here (Caddy's internal CA), plain HTTP to the web
+# container's nginx on :8080 — the same hop Coolify's Traefik makes. Production has no Cloudflare in front
+# (no CF-Connecting-IP), so none is sent here either.
+{
+	skip_install_trust
+	admin off
+	servers {
+		# Traefik advertises h3, but the UDP port is not published locally; keep to h1/h2.
+		protocols h1 h2
+		# Browser scripts run inside this container's network namespace (127.0.0.1), so every local visitor has the
+		# same address. Trusting the private ranges lets a script simulate DIFFERENT visitors by sending its own
+		# X-Forwarded-For (e.g. 203.0.113.7): Caddy appends 127.0.0.1, nginx realip (TRUSTED_PROXY=local) walks past
+		# the trusted hops and the app sees 203.0.113.7 — exactly the chain Traefik builds for real phones.
+		trusted_proxies static private_ranges
+	}
+}
+
+localhost:8443 {
+	tls internal
+	reverse_proxy web:8080 {
+		# Caddy already sends X-Forwarded-For / -Proto / -Host and keeps Host; add what Traefik adds too.
+		header_up X-Forwarded-Port 8443
+		header_up X-Forwarded-Server prodlike-proxy
+		header_up X-Real-Ip {remote_host}
+	}
+}

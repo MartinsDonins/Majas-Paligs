@@ -44,6 +44,20 @@ final class PostLoginRedirect
             return redirect('/platform');
         }
 
+        // Rejected or ended: say so (with the reason the admin gave) instead of the generic "no apartment yet".
+        $last = $scoped->memberships(includeEnded: true)
+            ->filter(static fn (MembershipData $m): bool => in_array($m->status, [MembershipStatus::Rejected, MembershipStatus::Ended], true))
+            ->sortByDesc('membershipId')
+            ->first();
+
+        if ($last !== null) {
+            return redirect()->route('join')
+                ->with('status', $last->status === MembershipStatus::Rejected ? 'membership_rejected' : 'membership_ended')
+                ->with('membership_building', $last->buildingName)
+                ->with('membership_apartment', $last->apartmentNumber)
+                ->with('membership_reason', $last->rejectedReason);
+        }
+
         return redirect()->route('join')->with('status', 'no_apartment');
     }
 }

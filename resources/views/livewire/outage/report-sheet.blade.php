@@ -5,7 +5,8 @@
         <div class="space-y-4 text-center" role="status">
             <x-lucide-users-round class="mx-auto size-12 text-(--color-accent)" aria-hidden="true" />
             <p class="text-xl font-bold">{{ \App\Support\Copy::count('outage.report.joined', $apartments, ['count' => $apartments]) }}</p>
-            <p>{{ __($joinedNotice ? 'outage.report.notice_known' : 'outage.report.not_only_you') }}</p>
+            {{-- "You are the first" + "it is not only you" contradicted each other (QA 2026-10-20). --}}
+            <p>{{ __($joinedNotice ? 'outage.report.notice_known' : ($apartments > 1 ? 'outage.report.not_only_you' : 'outage.report.first')) }}</p>
             @foreach ($incidentIds as $id)
                 <a href="{{ route('building.incident', [$building, $id]) }}" class="btn btn-block" wire:navigate>{{ __('outage.report.see_status') }}</a>
             @endforeach

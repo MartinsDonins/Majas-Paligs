@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Manage\Resources;
 
+use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Filament\Manage\Resources\BuildingRoleResource\Pages;
 use App\Models\Apartment;
@@ -25,6 +26,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
+use Livewire\Component;
 
 /**
  * Delegated roles (building_admin, section_elder, parking_officer, volunteer). Candidates are approved members
@@ -90,13 +92,18 @@ final class BuildingRoleResource extends Resource
                             ->options(fn () => Section::query()->orderBy('number')->pluck('number', 'id')->map(fn ($n) => __('admin.section.short', ['n' => $n]))->all()),
                         TextInput::make('mandate_ref')->label(__('admin.role.mandate'))->maxLength(200),
                     ])
-                    ->action(function (array $data): void {
+                    ->action(function (array $data, Component $livewire): void {
                         Gate::authorize('create', BuildingRole::class);
                         $candidates = self::candidates();
                         abort_unless(array_key_exists((int) $data['user_id'], $candidates), 403);
 
                         /** @var User $actor */
                         $actor = auth()->user();
+
+                        // Granting a role to someone else: one passkey tap / TOTP code of this session (ADR 0006).
+                        if ((int) $data['user_id'] !== (int) $actor->id && ! app(StepUpService::class)->demandStrong($actor, $livewire)) {
+                            return;
+                        }
                         app(BuildingRoleService::class)->grant(
                             $actor,
                             User::query()->findOrFail((int) $data['user_id']),
@@ -118,6 +125,7 @@ final class BuildingRoleResource extends Resource
                         /** @var User $actor */
                         $actor = auth()->user();
                         app(BuildingRoleService::class)->revoke($actor, $record);
+                        Notification::make()->success()->title(__('admin.role.revoked'))->send();
                     }),
             ]);
     }

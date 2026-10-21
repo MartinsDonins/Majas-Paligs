@@ -12,6 +12,8 @@ use App\Models\Building;
 use App\Models\BuildingRole;
 use App\Models\DataExport;
 use App\Models\LoginToken;
+use App\Models\Passkey;
+use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Services\Parking\VehicleRemovalService;
 use App\Tenancy\UserScopedQuery;
@@ -48,6 +50,9 @@ final class AccountEraser
 
         DB::transaction(static function () use ($user, $userId): void {
             LoginToken::query()->where('user_id', $userId)->delete();
+            // Sign-in factors of a tombstone: nothing may log into it any more (users rows are kept, so no cascade).
+            Passkey::query()->where('authenticatable_id', $userId)->delete();
+            TrustedDevice::query()->where('user_id', $userId)->delete();
 
             foreach (DataExport::query()->where('user_id', $userId)->get() as $export) {
                 if ($export->path !== null) {

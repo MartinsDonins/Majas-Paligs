@@ -39,13 +39,13 @@ case "$cmd" in
   stan)     exec_app vendor/bin/phpstan analyse --memory-limit=1G "$@" ;;
   # Real-browser tests (tests/Browser) in the `browser` image: Playwright Chromium + fresh Vite build.
   browser)
-    dc --profile browser run --rm browser sh -c 'npm ls playwright lighthouse >/dev/null 2>&1 || npm ci --no-audit --no-fund; npm run build >/dev/null && php artisan config:clear >/dev/null && vendor/bin/pest --testsuite=Browser "$@"' -- "$@"
+    dc --profile browser run --rm browser sh -c 'npm ls >/dev/null 2>&1 || npm ci --no-audit --no-fund; npm run build >/dev/null && php artisan config:clear >/dev/null && vendor/bin/pest --testsuite=Browser "$@"' -- "$@"
     ;;
   # Lighthouse mobile accessibility (AC 16) against the LOCAL demo build of Pūces iela 51 (DemoSeeder data).
   lighthouse)
     dc --profile browser up -d browser
     status=0
-    dc exec browser sh -c 'npm ls playwright lighthouse >/dev/null 2>&1 || npm ci --no-audit --no-fund; npm run build >/dev/null       && php artisan migrate --database=pgsql_owner --force       && php artisan db:seed --class=DemoSeeder --database=pgsql_owner --force       && php artisan optimize:clear >/dev/null && node scripts/lighthouse/audit.mjs' || status=$?
+    dc exec browser sh -c 'npm ls >/dev/null 2>&1 || npm ci --no-audit --no-fund; npm run build >/dev/null       && php artisan migrate --database=pgsql_owner --force       && php artisan db:seed --class=DemoSeeder --database=pgsql_owner --force       && php artisan optimize:clear >/dev/null && node scripts/lighthouse/audit.mjs' || status=$?
     dc --profile browser stop browser
     exit $status
     ;;

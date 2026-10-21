@@ -46,7 +46,7 @@ final class AssistedOnboarding extends Component
     {
         $key = 'elder-assist:'.Identifiers::ipBucket((string) request()->ip()).':'.auth()->id();
         if (RateLimiter::tooManyAttempts($key, 10)) {
-            $this->addError('code', __('onboarding.cooldown.body'));
+            $this->addError('code', __('onboarding.cooldown.body', ['minutes' => 15]));
 
             return;
         }

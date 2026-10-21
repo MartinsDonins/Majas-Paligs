@@ -39,11 +39,11 @@ it('accepts codes typed lowercase, with spaces or with Cyrillic look-alikes', fu
     'cyrillic' => [fn (string $c) => strtr($c, ['K' => 'К', 'M' => 'М', 'P' => 'Р', 'C' => 'С', 'X' => 'Х'])],
 ]);
 
-it('shows the friendly error for an invalid code and a calm cooldown on the 6th attempt', function (): void {
+it('shows the friendly error for an invalid code and a calm cooldown once the wrong-code budget is used up', function (): void {
     makeBuilding('join-b', 1, 1, open: true);
     $component = Livewire::test(RedeemInvite::class);
 
-    for ($i = 1; $i <= 5; $i++) {
+    for ($i = 1; $i <= (int) config('majas.invites.throttle.ip_per_15min'); $i++) {
         $component->set('code', 'ABCDE23456')->call('submit')->assertSet('error', __('onboarding.code.invalid'))->assertSet('cooldown', false);
     }
 

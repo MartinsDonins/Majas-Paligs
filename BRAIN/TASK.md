@@ -106,6 +106,74 @@ superseded (PLANNING §6). Wave 1 needs gate L-core (GOV-008).
 - ✅ UI-010: Dizaina pārskata labojumi — rem type scale + senior mode, sticky report CTA, real modals (x-trap), 2×2 status grid, colour-blind safe cells + mini maps, "Mainīt auto" opens the sheet, Vairāk tools, cancel on destructive confirms, 48px targets, A4 16 pt invite letter, LV/RU plurals. - COMPLETED (0.0.14)
   - ✅ UI-010.1: Playwright ekrānuzņēmums data-density=large + 320px un krāsu akluma simulācija CI — in TEST-002.1 / Browser/LayoutTest; CI job `browser` uploads tests/Browser/Screenshots as an artefact. - COMPLETED (0.0.16)
 
+## 🐞 Produkcijas QA labojumi (2026-10-20, kaimini.coredigify.com)
+Owner report after the first production login: "various errors", "RU does not work", "login is hard and it throws me
+out", "admin login is too complicated", "generating the house plan failed". Reproduced on the prodlike stack
+(BRAIN/docs/PRODLIKE.md) by four QA passes (ieeja-sesija, valoda-ru, platforma-generators, pārvaldība, siltums-stāvvieta).
+- ✅ FIX-001: Ieeja un sesija — "Atcerēties šo telefonu" atkal darbojas — Laravel 13 SessionGuard refused every remember
+  cookie of a passwordless user (getAuthPassword() null) → everyone was logged out after 120 min idle. User::getAuthPassword()
+  returns a stable per-account value (the secret stays the rotated remember_token). The magic-link page sends remember=0
+  when unchecked; a missing field means "do not remember". The deep link that asked for the login is kept (url.intended,
+  SafeReturn). An ended session (epoch bump) on a Livewire request is a redirect to /login instead of Livewire's black
+  English "401" modal. - COMPLETED (0.0.20)
+- ✅ FIX-002: Klienta IP aiz Traefik — production has no Cloudflare, so `TRUSTED_PROXY=cloudflare` made every visitor the
+  Traefik container (172.28.0.x): PIN, e-mail link, code, /join and LV/RU limiters were one site-wide bucket. Now
+  `TRUSTED_PROXY=local` (X-Forwarded-For walked past the private ranges). /join counts only WRONG codes (10/15 min per
+  device); every cooldown text shows the real remaining minutes. Prodlike Caddy trusts private ranges so scripts can
+  simulate distinct visitors. - COMPLETED (0.0.20)
+- ✅ FIX-003: LV/RU pārslēgs un valoda pēc ieejas — the toggle posts the current page (`return`, SafeReturn: same-origin pages
+  only) instead of trusting url()->previous(), which was /sw.js after a service-worker update check; /sw.js, the
+  manifest and /up are session-less (also stops them from overwriting a fresh step-up); the language chosen on the login
+  page is saved to users.locale at login (LoginCompleter). - COMPLETED (0.0.20)
+- ✅ FIX-004: Vienkāršāka administratora ieeja — step-up is sliding (2 h idle, 12 h max, RequireStepUp touches it) instead of
+  an absolute 2 h; after a Livewire step-up the page returns to the full URL (query kept); a first TOTP enrolment counts as
+  the step-up (time step burnt) and resumes the page that asked; step-up return URLs accept absolute same-origin URLs
+  (/me/security, heating report); context wording for house admins vs. platform; a replayed code says "wait for the next
+  code"; `majas:platform-admin` keeps an existing authenticator unless `--reset-totp` (which bumps the epoch). Supersedes
+  SEC-007's "no markFresh on enrolment" (the confirm code already proves possession of the new secret). - COMPLETED (0.0.20)
+  - ✅ AUTH-006: Ieeja ar pirkstu / Face ID un uzticamas ierīces - COMPLETED (0.0.23) — ADR 0006. Passkeys (WebAuthn,
+    spatie/laravel-passkeys model + web-auth verification, own ceremonies in PasskeyService; package routes/Blade/Livewire
+    not registered so the strict nonce CSP stays): "Ieiet ar pirkstu / Face ID" + conditional UI on /login and /login/pin,
+    a passkey login/tap is MFA (UV required, exact APP_URL origin, counter, single-use 5-min challenge); admins are offered
+    a passkey after an e-mail/PIN login (/me/passkey); every account manages passkeys in "Ieeja un drošība". Trusted
+    device "Uzticēties šai ierīcei 30 dienas" (`__Host-mp_trusted`, hash-only row bound to user + session epoch, audited,
+    mailed, revoke one/all, pruned). Step-up levels any < mfa < strong; strong (passkey/TOTP of this session, never a
+    trusted device) for break-glass, role grants to others, platform role, factor add/remove. Sessions with the remember
+    cookie live 7 idle days (SessionLifetime); 419 reloads instead of the English dialog. Recovery: `majas:reset-mfa`.
+    The login buttons' wire:loading is scoped to their own action (the on-load passkey options request used to
+    disable "Nosūtīt saiti" for a moment).
+    Tests: PasskeyTest (FakeAuthenticator, real CBOR + P-256 signatures), TrustedDeviceTest, Browser/PasskeySmokeTest (Chromium
+    virtual authenticator), scripts/prodlike/passkey-verify.mjs.
+  - 🆕 FIX-004.1: Lomas atsaukšana bez pilnas izrakstīšanas — revoking an elder role bumps the epoch (logs the resident out
+    everywhere); consider forgetting only the step-up (roles are re-checked on every request anyway). Needs a security decision.
+- ✅ FIX-005: Mājas plāna ģenerators un platformas panelis — building edit page 500 (BuildingSettings object in the Livewire
+  form data) fixed, create → generator; "Create" buttons on all platform lists; generator: nullable number fields, every
+  input error a translated notification (no 500), series switch resets presets, the form loads the building's STORED
+  stairwells, and BuildingGenerator::conflicts() refuses an input that differs from the stored structure (numbering,
+  floors, preset, direction, numbers or riser codes of another stairwell) — lookups scoped to the stairwell, so risers /
+  rooms can no longer be linked across stairwells; audit verify button (Filament 5 `afterHeader` slot), purpose +
+  building on platform-chain rows, break-glass reason label; privacy notices: published rows not edit links, modules
+  listed once; translated relation-manager tabs and repeater buttons; Buildings row actions in one menu (phones);
+  relative favicon + local initials avatar (no CSP violations, no name to ui-avatars.com). - COMPLETED (0.0.21)
+- ✅ FIX-006: Valoda paneļos un e-pastos — LV/RU switch in both Filament panels; `fallback_locale=en` + lang/vendor overrides
+  for the Filament keys missing in lv/ru (no raw `filament-*::` keys); labels exactly as translated (no Title Case);
+  "Rediģēt: :label"; notifications in the recipient's users.locale (User::preferredLocale), login / step-up mail in the
+  page language; Laravel mail layout strings translated; 404 in the visitor's language. - COMPLETED (0.0.20–0.0.21)
+- ✅ FIX-007: Pārvaldība un iedzīvotāju lapas — survey round times no longer shifted by the UTC offset (double conversion);
+  round selector on its own row; sheet close buttons never wrap; empty heating report: error next to the button, no
+  limiter hit; outage copy for the first reporter; plate kept on a validation error; vehicle approval asks for a permit
+  number only for a plate change; staff / self actor roles in "Kas skatīja manus datus"; DZEST accepted; /me/privacy back
+  link; former members redirected to /home with the reason instead of a 404; memberships: actions first + fewer columns
+  on phones, toasts for "Beigt dalību" / role revoke; audit log: translated actions and human subjects; export list polls;
+  invite revoke plural; "Apvienots" column; DPA items say CoreDigify fills them; revoked letter hint; PDF columns
+  without reports show "–", "Telpu ziņojumi"; Livewire navigate bar without inline <style> (CSP). - COMPLETED (0.0.22)
+  - 🆕 FIX-007.1: Siltuma režģis tūlīt pēc ziņojuma — the projection updates after the debounced RecomputeRiserStatus job
+    (~11 s), so the reporter briefly sees "be the first"; show the own report optimistically and drop ?report=1 after save.
+  - 🆕 FIX-007.2: "Mans viesis" bez numuru pārbaužu limita — guest declarations share the 5/h plate-lookup quota on purpose
+    (anti-enumeration); a separate, small allowance needs a privacy decision.
+  - 🆕 FIX-007.3: Valodas pārslēgšana pieteikšanās vidū — toggling during the code step / on the magic-link page reloads the
+    page and loses the Livewire state or the fragment token; keep the step (or explain it).
+
 ## 🧑‍⚖️ Pārvaldība (paralēli A/B; GOV-002 + GOV-005 bloķē vilni 1 caur L-core, pārējie bloķē C)
 - 🎯 GOV-002: Apstrādes pārziņa noteikšana un DPA — template DPA (CoreDigify = processor for house data, scope list core/heating/outages/parking), controller = house-authorised person, kopība or association; CoreDigify's own controller role for platform accounts documented; owner signs off. **Unblocks gate L-core (wave 1)** and, with scope `parking`, parking gate L1 (no plate stored before this).
 - 🆕 GOV-003: DPIA-lite stāvvietas modulim — unblocks gate L2; EDPB WP248 criteria, LIA for sightings, accepted residual risks (lookup enumeration).

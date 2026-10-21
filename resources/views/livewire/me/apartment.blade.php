@@ -116,12 +116,11 @@
             <span class="flex items-center gap-3"><x-lucide-shield-check class="size-5 text-(--color-accent)" aria-hidden="true" /> {{ __('me.privacy.link') }}</span>
             <x-lucide-chevron-right class="size-5" aria-hidden="true" />
         </a>
-        @if ($elevated)
-            <a href="{{ route('me.security') }}" class="list-row no-underline text-(--color-fg)">
-                <span class="flex items-center gap-3"><x-lucide-key-round class="size-5 text-(--color-accent)" aria-hidden="true" /> {{ __('me.security.link') }}</span>
-                <x-lucide-chevron-right class="size-5" aria-hidden="true" />
-            </a>
-        @endif
+        {{-- Everyone may add a passkey (fingerprint / Face ID) here; administrators also manage trusted devices / TOTP. --}}
+        <a href="{{ route('me.security') }}" class="list-row no-underline text-(--color-fg)">
+            <span class="flex items-center gap-3"><x-lucide-fingerprint class="size-5 text-(--color-accent)" aria-hidden="true" /> {{ __('me.security.link') }}</span>
+            <x-lucide-chevron-right class="size-5" aria-hidden="true" />
+        </a>
     </section>
 
     <section class="stack">

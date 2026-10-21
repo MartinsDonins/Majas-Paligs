@@ -12,6 +12,8 @@
               x-data="fragmentSecret" data-param="t" data-target="t">
             @csrf
             <input type="hidden" name="t" value="">
+            {{-- An unchecked checkbox is not submitted at all: send 0 first so it never defaults to "remember". --}}
+            <input type="hidden" name="remember" value="0">
             <label class="choice font-normal">
                 <input type="checkbox" name="remember" value="1" checked class="size-5 accent-(--color-accent)">
                 <span>{{ __('auth.remember') }}</span>

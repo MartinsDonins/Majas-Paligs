@@ -6,11 +6,13 @@ namespace App\Services\Memberships;
 
 use App\Audit\AuditLogger;
 use App\Auth\SessionEpoch;
+use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Models\BuildingRole;
 use App\Models\Section;
 use App\Models\User;
 use App\Tenancy\CurrentBuilding;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -22,6 +24,13 @@ final class BuildingRoleService
 {
     public function grant(?User $actor, User $user, BuildingRoleType $role, ?int $sectionId = null, ?string $mandateRef = null): BuildingRole
     {
+        // Granting a role to SOMEONE ELSE is a dangerous action (ADR 0006): a passkey / TOTP of this session, never
+        // just a trusted device. The UI asks first (StepUpService::demandStrong); this is the backstop.
+        if ($actor !== null && (int) $actor->id !== (int) $user->id && (! app()->runningInConsole() || app()->runningUnitTests())
+            && ! app(StepUpService::class)->hasFreshStrongMfa($actor)) {
+            throw new AuthorizationException('Granting a role to someone else requires a fresh passkey or TOTP confirmation.');
+        }
+
         if ($user->isTombstone()) {
             throw ValidationException::withMessages(['user_id' => __('admin.role.user_deleted')]);
         }

@@ -18,6 +18,7 @@ use App\Support\ProductionGuard;
 use App\Tenancy\CurrentBuilding;
 use App\Tenancy\CurrentBuildingState;
 use Carbon\CarbonImmutable;
+use Filament\Resources\Resource;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -60,6 +61,10 @@ final class AppServiceProvider extends ServiceProvider
 
         // Admin panel strings live in lang/admin/{lv,ru}.json (same parity check as the resident strings).
         $this->app->make('translator')->addJsonPath(lang_path('admin'));
+
+        // Filament shows labels exactly as translated: its default English Title Case turned "Kāpņu telpas" into
+        // "Kāpņu Telpas" and "Сообщения о тепле" into "Сообщения О Тепле" (QA 2026-10-20).
+        Resource::titleCaseModelLabel(false);
 
         // Explicit binding: full-page Livewire components do not type-hint {building}, so implicit binding
         // would not run. Building is not a tenant model, so this lookup needs no context.

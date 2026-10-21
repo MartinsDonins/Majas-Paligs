@@ -17,6 +17,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Riser templates: code pattern ({section}, {position}, {side}, {room}), kind, served positions/rooms
@@ -34,12 +35,17 @@ final class RisersRelationManager extends RelationManager
             Select::make('section_layout_id')->label(__('admin.series.layout_code'))
                 ->relationship('sectionLayout', 'code', fn ($query) => $query->where('series_id', $this->getOwnerRecord()->getKey())),
             Select::make('confidence')->label(__('admin.riser.confidence'))->options(RiserConfidence::options())->required()->default('hypothesis'),
-            Repeater::make('serves')->label(__('admin.series.serves'))->columns(2)->schema([
+            Repeater::make('serves')->label(__('admin.series.serves'))->addActionLabel(__('admin.series.add_serve'))->columns(2)->schema([
                 TextInput::make('position')->numeric()->required()->minValue(1),
                 TextInput::make('room_code')->label(__('admin.series.room_code')),
             ])->columnSpanFull(),
             Textarea::make('source_ref')->label(__('admin.riser.source'))->columnSpanFull(),
         ]);
+    }
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
+    {
+        return __('admin.series.risers');
     }
 
     public function table(Table $table): Table

@@ -3,6 +3,19 @@
 
     @if (session('status') === 'no_apartment')
         <x-ui.banner variant="info">{{ __('onboarding.no_apartment') }}</x-ui.banner>
+    @elseif (session('status') === 'membership_rejected')
+        <x-ui.banner variant="warning" icon="circle-alert" data-testid="membership-rejected">
+            <p>{{ __('onboarding.membership_rejected', ['building' => session('membership_building'), 'apartment' => session('membership_apartment')]) }}</p>
+            @if (filled(session('membership_reason')))
+                <p class="text-sm">{{ __('onboarding.membership_reason', ['reason' => session('membership_reason')]) }}</p>
+            @endif
+            <p class="text-sm">{{ __('onboarding.membership_contact') }}</p>
+        </x-ui.banner>
+    @elseif (session('status') === 'membership_ended')
+        <x-ui.banner variant="info" data-testid="membership-ended">
+            <p>{{ __('onboarding.membership_ended', ['building' => session('membership_building'), 'apartment' => session('membership_apartment')]) }}</p>
+            <p class="text-sm">{{ __('onboarding.membership_contact') }}</p>
+        </x-ui.banner>
     @endif
 
     @if ($closed)
@@ -16,7 +29,7 @@
         <section class="card stack text-center" role="status">
             <x-lucide-hourglass class="mx-auto size-12 text-(--color-accent)" aria-hidden="true" />
             <h1 class="text-xl">{{ __('onboarding.cooldown.title') }}</h1>
-            <p class="muted">{{ __('onboarding.cooldown.body') }}</p>
+            <p class="muted">{{ __('onboarding.cooldown.body', ['minutes' => $cooldownMinutes]) }}</p>
         </section>
     @else
         <section class="stack">

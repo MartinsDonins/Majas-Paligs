@@ -20,6 +20,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Privacy notice texts: the platform account notice (CoreDigify = controller) and building templates the
@@ -41,6 +42,14 @@ final class PrivacyNoticeResource extends Resource
     public static function getModelLabel(): string
     {
         return __('admin.privacy_notice.label');
+    }
+
+    /**
+     * A published version is immutable (edit = new version): its row is not an edit link (it opened a 403).
+     */
+    public static function canEdit(Model $record): bool
+    {
+        return $record instanceof PrivacyNoticeVersion && $record->published_at === null && parent::canEdit($record);
     }
 
     public static function getPluralModelLabel(): string
@@ -68,7 +77,10 @@ final class PrivacyNoticeResource extends Resource
             ->columns([
                 TextColumn::make('kind')->label(__('admin.privacy_notice.kind'))->formatStateUsing(fn (PrivacyNoticeKind $state) => $state->label()),
                 TextColumn::make('version')->label(__('admin.privacy_notice.version')),
-                TextColumn::make('covers_modules')->label(__('admin.privacy_notice.covers'))->formatStateUsing(fn (PrivacyNoticeVersion $record) => implode(', ', $record->covers_modules)),
+                // The state is an array: Filament formats EACH item, so implode() here printed the list N times.
+                TextColumn::make('covers_modules')->label(__('admin.privacy_notice.covers'))
+                    ->formatStateUsing(fn (string $state): string => __('enum.module.'.$state))
+                    ->separator(', '),
                 TextColumn::make('published_at')->label(__('admin.privacy_notice.published'))->dateTime('d.m.Y H:i', 'Europe/Riga'),
             ])
             ->recordActions([

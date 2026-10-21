@@ -117,11 +117,11 @@
             <div class="mx-auto max-w-[40rem] space-y-3">
                 <div class="sheet-handle" aria-hidden="true"></div>
                 <div class="flex items-start justify-between gap-3">
-                    <div>
+                    <div class="min-w-0">
                         <h2 id="col-h-{{ $p }}" class="text-lg">{{ __('heating.column.title', ['n' => $p, 'section' => $structure['number']]) }}</h2>
                         <p class="text-sm muted tnum">{{ __('heating.column.apartments', ['list' => collect($structure['rows'])->map(fn ($r) => $r[$p]['number'] ?? null)->filter()->reverse()->implode(' → ')]) }}</p>
                     </div>
-                    <button type="button" x-on:click="close" class="btn">{{ __('common.close') }}</button>
+                    <button type="button" x-on:click="close" class="btn shrink-0 whitespace-nowrap">{{ __('common.close') }}</button>
                 </div>
 
                 @if ($mode === 'outage')

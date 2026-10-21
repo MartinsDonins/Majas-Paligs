@@ -44,10 +44,12 @@ final class EnsureSessionEpoch
         $session->invalidate();
         $session->regenerateToken();
 
-        if ($request->expectsJson() || $request->is('livewire*')) {
+        // Livewire: a plain redirect. fetch() follows it and Livewire then navigates the whole page to /login —
+        // abort(401) used to open Livewire's black English "401 Unauthorized" error modal (QA 2026-10-20).
+        if ($request->expectsJson() && ! $request->hasHeader('X-Livewire')) {
             abort(401);
         }
 
-        return redirect()->route('login');
+        return redirect()->route('login')->with('status', 'signed_out');
     }
 }

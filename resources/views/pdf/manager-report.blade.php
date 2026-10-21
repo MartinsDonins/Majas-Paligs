@@ -134,7 +134,7 @@
                 @foreach ($cols as $c)
                     @php $s = $c['status'] ?? 'none'; @endphp
                     <td class="{{ $c['confirmed'] ? '' : 'dash' }}" style="background: {{ $c['confirmed'] ? $shade[$s] : '#ffffff' }}; color: {{ $c['confirmed'] ? ($ink[$s] ?? '#111') : '#111' }}">
-                        {{ $code[$s] ?? '–' }}{{ $c['confirmed'] ? '' : '?' }}<br><span style="font-weight:normal;font-size:7pt">{{ $t('columns.position', ['n' => $c['position']]) }}</span>
+                        {{ $code[$s] ?? '–' }}{{ $c['confirmed'] || (int) ($c['apartments'] ?? 0) === 0 ? '' : '?' }}<br><span style="font-weight:normal;font-size:7pt">{{ $t('columns.position', ['n' => $c['position']]) }}</span>
                     </td>
                 @endforeach
             </tr></table>

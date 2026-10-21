@@ -56,7 +56,7 @@ it('refuses start/confirm called directly on a user who already has TOTP (no MFA
         ->and(app(StepUpService::class)->hasFresh($admin))->toBeFalse(); // an e-mail step-up never counts once TOTP exists
 });
 
-it('requires a fresh step-up before the first enrolment and never marks the session MFA-fresh', function (): void {
+it('requires a fresh step-up before the first enrolment; the enrolment code then counts as the TOTP step-up', function (): void {
     $user = makeUser('first-totp@example.test');
     $this->actingAs($user);
 
@@ -68,8 +68,11 @@ it('requires a fresh step-up before the first enrolment and never marks the sess
     $pending = (string) session('mp.totp.pending');
     $c->set('code', app(Google2FA::class)->getCurrentOtp($pending))->call('confirm')->assertHasNoErrors();
 
+    // QA 2026-10-20: one code per login — the confirm code proved possession of the new authenticator. Its time
+    // step is burnt, so the same code cannot be replayed for another step-up.
     expect($user->refresh()->hasTotp())->toBeTrue()
-        ->and(app(StepUpService::class)->hasFreshMfa($user))->toBeFalse()
+        ->and(app(StepUpService::class)->hasFreshMfa($user))->toBeTrue()
+        ->and(app(StepUpService::class)->verifyTotp($user, app(Google2FA::class)->getCurrentOtp($pending)))->toBeFalse()
         ->and($user->auth_epoch)->toBe(1);
     Notification::assertSentTo($user, TotpChangedNotice::class, fn (TotpChangedNotice $n) => $n->enabled);
 });

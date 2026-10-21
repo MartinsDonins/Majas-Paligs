@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Parking;
 
 use App\Audit\AuditLogger;
+use App\Enums\BuildingRoleType;
 use App\Enums\LookupReason;
 use App\Enums\OfficerTaskKind;
 use App\Enums\OfficerTaskStatus;
@@ -102,7 +103,7 @@ final class VehicleRegistry
 
             $this->markDeclared($user, $apartment, hasNoVehicle: false);
 
-            AuditLogger::record('vehicle.declare', $existing, [(int) $user->id], data: ['change' => $replacing !== null]);
+            AuditLogger::record('vehicle.declare', $existing, [(int) $user->id], data: ['change' => $replacing !== null], actorRole: 'self');
         });
 
         return new DeclarationResult(DeclarationResult::PENDING);
@@ -158,7 +159,7 @@ final class VehicleRegistry
                 $task->forceFill(['status' => OfficerTaskStatus::Done, 'done_by' => $officer->id, 'done_at' => now()])->save();
             }
 
-            AuditLogger::record('vehicle.activate', $vehicle, $vehicle->declared_by_user_id !== null ? [(int) $vehicle->declared_by_user_id] : []);
+            AuditLogger::record('vehicle.activate', $vehicle, $vehicle->declared_by_user_id !== null ? [(int) $vehicle->declared_by_user_id] : [], actorRole: $this->staffRole($officer));
 
             return $vehicle;
         });
@@ -174,7 +175,7 @@ final class VehicleRegistry
             $vehicle->forceFill(['status' => VehicleStatus::Rejected, 'conflict' => false])->save();
             ParkingOfficerTask::query()->open()->where('vehicle_id', $vehicle->id)
                 ->update(['status' => OfficerTaskStatus::Done->value, 'done_by' => $officer->id, 'done_at' => now()]);
-            AuditLogger::record('vehicle.reject', $vehicle, $vehicle->declared_by_user_id !== null ? [(int) $vehicle->declared_by_user_id] : []);
+            AuditLogger::record('vehicle.reject', $vehicle, $vehicle->declared_by_user_id !== null ? [(int) $vehicle->declared_by_user_id] : [], actorRole: $this->staffRole($officer));
         });
     }
 
@@ -230,7 +231,7 @@ final class VehicleRegistry
     public function reconfirm(User $user, Vehicle $vehicle): void
     {
         $vehicle->forceFill(['reconfirm_due_at' => now()->addMonths(self::RECONFIRM_MONTHS)])->save();
-        AuditLogger::record('vehicle.reconfirm', $vehicle, [(int) $user->id]);
+        AuditLogger::record('vehicle.reconfirm', $vehicle, [(int) $user->id], actorRole: 'self');
     }
 
     /**
@@ -253,5 +254,13 @@ final class VehicleRegistry
             'has_no_vehicle' => $hasNoVehicle,
             'declared_by_user_id' => $user->id,
         ])->save();
+    }
+
+    /**
+     * "Kas skatīja manus datus" shows the staff role, not "Sistēma" (QA 2026-10-20).
+     */
+    private function staffRole(User $officer): string
+    {
+        return $officer->isBuildingAdmin(CurrentBuilding::get()) ? BuildingRoleType::BuildingAdmin->value : BuildingRoleType::ParkingOfficer->value;
     }
 }

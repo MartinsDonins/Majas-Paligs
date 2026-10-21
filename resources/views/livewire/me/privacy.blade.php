@@ -1,4 +1,7 @@
 <div class="stack-lg">
+    <a href="{{ route('home.redirect') }}" class="btn self-start" data-testid="privacy-back">
+        <x-lucide-arrow-left class="size-5" aria-hidden="true" /> {{ __('common.back') }}
+    </a>
     <h1 class="page-title">{{ __('privacy.title') }}</h1>
     <p class="lead">{{ __('privacy.lead') }}</p>
 

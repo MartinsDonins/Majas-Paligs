@@ -118,6 +118,8 @@ it('renders every Filament parking page for building_admin and the officer', fun
     activeVehicle($this->b, 2, 'CD5678', $this->officer);
 
     foreach ([$this->admin, $this->officer] as $user) {
+        // A new person = a new session (AuthenticateSession binds the session to the account that logged in).
+        $this->flushSession();
         steppedUp($user);
         foreach (['parking', 'parking-lots', 'vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports', 'parking-analytics', 'permit-import', 'settings'] as $page) {
             if ($page === 'settings' && $user === $this->officer) {

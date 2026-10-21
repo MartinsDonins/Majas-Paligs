@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Platform\Resources;
 
 use App\Audit\AuditLogger;
+use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Enums\BuildingStatus;
 use App\Filament\Platform\Pages\BuildingGeneratorPage;
@@ -22,6 +23,7 @@ use App\Services\Memberships\BuildingRoleService;
 use App\Support\BuildingSettings;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
@@ -35,6 +37,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Livewire\Component;
 
 /**
  * Buildings (non-tenant columns only). Structure is created by the generator; the first building_admin is
@@ -119,52 +122,60 @@ final class BuildingResource extends Resource
             ])
             ->recordActions([
                 EditAction::make(),
-                Action::make('generate')
-                    ->label(__('admin.generator.open'))
-                    ->icon(Heroicon::OutlinedSparkles)
-                    ->url(fn (Building $record): string => BuildingGeneratorPage::getUrl(['building' => $record->id])),
-                Action::make('dpa')
-                    ->label(__('admin.building.dpa_record'))
-                    ->icon(Heroicon::OutlinedDocumentCheck)
-                    ->fillForm(fn (Building $record): array => [
-                        'dpa_signed_at' => $record->settings->dpaSignedAt,
-                        'dpa_ref' => $record->settings->dpaRef,
-                        'dpa_scope' => $record->settings->dpaScope,
-                    ])
-                    ->schema([
-                        DatePicker::make('dpa_signed_at')->label(__('admin.settings.dpa_signed_at'))->native(false)->displayFormat('d.m.Y'),
-                        TextInput::make('dpa_ref')->label(__('admin.settings.dpa_ref'))->maxLength(120),
-                        CheckboxList::make('dpa_scope')->label(__('admin.settings.dpa_scope'))
-                            ->options(collect(BuildingSettings::DPA_SCOPES)->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
-                            ->columns(4),
-                    ])
-                    ->requiresConfirmation()
-                    ->modalDescription(__('admin.building.dpa_record_help'))
-                    ->action(function (Building $record, array $data): void {
-                        self::recordDpa($record, $data);
-                        Notification::make()->success()->title(__('admin.settings.saved'))->send();
-                    }),
-                Action::make('bootstrapAdmin')
-                    ->label(__('admin.building.bootstrap_admin'))
-                    ->icon(Heroicon::OutlinedKey)
-                    ->schema([
-                        TextInput::make('email')->label(__('auth.email.label'))->email()->required()->maxLength(254),
-                        TextInput::make('mandate_ref')->label(__('admin.role.mandate'))->maxLength(200),
-                    ])
-                    ->requiresConfirmation()
-                    ->action(function (Building $record, array $data): void {
-                        /** @var User $actor */
-                        $actor = auth()->user();
-                        $email = mb_strtolower(trim((string) $data['email']));
-                        $user = User::query()->where('email', $email)->whereNull('anonymised_at')->first()
-                            ?? User::query()->create(['email' => $email]);
+                ActionGroup::make([
+                    Action::make('generate')
+                        ->label(__('admin.generator.open'))
+                        ->icon(Heroicon::OutlinedSparkles)
+                        ->url(fn (Building $record): string => BuildingGeneratorPage::getUrl(['building' => $record->id])),
+                    Action::make('dpa')
+                        ->label(__('admin.building.dpa_record'))
+                        ->icon(Heroicon::OutlinedDocumentCheck)
+                        ->fillForm(fn (Building $record): array => [
+                            'dpa_signed_at' => $record->settings->dpaSignedAt,
+                            'dpa_ref' => $record->settings->dpaRef,
+                            'dpa_scope' => $record->settings->dpaScope,
+                        ])
+                        ->schema([
+                            DatePicker::make('dpa_signed_at')->label(__('admin.settings.dpa_signed_at'))->native(false)->displayFormat('d.m.Y'),
+                            TextInput::make('dpa_ref')->label(__('admin.settings.dpa_ref'))->maxLength(120),
+                            CheckboxList::make('dpa_scope')->label(__('admin.settings.dpa_scope'))
+                                ->options(collect(BuildingSettings::DPA_SCOPES)->mapWithKeys(fn ($m) => [$m => __('enum.module.'.$m)])->all())
+                                ->columns(4),
+                        ])
+                        ->requiresConfirmation()
+                        ->modalDescription(__('admin.building.dpa_record_help'))
+                        ->action(function (Building $record, array $data): void {
+                            self::recordDpa($record, $data);
+                            Notification::make()->success()->title(__('admin.settings.saved'))->send();
+                        }),
+                    Action::make('bootstrapAdmin')
+                        ->label(__('admin.building.bootstrap_admin'))
+                        ->icon(Heroicon::OutlinedKey)
+                        ->schema([
+                            TextInput::make('email')->label(__('auth.email.label'))->email()->required()->maxLength(254),
+                            TextInput::make('mandate_ref')->label(__('admin.role.mandate'))->maxLength(200),
+                        ])
+                        ->requiresConfirmation()
+                        ->action(function (Building $record, array $data, Component $livewire): void {
+                            /** @var User $actor */
+                            $actor = auth()->user();
 
-                        PlatformBuildingContext::run($record, PlatformPurpose::RoleBootstrap, function () use ($actor, $user, $data): void {
-                            app(BuildingRoleService::class)->grant($actor, $user, BuildingRoleType::BuildingAdmin, null, $data['mandate_ref'] ?? null);
-                        });
+                            // Granting a role to someone else: one passkey tap / TOTP code of this session (ADR 0006).
+                            if (! app(StepUpService::class)->demandStrong($actor, $livewire)) {
+                                return;
+                            }
 
-                        Notification::make()->success()->title(__('admin.role.granted'))->send();
-                    }),
+                            $email = mb_strtolower(trim((string) $data['email']));
+                            $user = User::query()->where('email', $email)->whereNull('anonymised_at')->first()
+                                ?? User::query()->create(['email' => $email]);
+
+                            PlatformBuildingContext::run($record, PlatformPurpose::RoleBootstrap, function () use ($actor, $user, $data): void {
+                                app(BuildingRoleService::class)->grant($actor, $user, BuildingRoleType::BuildingAdmin, null, $data['mandate_ref'] ?? null);
+                            });
+
+                            Notification::make()->success()->title(__('admin.role.granted'))->send();
+                        }),
+                ]),
             ]);
     }
 

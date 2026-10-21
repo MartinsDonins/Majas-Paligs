@@ -8,7 +8,7 @@
         <section class="card stack text-center" role="status">
             <x-lucide-hourglass class="mx-auto size-12 text-(--color-accent)" aria-hidden="true" />
             <h2 class="text-xl">{{ __('auth.pin.cooldown_title') }}</h2>
-            <p class="muted">{{ __('auth.pin.cooldown_body') }}</p>
+            <p class="muted">{{ __('auth.pin.cooldown_body', ['minutes' => $cooldownMinutes]) }}</p>
         </section>
     @else
         @if ($failed)
@@ -33,11 +33,13 @@
                 <input type="checkbox" wire:model="remember" class="size-5 accent-(--color-accent)">
                 <span>{{ __('auth.remember') }}</span>
             </label>
-            <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled">{{ __('auth.login') }}</button>
+            <button type="submit" class="btn btn-primary btn-block" data-requires-online wire:loading.attr="disabled" wire:target="login">{{ __('auth.login') }}</button>
         </form>
 
         <p class="text-sm muted">{{ __('auth.pin.forgot') }}</p>
     @endif
+
+    <x-auth.passkey-button wire:key="pin-passkey" />
 
     <a href="{{ route('login') }}" class="btn btn-block">{{ __('landing.login_email') }}</a>
 </div>

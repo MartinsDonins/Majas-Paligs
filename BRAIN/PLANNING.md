@@ -284,7 +284,12 @@ Role powers are **split** so no single neighbour sees everything:
      apartment's other approved members (and the user) are notified; cap 5 resets/day per elder.
 3. "Remember this phone" on by default (long-lived remember token, revocable in "Mans dzīvoklis").
 4. Elevated actions (approvals, reveals, exports, panels) require **MFA** (Filament built-in TOTP or
-   e-mail OTP) and a step-up confirmation valid 2 h. Elevated roles therefore need an e-mail.
+   e-mail OTP) and a step-up confirmation valid 2 h idle — sliding while the person keeps working, 12 h at most
+   (0.0.20, production QA of 2026-10-20; a first TOTP enrolment counts as the step-up). Elevated roles therefore need an e-mail.
+   0.0.23 (ADR 0006): the second factor is a **passkey** ("Ieiet ar pirkstu / Face ID", primary for admins; a passkey
+   login is MFA) or TOTP; after it the person may trust the device for 30 days (no normal step-up there). Dangerous
+   actions (break-glass, role grants to others, factor changes) always ask for a passkey tap / TOTP of the session.
+   Remembered devices keep their session 7 idle days.
 5. No CAPTCHA, no SMS (cost), no Smart-ID/e-signature anywhere.
 
 ### 4.6 Module 🔥 Heating & outages (Package B)

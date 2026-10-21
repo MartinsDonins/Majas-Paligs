@@ -3,6 +3,12 @@
  * Alpine component is registered here with Alpine.data(): templates only reference properties and methods,
  * never inline expressions (no 'unsafe-eval').
  */
+import {
+    browserSupportsWebAuthn,
+    browserSupportsWebAuthnAutofill,
+    startAuthentication,
+    startRegistration,
+} from '@simplewebauthn/browser';
 
 document.addEventListener('alpine:init', () => {
     const Alpine = window.Alpine;
@@ -276,7 +282,9 @@ document.addEventListener('alpine:init', () => {
             this.busy = true;
             try {
                 await this.$wire.call(this.$el.dataset.method || 'check', input.value);
-                if (this.$el.dataset.keep !== '1') {
+                // Keep the typed plate when the server rejected it (aria-invalid after the re-render), so a typo can
+                // be fixed instead of retyping the whole plate.
+                if (this.$el.dataset.keep !== '1' && input.getAttribute('aria-invalid') !== 'true') {
                     input.value = '';
                 }
             } finally {
@@ -394,7 +402,130 @@ document.addEventListener('alpine:init', () => {
             return String(this.active) === String(section);
         },
     }));
+
+    /**
+     * "Ieiet ar pirkstu / Face ID" and the passkey step-up (ADR 0006). The Livewire component (AssertsPasskey) issues
+     * single-use options and verifies the signed response; nothing secret ever reaches JS. With data-autofill="1" the
+     * phone also offers its passkey in the e-mail field's autofill (conditional UI, input autocomplete="… webauthn").
+     * A newer ceremony (the button) aborts the pending autofill one.
+     */
+    Alpine.data('passkeyAuth', () => ({
+        supported: false,
+        busy: false,
+        error: '',
+        failedText: '',
+        init() {
+            this.failedText = this.$el.dataset.error || '';
+            this.supported = browserSupportsWebAuthn();
+            if (this.supported && this.$el.dataset.autofill === '1') {
+                browserSupportsWebAuthnAutofill().then((ok) => {
+                    if (ok) {
+                        this.run(true);
+                    }
+                }).catch(() => {});
+            }
+        },
+        start() {
+            this.run(false);
+        },
+        async run(autofill) {
+            this.error = '';
+            let optionsJSON;
+            try {
+                const json = await this.$wire.passkeyOptions();
+                if (!json) {
+                    if (!autofill) {
+                        this.error = this.failedText;
+                    }
+                    return;
+                }
+                optionsJSON = JSON.parse(json);
+            } catch (e) {
+                return;
+            }
+            let response;
+            try {
+                response = await startAuthentication({ optionsJSON, useBrowserAutofill: autofill });
+            } catch (e) {
+                // Cancelled, timed out or replaced by a newer ceremony: only an explicit tap shows a hint.
+                if (!autofill && !(e && (e.name === 'AbortError' || e.code === 'ERROR_CEREMONY_ABORTED'))) {
+                    this.error = this.failedText;
+                }
+                return;
+            }
+            this.busy = true;
+            try {
+                await this.$wire.passkeyAssert(JSON.stringify(response));
+            } finally {
+                this.busy = false;
+            }
+        },
+    }));
+
+    /** "Izveidot ieejas atslēgu" (RegistersPasskey). Shows a hint instead of the button where passkeys are missing. */
+    Alpine.data('passkeyRegister', () => ({
+        supported: false,
+        busy: false,
+        error: '',
+        failedText: '',
+        existsText: '',
+        init() {
+            this.failedText = this.$el.dataset.error || '';
+            this.existsText = this.$el.dataset.exists || this.failedText;
+            this.supported = browserSupportsWebAuthn();
+        },
+        get unsupported() {
+            return !this.supported;
+        },
+        async register() {
+            this.error = '';
+            this.busy = true;
+            try {
+                const json = await this.$wire.passkeyRegisterOptions();
+                if (!json) {
+                    return;
+                }
+                const response = await startRegistration({ optionsJSON: JSON.parse(json) });
+                await this.$wire.passkeyRegister(JSON.stringify(response));
+            } catch (e) {
+                this.error = e && e.name === 'InvalidStateError' ? this.existsText : this.failedText;
+            } finally {
+                this.busy = false;
+            }
+        },
+    }));
 });
+
+// An expired session (419, e.g. after a long pause without "Atcerēties šo telefonu") reloads the page instead of
+// Livewire's English "This page has expired" dialog: a remembered device is signed in again silently, others land on
+// the login page in their language.
+document.addEventListener('livewire:init', () => {
+    window.Livewire.hook('request', ({ fail }) => {
+        fail(({ status, preventDefault }) => {
+            if (status === 419) {
+                preventDefault();
+                window.location.reload();
+            }
+        });
+    });
+});
+
+// wire:navigate feedback without Livewire's injected <style> (CSP): a CSS-only bar while the next page loads.
+document.addEventListener('livewire:navigate', () => document.documentElement.classList.add('is-navigating'));
+document.addEventListener('livewire:navigated', () => document.documentElement.classList.remove('is-navigating'));
+
+// LV/RU toggle: post the page the person is ON (path + query, never the #fragment, which may hold a code) — the
+// server-rendered value can be stale after wire:navigate. The server re-validates it (App\Support\SafeReturn).
+document.addEventListener('submit', (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.hasAttribute('data-locale-form')) {
+        return;
+    }
+    const input = form.querySelector('input[name="return"]');
+    if (input) {
+        input.value = window.location.pathname + window.location.search;
+    }
+}, true);
 
 // Service worker: static assets only (HTML and /livewire/* are NetworkOnly).
 if ('serviceWorker' in navigator && window.location.protocol === 'https:') {

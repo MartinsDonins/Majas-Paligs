@@ -117,7 +117,7 @@ final class InviteBatchPage extends Page
         abort_unless(self::canAccess(), 403);
         $count = ApartmentInvite::query()->whereNull('revoked_at')->whereIn('apartment_id', $this->selectedApartmentIds())->update(['revoked_at' => now()]);
         AuditLogger::record('invite.revoke', ['invite_scope', $this->scope], data: ['count' => $count]);
-        Notification::make()->success()->title(__('admin.invites.revoked', ['count' => $count]))->send();
+        Notification::make()->success()->title(trans_choice('admin.invites.revoked', $count, ['count' => $count]))->send();
     }
 
     /**

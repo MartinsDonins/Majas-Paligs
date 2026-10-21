@@ -22,22 +22,22 @@ final readonly class GeneratorInput
         public NumberingDirection $direction = NumberingDirection::Ltr,
     ) {
         if ($sections === []) {
-            throw new InvalidArgumentException('At least one section is required.');
+            throw new InvalidArgumentException(__('admin.generator.err_sections'));
         }
 
         $numbers = array_map(static fn (array $s): int => (int) $s['number'], $sections);
         if (count($numbers) !== count(array_unique($numbers))) {
-            throw new InvalidArgumentException('Section numbers must be unique.');
+            throw new InvalidArgumentException(__('admin.generator.err_sections'));
         }
 
         foreach ($sections as $s) {
             if ((int) $s['floors'] < 1 || (int) $s['floors'] > 30) {
-                throw new InvalidArgumentException('Floors must be between 1 and 30.');
+                throw new InvalidArgumentException(__('admin.generator.err_floors'));
             }
         }
 
         if ($firstApartmentNo < 1) {
-            throw new InvalidArgumentException('First apartment number must be positive.');
+            throw new InvalidArgumentException(__('admin.generator.err_first_no'));
         }
     }
 
