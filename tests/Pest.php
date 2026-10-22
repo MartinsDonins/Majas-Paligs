@@ -663,3 +663,4 @@ function openPath(object $page, string $path): void
  * ---- Round 2 helpers (roster + CSV import pipeline) ----
  */
 require_once __DIR__.'/Support/RosterHelpers.php';
+require_once __DIR__.'/Support/McpHelpers.php';

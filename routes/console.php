@@ -28,3 +28,6 @@ Schedule::command('prune:role-invitations')->dailyAt('04:50')->withoutOverlappin
 // Round 2 — CSV import staging (24 h) and the resident roster (moved out + 30 d), majas_retention.
 Schedule::command('prune:imports')->hourly()->withoutOverlapping();
 Schedule::command('prune:roster')->dailyAt('04:55')->withoutOverlapping();
+
+// Round 3 — scheduler heartbeat for the MCP `app_status` tool + 30-day pruning of the PII-free error summaries (majas_app).
+Schedule::command('ops:heartbeat')->everyMinute()->withoutOverlapping();

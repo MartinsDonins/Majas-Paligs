@@ -133,7 +133,7 @@ it('attributes an officer\'s vehicle approval to the officer role, not "Sistēma
     inBuilding($b, fn () => app(VehicleRegistry::class)->activate($officer, $vehicle));
 
     $actors = inBuilding($b, fn () => AuditEntry::query()->whereIn('action', ['vehicle.declare', 'vehicle.activate'])->pluck('actor_role', 'action')->all());
-    expect($actors)->toBe(['vehicle.declare' => 'self', 'vehicle.activate' => 'parking_officer']);
+    expect(collect($actors)->sortKeys()->all())->toBe(['vehicle.activate' => 'parking_officer', 'vehicle.declare' => 'self']);
 });
 
 it('accepts the deletion word without the long vowel (DZEST)', function (): void {

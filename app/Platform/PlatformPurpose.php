@@ -36,4 +36,20 @@ enum PlatformPurpose: string
      * step-up (documented exception to "never self-approve", docs/SECURITY.md; FIRSTRUN-001).
      */
     case SelfLink = 'self_link';
+
+    /** MCP read tools (round 3, ADR 0008): counts, statuses and masked hints of one building — never raw PII. */
+    case McpRead = 'mcp_read';
+
+    /** MCP write tools (role grant / revoke, invitations, whitelisted settings, recompute): write token + confirm. */
+    case McpWrite = 'mcp_write';
+
+    /** Purposes an MCP bearer token may use instead of a session step-up (PlatformBuildingContext). */
+    public function mcpLevel(): ?string
+    {
+        return match ($this) {
+            self::McpRead, self::StructureView => 'read',
+            self::McpWrite, self::Generate, self::RoleBootstrap => 'write',
+            default => null,
+        };
+    }
 }

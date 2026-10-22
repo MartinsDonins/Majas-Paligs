@@ -113,3 +113,10 @@
 - 🆕 Iestatīt žurnālu glabāšanu: Coolify/Docker piekļuves žurnāli 14 dienas, GlitchTip notikumi 30 dienas (PLANNING §5).
 - 🆕 E-pasta sūtītājs (ES transakciju pakalpojums) + SPF/DKIM/DMARC `p=reject` sūtīšanas apakšdomēnam.
 - 🆕 Atslēgu (APP_KEY, PLATE_ENC_KEY, PLATE_INDEX_KEY, INVITE_KEY) bezsaistes glabāšana (escrow).
+
+## Kārta 3 — MCP savienojums (docs/MCP.md, ADR 0008)
+- 🆕 Pēc 0.0.31 izvietošanas: `/admin/platform` → **MCP piekļuve** → izveidot tokenu (lasīšanai; rakstīšanai — ar
+  termiņu ≤ 30 dienas), saglabāt to paroļu pārvaldniekā un datorā palaist
+  `claude mcp add --transport http kaimini https://kaimini.coredigify.com/mcp --header "Authorization: Bearer <token>"`.
+  Pārbaude: Claude Code jautājums "Kāds ir Kaimiņos app_status?" (plānotājs "healthy", nav gaidošu migrāciju). Tokenu
+  nekad nelīmēt čatā vai repozitorijā. Blocks: nothing (MCP-006).

@@ -1452,5 +1452,11 @@
     "audit.action.gate.roster.closed": "Iedzīvotāju saraksts slēgts",
     "audit.subject.building_document": "Mājas dokuments",
     "audit.subject.document_template": "Dokumenta paraugs",
-    "audit.subject.role_invitation": "Uzaicinājums komandā"
+    "audit.subject.role_invitation": "Uzaicinājums komandā",
+
+    "audit.action.mcp.call": "MCP rīka izsaukums",
+    "audit.action.mcp.token.create": "MCP tokens izveidots",
+    "audit.action.mcp.token.revoke": "MCP tokens atsaukts",
+    "audit.action.heating.recompute": "Siltuma kopsavilkums pārrēķināts",
+    "audit.subject.mcp_token": "MCP tokens"
 }

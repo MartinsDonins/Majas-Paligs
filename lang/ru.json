@@ -1452,5 +1452,11 @@
     "audit.action.gate.roster.closed": "Список жителей закрыт",
     "audit.subject.building_document": "Документ дома",
     "audit.subject.document_template": "Образец документа",
-    "audit.subject.role_invitation": "Приглашение в команду"
+    "audit.subject.role_invitation": "Приглашение в команду",
+
+    "audit.action.mcp.call": "Вызов инструмента MCP",
+    "audit.action.mcp.token.create": "Токен MCP создан",
+    "audit.action.mcp.token.revoke": "Токен MCP отозван",
+    "audit.action.heating.recompute": "Сводка по теплу пересчитана",
+    "audit.subject.mcp_token": "Токен MCP"
 }
