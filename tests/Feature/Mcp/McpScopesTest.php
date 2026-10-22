@@ -33,11 +33,15 @@ it('runs read tools with a read token', function (): void {
         ->and(count($result['data']['structure']['sections']))->toBe(2);
 });
 
-it('refuses every write tool with a read token', function (string $tool, array $args): void {
+it('refuses every write tool with a read token and changes nothing', function (string $tool, array $args): void {
+    $settings = $this->b->settings->toArray();
+
     $result = mcpTool($this->read, $tool, ['building' => 'mcp-scope-house', 'confirm' => true] + $args);
 
     expect($result['isError'])->toBeTrue()
-        ->and($result['text'])->toContain('"write" scope');
+        ->and($result['text'])->toContain('"write" scope')
+        ->and(inBuilding($this->b, fn () => BuildingRole::query()->count()))->toBe(0)
+        ->and($this->b->refresh()->settings->toArray())->toBe($settings);
 })->with([
     'grant_role' => ['grant_role', ['user_id' => 1, 'role' => 'building_admin']],
     'revoke_role' => ['revoke_role', ['role_id' => 1]],
@@ -59,7 +63,7 @@ it('refuses a write without confirm=true and changes nothing', function (mixed $
     expect($result['isError'])->toBeTrue()
         ->and($result['text'])->toContain('"confirm": true')
         ->and(inBuilding($this->b, fn () => BuildingRole::query()->count()))->toBe(0);
-})->with(['absent' => ['absent'], 'false' => [false], 'string "true"' => ['true'], 'one' => [1]]);
+})->with(['absent' => ['absent'], 'false' => [false], 'string "true"' => ['true'], 'one' => [1], 'string "yes"' => ['yes']]);
 
 it('writes with a write token and confirm=true', function (): void {
     $result = mcpTool($this->write, 'grant_role', ['building' => 'mcp-scope-house', 'user_id' => $this->admin->id, 'role' => 'building_admin', 'confirm' => true]);

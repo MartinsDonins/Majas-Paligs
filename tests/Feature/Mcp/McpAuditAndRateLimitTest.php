@@ -81,7 +81,7 @@ it('limits calls per token per minute', function (): void {
         mcpRpc($this->read, 'tools/list')->assertOk();
     }
 
-    mcpRpc($this->read, 'tools/list')->assertStatus(429);
+    mcpRpc($this->read, 'tools/list')->assertStatus(429)->assertHeader('Retry-After');
     // Another token of the same admin has its own budget.
     mcpRpc($this->write, 'tools/list')->assertOk();
 });

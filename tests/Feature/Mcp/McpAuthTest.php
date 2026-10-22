@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Auth\SessionEpoch;
 use App\Mcp\Http\AuthenticateMcpToken;
 use App\Models\McpToken;
 use Illuminate\Support\Str;
 
 /*
  * MCP server authentication (round 3, docs/MCP.md, ADR 0008): bearer tokens of a platform_admin only, one neutral 401
- * for every bad token, no session, failure throttle.
+ * for every bad token, no session, failure throttle. Revoked / expired / stale / demoted / tombstoned tokens: the
+ * one-body-for-all 401 contract in McpServerTest.
  */
 
 beforeEach(function (): void {
@@ -53,21 +53,6 @@ it('refuses a missing, malformed, unknown or wrong token with the same 401', fun
         ->and($response->headers->get('Cache-Control'))->toContain('no-store');
 })->with(['missing' => [null], 'malformed' => ['malformed'], 'unknown' => ['unknown'], 'wrong secret' => ['wrong_secret']]);
 
-it('refuses revoked, expired and stale tokens and tokens of an account that is no longer platform_admin', function (string $case): void {
-    $id = mcpTokenId($this->token);
-
-    match ($case) {
-        'revoked' => McpToken::query()->whereKey($id)->update(['revoked_at' => now()]),
-        'expired' => McpToken::query()->whereKey($id)->update(['expires_at' => now()->subMinute()]),
-        // Any credential change (TOTP, passkey removal, "Aizmirst ierīces", reset-mfa, role revoke) ends the token.
-        'epoch' => SessionEpoch::bump($this->admin),
-        'demoted' => $this->admin->forceFill(['platform_role' => null])->save(),
-        'tombstone' => $this->admin->forceFill(['anonymised_at' => now()])->save(),
-    };
-
-    mcpRpc($this->token, 'tools/list')->assertStatus(401);
-})->with(['revoked', 'expired', 'epoch', 'demoted', 'tombstone']);
-
 it('never accepts a token of an ordinary account', function (): void {
     $resident = makeUser('resident-mcp@example.test');
     $token = mcpToken($resident);
@@ -84,6 +69,7 @@ it('creates no session and sets no cookie', function (): void {
 
 it('does not accept the session cookie of a logged-in platform admin instead of a token', function (): void {
     $this->actingAs($this->admin);
+    steppedUp($this->admin, 'totp'); // not even a stepped-up session
 
     mcpRpc(null, 'tools/list')->assertStatus(401);
 });

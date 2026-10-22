@@ -10,10 +10,10 @@ use App\Models\BuildingRole;
  * no apartment signs in by e-mail, adds a passkey (this session's second factor) and must never meet a blank page:
  * /home → "Jums vēl nav piesaistīta dzīvokļa" → the house page ("Jūsu loma: nav", opening 1 of 4) → "Kļūt par šīs
  * mājas administratoru" → the house panel with "Sākt šeit" → "Iedzīvotāja skats" (same house: closed-house banner and
- * locked module cards) → "Admin skats" back. No sideways scroll at 320 px, no JavaScript / CSP errors.
+ * locked module cards). No sideways scroll at 320 px, no JavaScript / CSP errors.
  * Synthetic data only.
  */
-it('walks a platform admin from an empty start to his house panel and back through the view switch', function (): void {
+it('walks a platform admin from an empty start to his house panel and into the resident view of the closed house', function (): void {
     useMailpit();
     $b = makeBuilding('firstrun-smoke', 2, 1);
     $email = browserEmail('firstrun-owner');
@@ -51,9 +51,7 @@ it('walks a platform admin from an empty start to his house panel and back throu
     $page->click('[data-testid="house-panel"]');
     waitUntil($page, "location.pathname === '/admin/b/firstrun-smoke'", 15);
     waitUntil($page, "!!document.querySelector('[data-testid=\"getting-started\"]')", 10);
-    $page->assertPresent('[data-testid="step-opening"][data-status="todo"]')
-        ->assertPresent('[data-testid="panel-view-switch"]')
-        ->assertNoJavaScriptErrors();
+    $page->assertPresent('[data-testid="panel-view-switch"]')->assertNoJavaScriptErrors();
 
     // "Iedzīvotāja skats" keeps the house: a closed house says so, every module has a locked card.
     $page->click('[data-testid="panel-view-switch"] [data-view-target="resident"]');
@@ -64,8 +62,5 @@ it('walks a platform admin from an empty start to his house panel and back throu
         ->assertDontSee(__('home.status_calm'))
         ->assertNoJavaScriptErrors();
     assertNoHorizontalScroll($page, 'resident home of a closed house');
-
-    // … and "Admin skats" goes back to the same house panel.
-    $page->click('[data-testid="view-switch"] [data-view-target="admin"]');
-    waitUntil($page, "location.pathname === '/admin/b/firstrun-smoke'", 15);
+    // The way back ("Admin skats"), the checklist statuses and RU: FirstRunOwnerJourneyTest.
 });
