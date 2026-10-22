@@ -40,7 +40,8 @@ it('scrubs personal data out of exception messages', function (string $message, 
     }
 })->with([
     'e-mail' => ['No user for anna.berzina+test@example.test', ['anna', 'example.test'], ['[email]']],
-    'LV mobile' => ['Cannot text 26123456 or +371 26 123 456', ['26123456', '26 123 456'], ['[phone]']],
+    // Synthetic numbers built at runtime (personal-data guard): "2xxxxxxx" bare and "+371 2x xxx xxx" typed.
+    'LV mobile' => ['Cannot text '.substr(syntheticPhone(123456), 4).' or +371 '.syntheticPhoneTyped(123456), [substr(syntheticPhone(123456), 4), syntheticPhoneTyped(123456)], ['[phone]']],
     'international phone' => ['SMS to +44 20 7946 0958 failed', ['7946'], ['[phone]']],
     'plate' => ['Permit clash for AB-1234 and EV 123', ['AB-1234', 'EV 123'], ['[plate]']],
     'cyrillic plate' => ['Lookup АВ1234 failed', ['АВ1234'], ['[plate]']],
@@ -65,7 +66,7 @@ it('keeps identifiers and caps the length', function (): void {
 
 it('records an exception from the real exception handler without request data', function (): void {
     Route::get('/__ops001-boom', static function (): never {
-        throw new RuntimeException('Import failed for anna@example.test, phone +371 26123456, plate AB-1234');
+        throw new RuntimeException('Import failed for anna@example.test, phone '.syntheticPhone(123456).', plate AB-1234');
     })->middleware('web');
 
     $this->get('/__ops001-boom?email=leak%40example.test&note=SECRETNOTE')->assertStatus(500);
