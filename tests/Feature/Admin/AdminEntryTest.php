@@ -58,7 +58,14 @@ it('lists only buildings where the user has a role — never a membership-only h
 
     $this->actingAs($user)->get('/admin')->assertRedirect('/admin/b/entry-a');
 
-    $this->actingAs($platform)->get('/admin')->assertRedirect('/admin/platform');
+    // FIRSTRUN-001: a platform_admin always gets the chooser (it used to jump to the empty platform dashboard); houses
+    // without a role of his are offered on the platform house page, never as a panel link.
+    $this->actingAs($platform)->get('/admin')->assertOk()
+        ->assertSee('data-admin-target="platform"', false)
+        ->assertDontSee('data-admin-target="entry-a"', false)
+        ->assertSee('data-admin-claim="entry-a"', false)
+        ->assertSee('data-admin-claim="entry-b"', false)
+        ->assertSee(__('start.house.claim_button'));
 });
 
 it('offers the platform next to the houses for a platform_admin with a building role', function (): void {
@@ -68,7 +75,9 @@ it('offers the platform next to the houses for a platform_admin with a building 
     $this->actingAs($platform)->get('/admin')->assertOk()
         ->assertSee('data-admin-target="platform"', false)
         ->assertSee('data-admin-target="entry-a"', false)
-        ->assertDontSee('data-admin-target="entry-b"', false);
+        ->assertDontSee('data-admin-target="entry-b"', false)
+        ->assertDontSee('data-admin-claim="entry-a"', false)
+        ->assertSee('data-admin-claim="entry-b"', false);
 });
 
 it('sends someone without any administration role home with a message', function (): void {

@@ -29,6 +29,12 @@
                 </div>
             @else
                 <p class="mt-2 text-sm muted">{{ __('elder.approvals.self') }}</p>
+                @if ($teamUrl)
+                    <p class="mt-1 text-sm">{{ __('start.self.who_approves') }}</p>
+                    <a href="{{ $teamUrl }}" class="btn mt-2" data-testid="invite-elder">
+                        <x-lucide-user-plus class="size-5" aria-hidden="true" /> {{ __('start.self.invite_elder', ['n' => $m->apartment->section->number]) }}
+                    </a>
+                @endif
             @endif
         </article>
     @empty

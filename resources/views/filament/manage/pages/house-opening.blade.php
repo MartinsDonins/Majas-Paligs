@@ -146,6 +146,11 @@
                                 <p class="text-sm">{{ __('opening.dpa.recorded', ['ref' => $settings->dpaRef ?? '—', 'date' => $settings->dpaSignedAt ?? '—']) }}</p>
                             @elseif ($status === 'waiting')
                                 <p class="text-sm">{{ __('opening.dpa.waiting') }}</p>
+                                {{-- FIRSTRUN-001 (P1): when the house admin is also CoreDigify's platform admin, the record step is one
+                                     click away (it stays on the platform side, PlatformBuildingContext purpose opening_review). --}}
+                                @if (auth()->user()?->isPlatformAdmin())
+                                    <div><x-filament::button size="sm" tag="a" :href="\App\Filament\Platform\Pages\OpeningRequestsPage::getUrl(panel: 'platform')" icon="heroicon-o-check-badge" data-testid="record-dpa-platform">{{ __('opening.requests.record') }}</x-filament::button></div>
+                                @endif
                             @elseif ($agreement !== null && ($module === null || in_array($module, $agreement->requestedScope(), true)))
                                 <p class="text-sm">{{ __('opening.dpa.in_progress', ['status' => $agreement->status->label()]) }}</p>
                                 <div><x-filament::button size="sm" color="gray" wire:click="edit('{{ $agreement->id }}')" icon="heroicon-o-pencil-square">{{ __('opening.document.open') }}</x-filament::button></div>

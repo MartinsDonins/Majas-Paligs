@@ -24,4 +24,16 @@ enum PlatformPurpose: string
 
     /** "Atvēršanas pieprasījumi": read a house's sent DPA / annex (PDF preview) and record it (ROUND2-SPEC §3.6). */
     case OpeningReview = 'opening_review';
+
+    /**
+     * The platform house page (/admin/houses/{slug}, first-run): one house's opening status, structure counts and the
+     * platform admin's OWN role / membership there — no resident data (FIRSTRUN-001).
+     */
+    case HouseOverview = 'house_overview';
+
+    /**
+     * "Piesaistīt mani dzīvoklim": a platform_admin links HIMSELF to an apartment, approved at once under a strong
+     * step-up (documented exception to "never self-approve", docs/SECURITY.md; FIRSTRUN-001).
+     */
+    case SelfLink = 'self_link';
 }

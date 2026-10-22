@@ -40,6 +40,12 @@ final class ListResidentContacts extends ListRecords
         parent::mount();
     }
 
+    /** FIRSTRUN-001 (P1): the heading said "kontakti" (plural model label) while the menu says "Iedzīvotāju saraksts". */
+    public function getTitle(): string
+    {
+        return __('roster.title');
+    }
+
     public function getSubheading(): ?string
     {
         if (! RosterGate::isOpen()) {

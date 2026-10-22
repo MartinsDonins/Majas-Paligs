@@ -81,7 +81,7 @@ final class TeamPage extends Page
     }
 
     /**
-     * @return list<array{id: int, role: BuildingRoleType, section: ?int, holder: string, protected: bool, expires: string, self: bool, canRemove: bool, canReconfirm: bool}>
+     * @return list<array{id: int, role: BuildingRoleType, section: ?int, holder: string, protected: bool, expires: string, self: bool, selfGranted: bool, canRemove: bool, canReconfirm: bool}>
      */
     public function holders(): array
     {
@@ -106,6 +106,8 @@ final class TeamPage extends Page
                     'protected' => (int) ($u->passkeys_count ?? 0) > 0 || $u->hasTotp(),
                     'expires' => $r->expires_at->setTimezone('Europe/Riga')->format('d.m.Y'),
                     'self' => (int) $r->user_id === $me,
+                    // FIRSTRUN-001: "Kļūt par šīs mājas administratoru" — a platform admin granted the role to himself.
+                    'selfGranted' => $r->granted_by !== null && (int) $r->granted_by === (int) $r->user_id,
                     'canRemove' => Gate::allows('revoke', $r),
                     'canReconfirm' => Gate::allows('reconfirm', $r),
                 ];

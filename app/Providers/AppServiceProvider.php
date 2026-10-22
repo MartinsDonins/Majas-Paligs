@@ -63,6 +63,8 @@ final class AppServiceProvider extends ServiceProvider
         $this->app->make('translator')->addJsonPath(lang_path('admin'));
         // Round 2 roster + CSV import strings (lang/roster/{lv,ru}.json, same parity check).
         $this->app->make('translator')->addJsonPath(lang_path('roster'));
+        // First-run strings (FIRSTRUN-001: view switch, platform house page, empty / locked states, "Sākt šeit").
+        $this->app->make('translator')->addJsonPath(lang_path('start'));
 
         // Filament shows labels exactly as translated: its default English Title Case turned "Kāpņu telpas" into
         // "Kāpņu Telpas" and "Сообщения о тепле" into "Сообщения О Тепле" (QA 2026-10-20).

@@ -124,7 +124,8 @@ it('never lets a platform_admin without a building role read the roster', functi
         ->and(inBuilding($this->b, fn () => $platform->can('view', $this->own)))->toBeFalse();
 
     steppedUp($platform, 'totp');
-    expect($this->actingAs($platform)->get('/admin/b/vis-house/roster')->getStatusCode())->toBeIn([403, 404]);
+    // FIRSTRUN-001: instead of a bare 403 he lands on the platform house page (no roster data there).
+    $this->actingAs($platform)->get('/admin/b/vis-house/roster')->assertRedirect(route('admin.house', ['building' => 'vis-house']));
 });
 
 it('filters the list (stairwell, BIS, no contact) and shows the counts header', function (): void {

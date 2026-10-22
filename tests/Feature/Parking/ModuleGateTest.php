@@ -79,9 +79,12 @@ it('L0: Filament parking resources are unavailable, the preparation page and the
     $officer = parkingOfficer($b);
     steppedUp($officer);
 
-    foreach (['vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports', 'parking-analytics'] as $page) {
-        $this->actingAs($officer)->get("/admin/b/gate-l0-panel/{$page}")->assertForbidden();
+    // FIRSTRUN-001: the staff lists send parking staff to "Stāvvietas statuss" (what is missing) instead of a bare 403;
+    // no list data is rendered either way.
+    foreach (['vehicles', 'permits', 'sightings', 'parking-officer-tasks', 'parking-exports'] as $page) {
+        $this->actingAs($officer)->get("/admin/b/gate-l0-panel/{$page}")->assertRedirect(url('/admin/b/gate-l0-panel/parking-status'));
     }
+    $this->actingAs($officer)->get('/admin/b/gate-l0-panel/parking-analytics')->assertForbidden();
     // ROUND2-SPEC §6.3 / AC-R2-16: below L1 the import page explains what is missing instead of offering an upload.
     $this->actingAs($officer)->get('/admin/b/gate-l0-panel/permit-import')->assertOk()
         ->assertSee(__('import.gate.title'))

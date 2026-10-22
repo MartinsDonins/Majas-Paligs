@@ -20,9 +20,11 @@ use App\Http\Controllers\PwaController;
 use App\Http\Controllers\RosterExportController;
 use App\Http\Controllers\RosterExtractController;
 use App\Http\Controllers\SightingPhotoController;
+use App\Http\Controllers\ViewSwitchController;
 use App\Http\Middleware\EnsurePinChanged;
 use App\Http\Middleware\EnsureSessionEpoch;
 use App\Http\Middleware\PreventRequestForgery;
+use App\Livewire\Admin\PlatformHouse;
 use App\Livewire\Auth\EmailLogin;
 use App\Livewire\Auth\PinLogin;
 use App\Livewire\Auth\SetNewPin;
@@ -30,6 +32,7 @@ use App\Livewire\Auth\StepUp;
 use App\Livewire\Elder\Panel as ElderPanel;
 use App\Livewire\Heating\Grid as HeatingGrid;
 use App\Livewire\Home\Dashboard;
+use App\Livewire\Home\Start;
 use App\Livewire\Me\Apartment as MeApartment;
 use App\Livewire\Me\PasskeyOffer;
 use App\Livewire\Me\Privacy as MePrivacy;
@@ -102,6 +105,11 @@ Route::any('/platform/{rest?}', LegacyPanelRedirect::class)->where('rest', '.*')
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/admin', AdminEntryController::class)->name('admin.entry');
+    // FIRSTRUN-001: the platform admin's page for one house (why it is empty for him + "Kļūt par administratoru" /
+    // "Piesaistīt mani dzīvoklim"); the "Admin skats ⇄ Iedzīvotāja skats" toggle; "no apartment yet".
+    Route::get('/admin/houses/{building:slug}', PlatformHouse::class)->name('admin.house');
+    Route::get('/view/{mode}', ViewSwitchController::class)->whereIn('mode', ['admin', 'resident'])->name('view.switch');
+    Route::get('/start', Start::class)->name('start');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::get('/login/pin/new', SetNewPin::class)->name('login.pin.new');
     Route::get('/home', PostLoginRedirect::class)->name('home.redirect');

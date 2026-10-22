@@ -6,14 +6,18 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\MembershipStatus;
 use App\Models\User;
+use App\Support\ViewSwitch;
 use App\Tenancy\Data\MembershipData;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * GET /home: sends the user to their building (approved membership first, then pending, then a role), the
- * platform panel for platform admins, or /join when nothing is linked yet. Allow-listed UserScopedQuery caller.
+ * GET /home: sends the user to their building (approved membership first, then pending, then a role), or /join when
+ * nothing is linked yet. FIRSTRUN-001: an administrator whose last view was "Admin skats" (cookie mp_view) goes back
+ * to /admin; a platform_admin without any house link gets the "no apartment yet" page /start (buttons to the houses
+ * and the administration) — no longer the platform panel, whose links all led back here. Allow-listed
+ * UserScopedQuery caller.
  */
 final class PostLoginRedirect
 {
@@ -23,6 +27,11 @@ final class PostLoginRedirect
         $user = $request->user();
         // A message meant for the page after /home (e.g. "no administration role" from /admin) survives this hop.
         $request->session()->reflash();
+
+        if (ViewSwitch::remembered($request) === ViewSwitch::ADMIN && ViewSwitch::canSwitch($user)) {
+            return redirect()->route('admin.entry');
+        }
+
         $scoped = UserScopedQuery::for($user);
 
         $memberships = $scoped->memberships();
@@ -43,7 +52,7 @@ final class PostLoginRedirect
         }
 
         if ($user->isPlatformAdmin()) {
-            return redirect('/admin/platform');
+            return redirect()->route('start');
         }
 
         // Rejected or ended: say so (with the reason the admin gave) instead of the generic "no apartment yet".

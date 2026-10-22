@@ -54,6 +54,12 @@ final class ApprovalQueue extends Component
             ->limit(100)
             ->get();
 
-        return view('livewire.elder.approval-queue', ['pending' => $pending, 'me' => $user->id]);
+        // FIRSTRUN-001: an administrator's own request cannot be approved by himself — point him to whoever can
+        // (an elder of that stairwell, invited on the Komanda page) instead of a dead end.
+        return view('livewire.elder.approval-queue', [
+            'pending' => $pending,
+            'me' => $user->id,
+            'teamUrl' => $isAdmin ? url('/admin/b/'.$building->slug.'/team') : null,
+        ]);
     }
 }

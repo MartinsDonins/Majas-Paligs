@@ -187,6 +187,36 @@ Review fixes 0.0.12:
 - `RetentionTable` is the single source of the periods shown in the notice and DPA annex B; a test checks every row
   against its prune command.
 
+### First run: platform house page, self-link, view switch (FIRSTRUN-001)
+- **Platform house page** `/admin/houses/{slug}` (resident shell, strict CSP, `no-store`): platform_admin only (404 for
+  everyone else), fresh second factor. It reads ONE house inside `PlatformBuildingContext` (purpose `house_overview`,
+  platform-chain entry per page open): gate status, structure counts, open DPA requests and the platform admin's OWN
+  role / membership — no resident data. The `/admin` chooser, `/start` and the platform dashboard ("Sākt šeit") list
+  every house through `BuildingIterator` with the same non-personal summary (`App\Platform\PlatformHouses`). A
+  platform_admin who opens `/admin/b/{slug}` or `/b/{slug}` of a house where he holds no role is redirected to that page
+  instead of a 403 / 404 — he may know every house, so there is no enumeration risk; everybody else keeps the 404.
+  The Filament switcher still lists only houses where the person holds a role (ROUND2-SPEC §1.3).
+- **"Kļūt par šīs mājas administratoru"**: the platform admin grants building_admin to HIMSELF only, after a strong
+  step-up (passkey / TOTP of this session), inside `PlatformBuildingContext` (purpose `role_bootstrap`); audited
+  `role.grant` (house chain) + `platform.self_admin` (platform chain); the house's other administrators are told; the
+  Komanda page marks the role "Piešķīra sev (platforma)".
+- **"Piesaistīt mani dzīvoklim" — documented exception to "never self-approve":** a platform_admin may link HIMSELF to
+  one apartment of a house and the membership is APPROVED at once (`approved_by` = the member). Reason: a house's first
+  administrator is usually also its only one, and nobody else could approve him (owner's production run, 2026-10-22).
+  Limits: platform_admin only, strong step-up, own account only, one active membership per house, gate L-core must be
+  open (the ApartmentMembership model guard still applies), purpose `self_link` on the platform chain +
+  `membership.self_link` (reason `self_approved`) on the house chain, other approved members of the apartment are
+  notified, and Dalības shows "Pašapstiprināts". A building_admin who is NOT platform_admin can request his own
+  apartment without a letter (fresh second factor), but it stays **pending** — another administrator or the stairwell
+  elder approves it; the approval policy (`ApartmentMembershipPolicy::canDecide`) is unchanged.
+- **View switch** "Iedzīvotāja skats ⇄ Admin skats": shown only to someone with a manage role or platform_admin.
+  `GET /view/{admin|resident}?b={slug}` remembers the choice in the encrypted, HttpOnly `mp_view` cookie (1 year) and
+  redirects only to targets the person may open anyway (`canAccessTenant`, platform house page, `/admin`, `/home`); a
+  malformed or unknown slug falls back to the generic entry. The cookie grants nothing.
+- **Closed modules** answer 404 as before (`module:` middleware), but a member sees why and who opens it; only the
+  house's building_admin gets the link to the fix. At the FIRST L-core opening, heating + outages are switched on
+  (both inside the DPA scope and notice already) unless the admin chose one before; audited `opening.first_open`.
+
 ## Client IP (A04/A07)
 - nginx's realip module is the ONLY place the client IP is resolved; Laravel trusts proxies for
   `X-Forwarded-Proto/Port` only — never for the IP.

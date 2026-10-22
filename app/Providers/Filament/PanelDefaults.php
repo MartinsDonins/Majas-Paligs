@@ -10,7 +10,10 @@ use App\Http\Middleware\EnsureSessionEpoch;
 use App\Http\Middleware\PreventRequestForgery;
 use App\Http\Middleware\SessionLifetime;
 use App\Http\Middleware\SetLocale;
+use App\Models\Building;
+use App\Support\ViewSwitch;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\FontProviders\LocalFontProvider;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -44,6 +47,8 @@ final class PanelDefaults
             // an http:// URL that CSP blocked on every page.
             ->favicon('/icons/icon.svg')
             ->defaultAvatarProvider(InitialsAvatarProvider::class)
+            // "Iedzīvotāja skats | Admin skats" (FIRSTRUN-001) before LV/RU — same toggle as the resident top bar.
+            ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, static fn (): View => view('filament.view-switch'))
             ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, static fn (): View => view('filament.language-switch'))
             ->renderHook(PanelsRenderHook::SCRIPTS_AFTER, static fn (): View => view('filament.session-expired'))
             // Passkeys, trusted devices and the authenticator app live in the resident shell (/me/security).
@@ -51,7 +56,8 @@ final class PanelDefaults
                 Action::make('residentApp')
                     ->label(static fn (): string => __('admin.entry.back_to_app'))
                     ->icon(Heroicon::OutlinedHome)
-                    ->url(static fn (): string => route('home.redirect')),
+                    // Through the view switch: remembers "Iedzīvotāja skats" and keeps the house (FIRSTRUN-001).
+                    ->url(static fn (): string => ViewSwitch::url(ViewSwitch::RESIDENT, ($t = Filament::getTenant()) instanceof Building ? $t : null)),
                 Action::make('security')
                     ->label(static fn (): string => __('me.security.link'))
                     ->icon(Heroicon::OutlinedFingerPrint)

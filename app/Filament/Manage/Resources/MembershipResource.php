@@ -12,6 +12,7 @@ use App\Models\Apartment;
 use App\Models\ApartmentMembership;
 use App\Models\User;
 use App\Services\Memberships\MembershipService;
+use App\Services\Memberships\SelfLinkService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
@@ -78,6 +79,8 @@ final class MembershipResource extends Resource
                 TextColumn::make('role')->label(__('admin.membership.role'))->formatStateUsing(fn (MembershipRole $state) => $state->label()),
                 TextColumn::make('status')->label(__('admin.membership.status'))
                     ->formatStateUsing(fn (MembershipStatus $state) => $state->label())
+                    // FIRSTRUN-001: a platform admin's own apartment link is approved by himself — say so in the list.
+                    ->description(fn (ApartmentMembership $record): ?string => SelfLinkService::isSelfApproved($record) ? __('start.self.approved_mark') : null)
                     ->badge()
                     ->color(fn (MembershipStatus $state) => match ($state) {
                         MembershipStatus::Approved => 'success',

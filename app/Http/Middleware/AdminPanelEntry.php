@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\Building;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
@@ -27,6 +28,15 @@ final class AdminPanelEntry extends Authenticate
 
         if ($user instanceof User && $request->is('admin/b') && ! $user->canAccessPanel(Filament::getCurrentOrDefaultPanel())) {
             throw new HttpResponseException(redirect()->route('admin.entry'));
+        }
+
+        // FIRSTRUN-001: a platform_admin opening a house panel where he holds no role got a bare 403 / 404. He may know
+        // every house (no enumeration risk), so explain on the platform house page and offer "Kļūt par administratoru".
+        if ($user instanceof User && $user->isPlatformAdmin() && preg_match('#^admin/b/([a-z0-9]+(?:-[a-z0-9]+)*)(?:/|$)#', $request->path(), $m) === 1) {
+            $building = Building::query()->where('slug', $m[1])->first();
+            if ($building !== null && ! $user->canAccessTenant($building)) {
+                throw new HttpResponseException(redirect()->route('admin.house', ['building' => $building->slug])->with('status', 'no_role_here'));
+            }
         }
 
         parent::authenticate($request, $guards);

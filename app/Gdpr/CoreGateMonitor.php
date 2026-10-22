@@ -6,6 +6,7 @@ namespace App\Gdpr;
 
 use App\Audit\AuditLogger;
 use App\Enums\BuildingRoleType;
+use App\Enums\BuildingStatus;
 use App\Enums\PlatformRole;
 use App\Models\Building;
 use App\Models\BuildingRole;
@@ -37,9 +38,28 @@ final class CoreGateMonitor
 
         // "Māja atvērta pieteikšanai" — the first opening date is kept for display (ROUND2-SPEC §3.3; not a gate input).
         if ($after->open && $building->settings->openingCompletedAt === null) {
-            $building->forceFill(['settings' => $building->settings->with([
-                'opening_completed_at' => now()->setTimezone('Europe/Riga')->toDateString(),
-            ])])->save();
+            $changes = ['opening_completed_at' => now()->setTimezone('Europe/Riga')->toDateString()];
+
+            // FIRSTRUN-001: L-core already covers heating + outages (DPA scope and notice), but both modules stayed off
+            // after the wizard and nothing said so — residents of an "open" house saw no heating or water at all. At
+            // the FIRST opening they are switched on unless the admin already chose one of them; a draft house becomes
+            // active. Both audited; switching off later stays in Iestatījumi › Moduļi.
+            $modules = $building->settings->modules;
+            $defaults = ! $modules['heating'] && ! $modules['outages'];
+            if ($defaults) {
+                $changes['modules'] = ['heating' => true, 'outages' => true];
+            }
+
+            $building->forceFill([
+                'settings' => $building->settings->with($changes),
+                'status' => $building->status === BuildingStatus::Draft ? BuildingStatus::Active : $building->status,
+            ])->save();
+
+            AuditLogger::record(
+                action: 'opening.first_open',
+                subject: $building,
+                data: ['modules_default' => $defaults, 'status' => $building->status->value],
+            );
         }
 
         $adminIds = BuildingRole::query()->current()->where('role', BuildingRoleType::BuildingAdmin->value)->pluck('user_id');

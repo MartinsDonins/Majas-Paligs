@@ -5,7 +5,18 @@
 
     <section aria-labelledby="home-h" class="stack">
         <h1 id="home-h" class="sr-only">{{ __('nav.home') }}</h1>
-        @if ($outages)
+        @if (! $houseOpen)
+            {{-- FIRSTRUN-001: a house that is not open yet never says "Šobrīd viss kārtībā". --}}
+            <x-ui.banner variant="warning" icon="lock" data-testid="house-closed">
+                <p class="font-semibold">{{ __('start.home.closed_title', ['done' => $coreProgress['done'], 'total' => $coreProgress['total']]) }}</p>
+                <p class="text-sm">{{ $isAdmin ? __('start.home.closed_admin') : __('start.home.closed_resident') }}</p>
+                @if ($isAdmin)
+                    <a href="{{ $wizardUrl }}" class="btn btn-primary mt-2" data-testid="house-closed-continue">
+                        <x-lucide-list-checks class="size-5" aria-hidden="true" /> {{ __('start.house.continue_opening') }}
+                    </a>
+                @endif
+            </x-ui.banner>
+        @elseif ($outages)
             <livewire:outage.banner :calm-line="true" />
         @else
             <div class="banner" role="status">
@@ -15,28 +26,54 @@
         @endif
     </section>
 
-    @if ($heating || $outages || $parking)
-        <section aria-label="{{ __('home.actions') }}" class="grid grid-cols-2 gap-3">
-            @if ($heating)
-                <x-ui.big-action icon="thermometer" :label="__('home.action.heating')" :href="route('building.heating', $building).($membership?->isApproved() ? '?report=1' : '')"
-                                 :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
-            @endif
-            @if ($outages)
-                <x-ui.big-action icon="droplet-off" :label="__('home.action.water')" :href="route('building.water', $building).($membership?->isApproved() ? '?report=1' : '')"
-                                 :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
-            @endif
-            @if ($parking)
-                <x-ui.big-action icon="car" :label="__('home.action.check_car')" :href="route('building.parking', $building)"
-                                 :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
-                <x-ui.big-action icon="badge-check" :label="__('home.action.permits')" :href="route('building.parking.mine', $building)" />
-            @endif
+    {{-- An administrator who holds a role here but no apartment yet (FIRSTRUN-001). --}}
+    @if ($canLinkSelf)
+        <section class="card stack" aria-labelledby="noapt-h" data-testid="home-no-apartment">
+            <h2 id="noapt-h" class="text-lg">{{ __('start.home.no_apartment_title') }}</h2>
+            <p class="text-sm">{{ __('start.home.no_apartment_body') }}</p>
+            <a href="{{ route('building.me', $building) }}#link-myself" class="btn btn-block">
+                <x-lucide-house class="size-5" aria-hidden="true" /> {{ __('start.link.button') }}
+            </a>
         </section>
-    @else
-        <x-ui.banner variant="info" icon="hammer">
-            <p class="font-semibold">{{ __('home.modules_soon_title') }}</p>
-            <p class="text-sm">{{ __('home.modules_soon_body') }}</p>
-        </x-ui.banner>
+    @elseif ($membership === null)
+        {{-- An elder / officer / volunteer without an apartment here: how to join with the letter's code. --}}
+        <section class="card stack" aria-labelledby="noapt-h" data-testid="home-no-apartment-join">
+            <h2 id="noapt-h" class="text-lg">{{ __('start.home.no_apartment_title') }}</h2>
+            <p class="text-sm">{{ __('start.no_home.join_body') }}</p>
+            <a href="{{ route('join') }}" class="btn btn-block">
+                <x-lucide-mail-plus class="size-5" aria-hidden="true" /> {{ __('start.no_home.join_button') }}
+            </a>
+        </section>
     @endif
+
+    {{-- Every module has a card (requirement: no blank home): open = the big action, closed = why + who opens it. --}}
+    <section aria-label="{{ __('home.actions') }}" class="grid grid-cols-2 gap-3" data-testid="module-tiles">
+        @foreach ($tiles as $tile)
+            @if ($tile['reason'] === null)
+                @if ($tile['key'] === 'heating')
+                    <x-ui.big-action icon="thermometer" :label="__('home.action.heating')" :href="route('building.heating', $building).($membership?->isApproved() ? '?report=1' : '')"
+                                     :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
+                @elseif ($tile['key'] === 'outages')
+                    <x-ui.big-action icon="droplet-off" :label="__('home.action.water')" :href="route('building.water', $building).($membership?->isApproved() ? '?report=1' : '')"
+                                     :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
+                @else
+                    <x-ui.big-action icon="car" :label="__('home.action.check_car')" :href="route('building.parking', $building)"
+                                     :hint="$membership?->isPending() ? __('home.action.read_only') : null" />
+                    <x-ui.big-action icon="badge-check" :label="__('home.action.permits')" :href="route('building.parking.mine', $building)" />
+                @endif
+            @else
+                <div class="card grid content-start gap-2" data-testid="tile-locked-{{ $tile['key'] }}" data-reason="{{ $tile['reason'] }}">
+                    {{-- Icon above the title: next to it, "Stāvvieta" broke mid-word at 320 px. --}}
+                    <x-lucide-lock class="size-6 text-(--color-fg-muted)" aria-hidden="true" />
+                    <p class="font-semibold [overflow-wrap:normal]">{{ __('start.module.'.$tile['key']) }}</p>
+                    <p class="text-sm muted">{{ __('start.locked.'.$tile['reason'].'.short') }}</p>
+                    @if (isset($fixUrls[$tile['key']]) && $tile['reason'] !== 'house_closed')
+                        <a href="{{ $fixUrls[$tile['key']] }}" class="text-sm font-semibold">{{ __('start.locked.'.$tile['reason'].'.fix') }}</a>
+                    @endif
+                </div>
+            @endif
+        @endforeach
+    </section>
 
     @if ($heating && ! $largeText)
         <livewire:heating.round-card />

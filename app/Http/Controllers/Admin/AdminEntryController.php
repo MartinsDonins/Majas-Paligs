@@ -8,6 +8,7 @@ use App\Enums\BuildingRoleType;
 use App\Gdpr\CoreGate;
 use App\Models\Building;
 use App\Models\User;
+use App\Platform\PlatformHouses;
 use App\Tenancy\Data\RoleData;
 use App\Tenancy\UserScopedQuery;
 use Illuminate\Contracts\View\View;
@@ -17,8 +18,9 @@ use Illuminate\Http\Request;
 /**
  * GET /admin — the one entry to administration (ROUND2-SPEC §1.1, ADMIN-005). Targets are the buildings where the
  * user holds a `manage` role (building_admin, section_elder, parking_officer) plus the platform panel for a
- * platform_admin. None → /home with a message; exactly one → straight there; otherwise a chooser card per target
- * (name, address, the user's roles, L-core summary). Allow-listed UserScopedQuery caller: the gate summary needs each
+ * platform_admin. None → /home with a message; exactly one (and not a platform_admin) → straight there; otherwise a
+ * chooser card per target (name, address, the user's roles, L-core summary). A platform_admin additionally sees every
+ * house without a role of his, linked to the platform house page (FIRSTRUN-001, PlatformHouses via BuildingIterator). Allow-listed UserScopedQuery caller: the gate summary needs each
  * building's context, which only UserScopedQuery::eachBuilding (a sanctioned context setter) provides.
  */
 final class AdminEntryController
@@ -43,11 +45,9 @@ final class AdminEntryController
             return redirect()->route('home.redirect')->with('status', 'no_admin_role');
         }
 
-        if ($targets === 1) {
-            if ($platform) {
-                return redirect('/admin/platform');
-            }
-
+        // FIRSTRUN-001: a platform_admin always gets the chooser — with exactly one target it used to jump to the empty
+        // platform dashboard, and every way out of it led back there.
+        if ($targets === 1 && ! $platform) {
             /** @var RoleData $first */
             $first = array_values($rolesByBuilding)[0][0];
 
@@ -72,7 +72,14 @@ final class AdminEntryController
 
         usort($cards, static fn (array $a, array $b): int => strnatcasecmp((string) $a['name'], (string) $b['name']));
 
-        return view('admin.entry', ['cards' => $cards, 'platform' => $platform]);
+        // A platform_admin also sees every house where he holds no administration role yet ("Jūsu loma: nav"), with
+        // "Kļūt par šīs mājas administratoru" on the platform house page. Still no house in the Filament switcher
+        // without a role (ROUND2-SPEC §1.3) — the panel opens only after the role exists.
+        $unclaimed = $platform
+            ? array_values(array_filter(PlatformHouses::overview($user), static fn (array $row): bool => ! isset($rolesByBuilding[$row['id']])))
+            : [];
+
+        return view('admin.entry', ['cards' => $cards, 'platform' => $platform, 'unclaimed' => $unclaimed]);
     }
 
     /**

@@ -25,6 +25,9 @@
                         @if ($h['self'])
                             <span class="text-sm text-gray-500">({{ __('admin.team.you') }})</span>
                         @endif
+                        @if ($h['selfGranted'])
+                            <x-filament::badge color="warning" icon="heroicon-o-user-circle">{{ __('start.self.granted_mark') }}</x-filament::badge>
+                        @endif
                     </div>
                     <p class="mt-1 break-all text-sm font-medium">{{ $h['holder'] }}</p>
                     <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

@@ -1,7 +1,8 @@
-@props(['title' => null, 'active' => 'home'])
+@props(['title' => null, 'active' => 'home', 'view' => 'resident', 'viewBuilding' => null, 'residentHref' => null])
 @php
     use App\Tenancy\CurrentBuilding;
     $building = CurrentBuilding::find();
+    $showViewSwitch = \App\Support\ViewSwitch::canSwitch(auth()->user());
     $settings = $building?->settings;
     $showHeating = $settings !== null && ($settings->moduleEnabled('heating') || $settings->moduleEnabled('outages'));
     // Stāvvieta only when modules.parking is ON and parking gate L2 holds (MVP-SPEC C.0).
@@ -28,6 +29,13 @@
                     <x-brand-mark class="size-7" />
                     <span>{{ __('common.app_name') }}</span>
                 </a>
+            @endif
+            {{-- "Iedzīvotāja skats | Admin skats" (FIRSTRUN-001): only for someone who can administer something. Pages
+                 that are themselves admin screens in this shell (/admin chooser, platform house page) pass $view. --}}
+            @if ($showViewSwitch)
+                {{-- Phones: its own full-width row under the house pill + LV/RU (three rows at 375 px otherwise). --}}
+                <x-ui.view-switch :current="$view" :building="$building ?? $viewBuilding" :resident-href="$residentHref"
+                                  class="order-last w-full sm:order-none sm:w-auto" />
             @endif
             <x-ui.language-toggle />
         </div>

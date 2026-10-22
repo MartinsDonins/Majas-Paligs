@@ -27,12 +27,15 @@ final class PlatformPanelProvider extends PanelProvider
             ->path('admin/platform')
             ->userMenuItems([
                 Action::make('houseAdmin')
+                    // FIRSTRUN-001: the /admin chooser lists every house for a platform_admin (with or without a role).
                     ->label(static fn (): string => __('admin.entry.house_admin'))
                     ->icon(Heroicon::OutlinedBuildingOffice2)
                     ->url(static fn (): string => route('admin.entry')),
             ])
             ->discoverResources(in: app_path('Filament/Platform/Resources'), for: 'App\\Filament\\Platform\\Resources')
             ->discoverPages(in: app_path('Filament/Platform/Pages'), for: 'App\\Filament\\Platform\\Pages')
+            // "Sākt šeit" (FIRSTRUN-001): the dashboard used to be only the heading "Panelis".
+            ->discoverWidgets(in: app_path('Filament/Platform/Widgets'), for: 'App\\Filament\\Platform\\Widgets')
             ->pages([Dashboard::class])
             ->authMiddleware([
                 Authenticate::class,

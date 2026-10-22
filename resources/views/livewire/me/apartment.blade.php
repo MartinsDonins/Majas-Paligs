@@ -4,6 +4,24 @@
     @if (session('status') === 'devices_forgotten')
         <x-ui.banner variant="info" icon="circle-check">{{ __('me.devices.forgotten') }}</x-ui.banner>
     @endif
+    @if (in_array(session('status'), ['self_linked', 'self_requested'], true))
+        <x-ui.banner variant="info" icon="circle-check" data-testid="self-link-done">{{ __('start.link.done.'.session('status')) }}</x-ui.banner>
+    @endif
+
+    {{-- FIRSTRUN-001: an administrator without an apartment here links himself (no letter needed). --}}
+    @if ($canLinkSelf)
+        @if ($houseOpen)
+            <livewire:me.link-myself />
+        @else
+            <section class="card stack" aria-labelledby="link-closed-h" data-testid="link-closed">
+                <h2 id="link-closed-h" class="text-lg">{{ __('start.link.title') }}</h2>
+                <p class="text-sm">{{ __('start.house.link_closed') }}</p>
+                @if ($isAdmin)
+                    <a href="{{ $wizardUrl }}" class="btn btn-primary btn-block"><x-lucide-list-checks class="size-5" aria-hidden="true" /> {{ __('start.house.continue_opening') }}</a>
+                @endif
+            </section>
+        @endif
+    @endif
 
     @if ($isHelper || $canManage)
         <section class="card stack" aria-labelledby="tools-me-h">
@@ -55,6 +73,15 @@
                 </ul>
                 <p class="text-sm muted">{{ __('me.apartment.members_hint') }}</p>
             </div>
+            {{-- A building_admin's own request: he cannot approve it himself — say who can, with the way to invite. --}}
+            @if ($membership?->isPending() && $isAdmin)
+                <x-ui.banner variant="info" icon="info" data-testid="self-pending">
+                    <p class="text-sm">{{ __('start.self.who_approves') }}</p>
+                    <a href="{{ $teamUrl }}" class="btn mt-2">
+                        <x-lucide-user-plus class="size-5" aria-hidden="true" /> {{ __('start.self.invite_elder', ['n' => $apartment->section->number]) }}
+                    </a>
+                </x-ui.banner>
+            @endif
         @else
             <p class="muted">{{ __('me.apartment.none') }}</p>
         @endif

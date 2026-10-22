@@ -39,6 +39,12 @@ final class EnsureMember
                 return redirect()->route('home.redirect');
             }
 
+            // FIRSTRUN-001: a platform_admin may know every house (no enumeration risk): explain why the resident view
+            // of this house is empty for him and offer the next step instead of "Lapa nav atrasta".
+            if ($user->isPlatformAdmin() && ! $request->expectsJson()) {
+                return redirect()->route('admin.house', ['building' => $building->slug])->with('status', 'no_home_here');
+            }
+
             abort(404);
         }
 

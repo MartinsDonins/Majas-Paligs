@@ -177,6 +177,9 @@ Google Fonts/Maps, SMS, native apps, paid analytics.
      `PlatformBuildingContext::run(Building $b, PlatformPurpose $purpose, callable)` requires
      `platform_admin` + MFA in HTTP (console: `app()->runningInConsole()` only for `seed`), writes a platform-chain
      audit entry (purpose, building), and uses `runFor`. Purposes: `generate`, `structure_edit`, `seed`.
+     Later: `structure_view`, `role_bootstrap`, `dpa_record`, `opening_review`, and (FIRSTRUN-001) `house_overview`
+     (the platform house page `/admin/houses/{slug}`) and `self_link` (a platform_admin links HIMSELF to an apartment —
+     approved at once, the documented exception to "never self-approve", docs/SECURITY.md).
 - **Resident route order:** `auth → SetCurrentBuilding → member` (group for every `/b/{building:slug}/…`). `member`
   calls `membershipFor($building)` with the context already set and returns **404** (not 403, so building slugs
   cannot be enumerated) for non-members; role middleware (`role:section_elder`, step-up) comes after `member`.

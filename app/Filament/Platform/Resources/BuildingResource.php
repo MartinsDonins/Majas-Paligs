@@ -120,6 +120,11 @@ final class BuildingResource extends Resource
                 TextColumn::make('status')->label(__('admin.building.status'))->formatStateUsing(fn (BuildingStatus $state) => $state->label())->badge(),
             ])
             ->recordActions([
+                // FIRSTRUN-001: the house's opening status + "Kļūt par administratoru" / "Piesaistīt mani dzīvoklim".
+                Action::make('overview')
+                    ->label(__('start.house.overview'))
+                    ->icon(Heroicon::OutlinedEye)
+                    ->url(fn (Building $record): string => route('admin.house', ['building' => $record->slug])),
                 EditAction::make(),
                 ActionGroup::make([
                     Action::make('generate')

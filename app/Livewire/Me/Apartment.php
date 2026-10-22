@@ -10,6 +10,7 @@ use App\Enums\BuildingRoleType;
 use App\Enums\MembershipStatus;
 use App\Enums\TextSize;
 use App\Enums\Theme;
+use App\Gdpr\CoreGate;
 use App\Models\Apartment as ApartmentModel;
 use App\Models\ApartmentMembership;
 use App\Models\User;
@@ -113,7 +114,7 @@ final class Apartment extends Component
         // "Administrēšana" (→ /admin) for anyone with a manage role in ANY house, or a platform_admin (ROUND2-SPEC §1.1).
         $canManage = $user->isPlatformAdmin() || $user->canAccessPanel(Filament::getPanel('manage'));
         $pendingForMe = ($isAdmin || $isElder)
-            ? ApartmentMembership::query()->pending()
+            ? ApartmentMembership::query()->pending()->where('user_id', '!=', $user->id)
                 ->when(! $isAdmin, fn ($q) => $q->whereIn('apartment_id', ApartmentModel::query()->whereIn('section_id', $user->elderSectionIds($building))->select('id')))
                 ->count()
             : 0;
@@ -129,6 +130,12 @@ final class Apartment extends Component
             'isHelper' => $isAdmin || $isElder,
             'canManage' => $canManage,
             'pendingForMe' => $pendingForMe,
+            // FIRSTRUN-001: "Piesaistīt mani dzīvoklim" for an administrator without an apartment here (no letter).
+            'canLinkSelf' => $membership === null && ($isAdmin || $user->isPlatformAdmin()),
+            'houseOpen' => CoreGate::status($building)->open,
+            'isAdmin' => $isAdmin,
+            'wizardUrl' => url('/admin/b/'.$building->slug.'/opening'),
+            'teamUrl' => url('/admin/b/'.$building->slug.'/team'),
         ])->title(__('me.title'));
     }
 }
