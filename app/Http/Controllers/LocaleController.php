@@ -12,7 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * POST /locale/{lv|ru}: remembered per user (users.locale) and per device (cookie, 1 year), then back to the page
+ * POST /locale/{lv|ru}: remembered per user (users.locale) and per device (cookie + "chosen" marker, 1 year), then back to the page
  * the toggle was pressed on. The form posts that page as `return` (SafeReturn: same-origin page paths only); the
  * session's previous URL is only a fallback — it used to be /sw.js after a service-worker update check.
  */
@@ -31,6 +31,7 @@ final class LocaleController
             ?? SafeReturn::path(url()->previous())
             ?? '/';
 
-        return redirect($target)->withCookie(SetLocale::cookie($value->value));
+        // The marker makes this a CHOICE: a team invitation in the other language no longer switches the page.
+        return redirect($target)->withCookie(SetLocale::cookie($value->value))->withCookie(SetLocale::chosenCookie());
     }
 }

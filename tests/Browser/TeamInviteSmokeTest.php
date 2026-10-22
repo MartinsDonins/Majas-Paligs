@@ -88,6 +88,43 @@ it('lets an invited person without an account accept a stairwell elder role in a
     $again->waitForText(__('team.accept.invalid'));
 });
 
+/*
+ * Karen R2: the first GET stored the phone language as `mp_locale`, so the invitation language never applied. A fresh
+ * phone (no cookies) with the OTHER browser language opens the mailed link in the invitation language; the LV/RU
+ * toggle still wins and keeps the invitation.
+ */
+it('opens the accept page in the invitation language on a phone set to the other language', function (string $invite, string $phoneLocale, string $other): void {
+    useMailpit();
+    $b = makeBuilding('team-lang-'.$invite, 5, 2);
+    $admin = makeUser(browserEmail('team-lang-admin-'.$invite));
+    grantRole($admin, $b, BuildingRoleType::BuildingAdmin);
+    $email = browserEmail('team-lang-'.$invite);
+
+    Auth::login($admin);
+    session()->put(StepUpService::SESSION_KEY, ['user' => $admin->id, 'at' => now()->getTimestamp(), 'seen' => now()->getTimestamp(), 'method' => 'passkey']);
+    inBuilding($b, fn () => app(TeamInvitationService::class)->invite($admin, $email, BuildingRoleType::SectionElder, [(int) section($b, 5)->id], null, Locale::from($invite)));
+    Auth::logout();
+    session()->flush();
+
+    $link = mailpitInviteLink($email);
+    $page = phone('/', locale: $phoneLocale);
+    expect($page->script('document.documentElement.lang'))->toBe($other); // the phone language was detected first
+    openPath($page, $link);
+    $page->waitForText(trans('team.accept.confirm_email', [], $invite));
+    expect($page->script('document.documentElement.lang'))->toBe($invite)
+        ->and($page->script('location.hash'))->toBe('');
+    $page->assertSee(trans('enum.building_role.section_elder', [], $invite))->assertNoJavaScriptErrors();
+
+    // The person's own choice wins and the invitation stays open.
+    $page->press(strtoupper($other));
+    waitUntil($page, 'document.documentElement.lang === '.json_encode($other)." && document.readyState === 'complete'");
+    $page->waitForText(trans('team.accept.confirm_email', [], $other));
+    $page->assertSee(trans('enum.building_role.section_elder', [], $other))->assertNoJavaScriptErrors();
+})->with([
+    'RU invitation, LV phone' => ['ru', 'lv-LV', 'lv'],
+    'LV invitation, RU phone' => ['lv', 'ru-RU', 'ru'],
+]);
+
 it('opens the /admin chooser and moves an old /manage bookmark into /admin/b in a real browser', function (): void {
     useMailpit();
     $a = makeBuilding('smoke-admin-a', 1, 1, open: true);

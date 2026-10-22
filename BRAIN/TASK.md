@@ -196,6 +196,13 @@ out", "admin login is too complicated", "generating the house plan failed". Repr
   - 🆕 FIX-007.4: Iekļauto Livewire komponentu atslēgas — other parents still render nested components without an
     explicit key (elder panel tabs, dashboard round card, parking privacy boxes, my-permits dispute); a parent re-render
     with a different block structure re-mounts them (lost child state, as in FIX-007.1). Add explicit keys + a guard test.
+  - ✅ FIX-007.5: Uzaicinājuma valoda pieņemšanas lapā - COMPLETED (Karen round 2, 0.0.29) — /team-invite/{slug} ignored
+    the invitation `locale` (ROUND2-SPEC §2.1): SetLocale stores the Accept-Language guess as `mp_locale` on the first GET,
+    so AcceptInvite::open() always saw a cookie and never switched (RU invitation on an LV phone stayed LV and vice
+    versa). The LV/RU toggle now also sets `mp_locale_chosen=1` (LocaleController); `SetLocale::deviceChose()` (marker +
+    valid language cookie) is the only thing that keeps the device language over the invitation's. Devices that picked a
+    language before 0.0.29 have no marker, so one invitation link may switch them once; the toggle then sticks.
+    Tests: Feature/Team/AcceptInviteTest (both directions, toggle wins, marker without cookie), Browser/TeamInviteSmokeTest.
 
 ## 🧭 Kārta 2 — Administrēšana, mājas atvēršana, saraksti (BRAIN/docs/ROUND2-SPEC.md)
 Owner requests 2026-10-21 (R1–R4). Build order: ADMIN-005 → ADMIN-006 → GOV-012/011/010 + UI-011 → DB-003 + PARK-012 →

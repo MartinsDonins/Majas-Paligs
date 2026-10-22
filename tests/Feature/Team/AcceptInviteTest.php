@@ -18,6 +18,7 @@ use App\Notifications\TeamInvitation;
 use App\Notifications\TeamInviteCode;
 use App\Notifications\TeamMemberJoined;
 use App\Services\Team\TeamInvitationService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Notification;
@@ -44,7 +45,7 @@ beforeEach(function (): void {
  *
  * @param  list<int>  $sections  stairwell numbers
  */
-function issueInvite(string $email, BuildingRoleType $role = BuildingRoleType::SectionElder, array $sections = [5], ?object $building = null): string
+function issueInvite(string $email, BuildingRoleType $role = BuildingRoleType::SectionElder, array $sections = [5], ?object $building = null, Locale $locale = Locale::Lv): string
 {
     $building ??= test()->b;
     $admin = test()->admin;
@@ -52,7 +53,7 @@ function issueInvite(string $email, BuildingRoleType $role = BuildingRoleType::S
     session()->put(StepUpService::SESSION_KEY, ['user' => $admin->id, 'at' => now()->getTimestamp(), 'seen' => now()->getTimestamp(), 'method' => 'passkey']);
     $ids = array_map(fn (int $n): int => (int) section($building, $n)->id, $sections);
 
-    $invitation = inBuilding($building, fn () => app(TeamInvitationService::class)->invite($admin, $email, $role, $role === BuildingRoleType::SectionElder ? $ids : [], null, Locale::Lv));
+    $invitation = inBuilding($building, fn () => app(TeamInvitationService::class)->invite($admin, $email, $role, $role === BuildingRoleType::SectionElder ? $ids : [], null, $locale));
 
     $token = null;
     Notification::assertSentOnDemand(TeamInvitation::class, function (TeamInvitation $n) use (&$token, $invitation): bool {
@@ -245,4 +246,57 @@ it('opens the accept page in the invitation language on a device that has not ch
 
     // After the reload the remembered invitation is shown (no token needed again).
     inBuilding($this->b, fn () => acceptPage()->call('open', '')->assertSet('state', 'guest'));
+});
+
+/*
+ * Karen R2: SetLocale stores the Accept-Language guess as `mp_locale` on the first GET, so the Livewire open() call
+ * that follows always carried a cookie and the invitation language never applied (an RU invitation on an LV phone
+ * stayed LV, an LV invitation on an RU phone stayed RU). Only the LV/RU toggle is a device choice.
+ */
+it('switches a detected device language to the invitation language', function (string $invite, string $browser): void {
+    $token = issueInvite("detected-{$invite}@example.test", locale: Locale::from($invite));
+
+    // The first GET of the mailed link: the browser language is detected and remembered on the device …
+    $detected = $this->withHeader('Accept-Language', $browser)->get('/team-invite/accept-house')
+        ->assertOk()->getCookie(SetLocale::COOKIE);
+    expect($detected?->getValue())->not->toBe($invite)
+        ->and(Cookie::hasQueued(SetLocale::CHOSEN_COOKIE))->toBeFalse();
+
+    // … and Alpine's open() call carries that cookie: it is a guess, so the invitation language still wins.
+    inBuilding($this->b, fn () => Livewire::withHeaders(['Accept-Language' => $browser])
+        ->withCookies([SetLocale::COOKIE => (string) $detected?->getValue()])
+        ->test(AcceptInvite::class)->call('open', $token)
+        ->assertRedirect(route('team.accept', ['building' => 'accept-house'], absolute: false)));
+    expect(Cookie::queued(SetLocale::COOKIE)?->getValue())->toBe($invite)
+        ->and(Cookie::hasQueued(SetLocale::CHOSEN_COOKIE))->toBeFalse();
+
+    // The reload speaks the invitation language and shows the remembered invitation.
+    $this->withHeader('Accept-Language', $browser)->withCookie(SetLocale::COOKIE, $invite)->get('/team-invite/accept-house')
+        ->assertOk()->assertSee('lang="'.$invite.'"', false);
+    inBuilding($this->b, fn () => Livewire::withCookies([SetLocale::COOKIE => $invite])->test(AcceptInvite::class)
+        ->call('open', '')->assertSet('state', 'guest')->assertNoRedirect());
+})->with([
+    'RU invitation, LV phone' => ['ru', 'lv-LV,lv;q=0.9'],
+    'LV invitation, RU phone' => ['lv', 'ru-RU,ru;q=0.9'],
+]);
+
+it('keeps the language the person chose with the toggle over the invitation language', function (): void {
+    $token = issueInvite('chosen-lv@example.test', locale: Locale::Ru);
+
+    $toggle = $this->post('/locale/lv', ['return' => '/team-invite/accept-house'])->assertRedirect('/team-invite/accept-house');
+    $toggle->assertCookie(SetLocale::COOKIE, 'lv')->assertCookie(SetLocale::CHOSEN_COOKIE, '1');
+
+    inBuilding($this->b, fn () => Livewire::withCookies([SetLocale::COOKIE => 'lv', SetLocale::CHOSEN_COOKIE => '1'])
+        ->test(AcceptInvite::class)->call('open', $token)
+        ->assertNoRedirect()->assertSet('state', 'guest'));
+    expect(Cookie::hasQueued(SetLocale::COOKIE))->toBeFalse();
+});
+
+it('does not treat a stray marker without a valid language cookie as a choice', function (): void {
+    $chose = fn (array $cookies): bool => SetLocale::deviceChose(Request::create('/', 'GET', cookies: $cookies));
+
+    expect($chose([SetLocale::CHOSEN_COOKIE => '1']))->toBeFalse()
+        ->and($chose([SetLocale::CHOSEN_COOKIE => '1', SetLocale::COOKIE => 'xx']))->toBeFalse()
+        ->and($chose([SetLocale::COOKIE => 'ru']))->toBeFalse()
+        ->and($chose([SetLocale::CHOSEN_COOKIE => '1', SetLocale::COOKIE => 'ru']))->toBeTrue();
 });

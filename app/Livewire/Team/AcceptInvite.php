@@ -114,9 +114,11 @@ final class AcceptInvite extends Component
             'verified' => false,
         ]);
 
-        // The accept page speaks the invitation's language (ROUND2-SPEC §2.1 `locale`) unless this device already
-        // chose one: remember it on the device and reload — the session keeps the invitation, the token is gone.
-        if (! auth()->check() && request()->cookie(SetLocale::COOKIE) === null && $invitation->locale->value !== app()->getLocale()) {
+        // The accept page speaks the invitation's language (ROUND2-SPEC §2.1 `locale`) unless the person already
+        // chose one with the LV/RU toggle: remember it on the device and reload — the session keeps the invitation,
+        // the token is gone. A cookie SetLocale detected from Accept-Language on the first GET is a guess, not a
+        // choice (Karen R2: an RU invitation on an LV phone opened in LV), so it does not block the switch.
+        if (! auth()->check() && ! SetLocale::deviceChose(request()) && $invitation->locale->value !== app()->getLocale()) {
             Cookie::queue(SetLocale::cookie($invitation->locale->value));
             $this->redirectRoute('team.accept', ['building' => CurrentBuilding::get()->slug]);
 

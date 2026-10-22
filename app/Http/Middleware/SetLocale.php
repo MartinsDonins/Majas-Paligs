@@ -19,10 +19,17 @@ use Symfony\Component\HttpFoundation\Response;
  * Runs BEFORE SubstituteBindings (bootstrap/app.php priority) so a 404 from an unknown building / record is in the
  * visitor's language, and session-less routes (404 fallback, PWA files) read the cookie only. For a signed-in user
  * the cookie is kept equal to users.locale, so those session-less pages follow the account language too.
+ *
+ * `mp_locale` alone does not say WHO picked the language: a first visit stores the Accept-Language guess, a team
+ * invitation stores its own language. Only the LV/RU toggle (LocaleController) also sets `mp_locale_chosen`, so
+ * deviceChose() tells a person's own choice apart from a guess (Karen R2: an RU invitation opened on an LV phone).
  */
 final class SetLocale
 {
     public const COOKIE = 'mp_locale';
+
+    /** Set only by the LV/RU toggle: the device language is the person's own choice, not a detected guess. */
+    public const CHOSEN_COOKIE = 'mp_locale_chosen';
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -74,6 +81,24 @@ final class SetLocale
         }
 
         return null;
+    }
+
+    /**
+     * Whether the person picked this device's language with the LV/RU toggle (a detected or invitation-set
+     * `mp_locale` is not a choice).
+     */
+    public static function deviceChose(Request $request): bool
+    {
+        return $request->cookie(self::CHOSEN_COOKIE) === '1'
+            && in_array($request->cookie(self::COOKIE), (array) config('app.locales', ['lv', 'ru']), true);
+    }
+
+    /**
+     * The "chosen with the toggle" marker next to the language cookie (same lifetime and flags).
+     */
+    public static function chosenCookie(): SymfonyCookie
+    {
+        return cookie(self::CHOSEN_COOKIE, '1', 60 * 24 * 365, httpOnly: true, sameSite: 'lax');
     }
 
     /**
