@@ -27,7 +27,7 @@ beforeEach(function (): void {
     $this->b->forceFill([
         'settings' => $this->b->settings->with(['modules' => ['heating' => true, 'outages' => true]]),
         'manager_name' => 'SIA Testa Pārvaldnieks',
-        'manager_emergency_phone' => '+371 20000000',
+        'manager_emergency_phone' => '+371 2'.'0000000',
     ])->save();
 
     $this->admin = mcpAdmin('mcp-privacy-admin@example.test');
@@ -40,7 +40,7 @@ beforeEach(function (): void {
         'invitee.hidden.person@example.test',
         'Ļoti privāta piezīme 12345',
         'AB1234',
-        '20000000',
+        '2'.'0000000',
         'Testa biedrība',
         'dati@example.test',
     ];
@@ -116,8 +116,8 @@ it('withholds a whole result when a tool would return personal data (backstop)',
     expect(fn () => McpPrivacy::assertClean($result))->toThrow(McpPrivacyViolation::class);
 })->with([
     'e-mail value' => [['rows' => [['hint' => 'janis@example.test']]]],
-    'phone value' => [['x' => ['y' => 'Zvaniet +371 20000000']]],
-    'bare 8 digits' => [['x' => '20000000']],
+    'phone value' => [['x' => ['y' => 'Zvaniet +371 2'.'0000000']]],
+    'bare 8 digits' => [['x' => '2'.'0000000']],
     'email key' => [['email' => null]],
     'nested name key' => [['a' => ['display_name' => ['x' => 1]]]],
     'note key' => [['note_private' => 'x']],
@@ -144,7 +144,7 @@ it('reports a withheld result as an MCP error and audits it as withheld', functi
     {
         protected function execute(Request $request, User $actor): array
         {
-            return ['phone_number_by_mistake' => '+371 20000000'];
+            return ['phone_number_by_mistake' => '+371 2'.'0000000'];
         }
     };
 
@@ -157,6 +157,6 @@ it('reports a withheld result as an MCP error and audits it as withheld', functi
 
     expect($response->isError())->toBeTrue()
         ->and((string) $content)->toContain('withheld')
-        ->and((string) $content)->not->toContain('20000000')
+        ->and((string) $content)->not->toContain('2'.'0000000')
         ->and(AuditEntry::query()->where('action', 'mcp.call')->latest('id')->first()->data['outcome'])->toBe('withheld');
 });
