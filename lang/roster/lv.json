@@ -4,9 +4,6 @@
     "roster.contact.plural": "kontakti",
     "roster.saved": "Saglabāts",
 
-    "roster.gate.missing.core_gate": "Māja vēl nav atvērta pieteikšanai (pārzinis, līgums ar CoreDigify, privātuma paziņojums)",
-    "roster.gate.missing.dpa_scope_roster": "Līgumā ar CoreDigify nav iekļauts iedzīvotāju saraksts",
-    "roster.gate.missing.privacy_notice_roster": "Privātuma paziņojumā nav sadaļas par iedzīvotāju sarakstu",
     "roster.gate.mail.subject": ":building — iedzīvotāju saraksts slēgts",
     "roster.gate.mail.body": "Mājai :building vairs nav izpildīti nosacījumi iedzīvotāju sarakstam. Saraksts ir slēgts, līdz tie atkal būs izpildīti. Trūkst:",
     "roster.gate.closed_title": "Saraksts slēgts",

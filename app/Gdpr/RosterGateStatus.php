@@ -24,6 +24,6 @@ final readonly class RosterGateStatus
      */
     public function missingLabels(): array
     {
-        return array_map(static fn (string $k): string => __('roster.gate.missing.'.$k), $this->missing);
+        return array_map(static fn (string $k): string => __('gate.roster.missing.'.$k), $this->missing);
     }
 }

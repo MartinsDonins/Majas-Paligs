@@ -68,14 +68,14 @@ it('shows the closed card instead of the list and no uploader below the gate', f
 
     $this->actingAs($admin)->get('/admin/b/lr-card/roster')->assertOk()
         ->assertSee(__('roster.gate.closed_title'))
-        ->assertSee(__('roster.gate.missing.dpa_scope_roster'))
+        ->assertSee(__('gate.roster.missing.dpa_scope_roster'))
         ->assertSee('data-testid="roster-closed"', false)
         ->assertDontSee(__('roster.list.empty'))
         ->assertDontSee(__('roster.list.add'));
 
     $this->actingAs($admin)->get('/admin/b/lr-card/roster/import')->assertOk()
         ->assertSee(__('import.gate.title'))
-        ->assertSee(__('roster.gate.missing.privacy_notice_roster'))
+        ->assertSee(__('gate.roster.missing.privacy_notice_roster'))
         ->assertDontSee('type="file"', false);
 });
 

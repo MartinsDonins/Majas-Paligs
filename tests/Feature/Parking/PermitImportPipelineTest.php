@@ -115,9 +115,13 @@ it('L0: refuses the upload in the service and a forged Livewire call; the page s
     Filament::setCurrentPanel(Filament::getPanel('manage'));
     Filament::setTenant($l0);
     inBuilding($l0, function () use ($officer): void {
-        Livewire::actingAs($officer)->test(PermitImportPage::class)->set('paste', PERMIT_CSV)->call('uploadPaste');
-        Livewire::actingAs($officer)->test(PermitImportPage::class)->set('upload', UploadedFile::fake()->createWithContent('saraksts.csv', PERMIT_CSV))
-            ->call('uploadFile');
+        Livewire::actingAs($officer)->test(PermitImportPage::class)->set('paste', PERMIT_CSV)->call('uploadPaste')
+            ->assertSet('paste', '')
+            ->assertNotified(__('import.error.gate_closed'));
+        // The Livewire signed-upload request itself is refused, so a forged upload never stores a file.
+        Livewire::actingAs($officer)->test(PermitImportPage::class)
+            ->call('_startUpload', 'upload', [['name' => 'saraksts.csv', 'size' => 100, 'type' => 'text/csv']], false)
+            ->assertStatus(403);
         expect(ImportRun::query()->count())->toBe(0);
     });
 });
@@ -383,7 +387,7 @@ it('generates the permit template at runtime without a plate-shaped example', fu
     grantRole($admin, $this->b, BuildingRoleType::BuildingAdmin);
     steppedUp($admin);
 
-    $csv = $this->actingAs($admin)->get('/admin/b/import-house/files/import-template/permits.csv')->assertOk()->streamedContent();
+    $csv = $this->actingAs($admin)->get('/admin/b/import-house/files/import-template/permits.csv')->assertOk()->getContent();
 
     expect($csv)->toStartWith("\xEF\xBB\xBF")->toContain(__('import.field.permit_number'))
         ->and(preg_match('/[A-Z]{2}\d{3,4}/', $csv))->toBe(0);

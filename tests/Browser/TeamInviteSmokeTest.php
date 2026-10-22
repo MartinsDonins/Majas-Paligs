@@ -73,7 +73,7 @@ it('lets an invited person without an account accept a stairwell elder role in a
         ->waitForText(__('team.accept.accept'));
     $page->assertNoJavaScriptErrors()->click('[data-testid="invite-accept"]');
 
-    waitUntil($page, "location.pathname === '/me/passkey'", 10);
+    waitUntil($page, "location.pathname === '/me/passkey'", 15); // accept + login + redirect; slower under a loaded full run
     $page->assertNoJavaScriptErrors();
 
     $user = User::query()->where('email', $email)->firstOrFail();

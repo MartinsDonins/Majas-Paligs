@@ -4,9 +4,6 @@
     "roster.contact.plural": "контакты",
     "roster.saved": "Сохранено",
 
-    "roster.gate.missing.core_gate": "Дом ещё не открыт для подключения (контролёр данных, договор с CoreDigify, сведения о конфиденциальности)",
-    "roster.gate.missing.dpa_scope_roster": "Договор с CoreDigify не включает список жителей",
-    "roster.gate.missing.privacy_notice_roster": "В сведениях о конфиденциальности нет раздела о списке жителей",
     "roster.gate.mail.subject": ":building — список жителей закрыт",
     "roster.gate.mail.body": "Для дома :building больше не выполнены условия для списка жителей. Список закрыт, пока они снова не будут выполнены. Не хватает:",
     "roster.gate.closed_title": "Список закрыт",

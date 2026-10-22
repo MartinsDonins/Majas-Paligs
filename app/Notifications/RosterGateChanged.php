@@ -39,7 +39,7 @@ final class RosterGateChanged extends Notification
             ->line(__('roster.gate.mail.body', ['building' => $this->buildingName]));
 
         foreach ($this->missing as $key) {
-            $mail->line('• '.__('roster.gate.missing.'.$key));
+            $mail->line('• '.__('gate.roster.missing.'.$key));
         }
 
         return $mail->salutation(__('mail.salutation'));

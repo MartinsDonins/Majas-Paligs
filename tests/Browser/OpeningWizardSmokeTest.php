@@ -49,6 +49,9 @@ it('walks the first opening steps on a phone without sideways scroll', function 
     $page->assertSee(__('document.locked_block'))->assertSee(__('document.editable_block'))->assertNoJavaScriptErrors();
     assertNoHorizontalScroll($page, 'opening editor');
 
+    // "Saglabāts." is also the toast of the controller step: drop the old toasts first, so the wait below really waits
+    // for the editor's save (the in-process server only answers while the test is waiting on the browser).
+    $page->script("document.querySelectorAll('.fi-no-notification').forEach((n) => n.remove())");
     $page->type('[data-testid="block-lv-contacts"]', 'Pārziņa kontaktpersona: valde.')
         ->click('[data-testid="editor-save"]');
     waitUntil($page, 'document.body.innerText.includes('.json_encode(__('opening.document.saved')).')', 10);
