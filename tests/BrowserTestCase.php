@@ -8,11 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Event;
+use Tests\Support\BrowserWarmUp;
 
 /**
  * Real-browser tests (tests/Browser, pest-plugin-browser): the page must load the REAL Vite build (Alpine
  * components, CSS), so the withoutVite() stub of the HTTP-level suite is undone. Assets come from public/build —
- * scripts/dev.sh browser runs `npm run build` first.
+ * scripts/dev.sh browser runs `npm run build` first. The first test of each process warms the app first
+ * (Tests\Support\BrowserWarmUp), so no test's first visit is a cold render.
  */
 abstract class BrowserTestCase extends TestCase
 {
@@ -26,6 +28,9 @@ abstract class BrowserTestCase extends TestCase
         config(['filesystems.disks.tmp-for-tests' => ['driver' => 'local', 'root' => storage_path('framework/testing/disks/tmp-for-tests')]]);
 
         Event::listen(RouteMatched::class, fn (RouteMatched $event) => self::reparseMultipartFiles($event->request));
+
+        // The first render of every heavy page in this process happens here, outside every timed browser window.
+        BrowserWarmUp::once($this);
     }
 
     /**
