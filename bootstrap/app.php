@@ -15,6 +15,7 @@ use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionLifetime;
 use App\Http\Middleware\SetCurrentBuilding;
 use App\Http\Middleware\SetLocale;
+use App\Support\ErrorLog\ErrorLogRecorder;
 use App\Tenancy\Exceptions\BuildingContextAlreadySet;
 use App\Tenancy\Exceptions\MissingBuildingContext;
 use Filament\Http\Middleware\IdentifyTenant;
@@ -89,6 +90,11 @@ return Application::configure(basePath: dirname(__DIR__))
             : response()->view('errors.409', [], 409));
 
         $exceptions->dontFlash(['c', 't', 'token', 'code', 'pin', 'new_pin', 'temp_code', 'signature']);
+
+        // Operator error log (OPS-001): reported exceptions only, scrubbed and throttled; never stops reporting.
+        $exceptions->report(static function (Throwable $e): void {
+            ErrorLogRecorder::record($e);
+        });
 
         // GlitchTip (Sentry protocol), scrubbed by App\Support\SentryScrubber (config/sentry.php).
         Integration::handles($exceptions);
