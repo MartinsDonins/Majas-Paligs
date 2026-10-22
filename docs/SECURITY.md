@@ -96,8 +96,7 @@ MFA step-up. The manager list never contains plates; apartment numbers only with
   - 120 calls per minute per bucket;
   - 60 calls per minute per token;
   - 30 writes per hour per token.
-- `error_events` (for `app_status`): PII-free fingerprints of REPORTED exceptions with a scrubbed message (no e-mails,
-  quoted values, digit runs, tokens or query strings), no request data. Pruned after 30 days by `ops:heartbeat`.
+- `app_status` reads the operator error log only through `ErrorLogReader` (see "Error log" below).
 
 ## Tenancy (A01)
 Fail-closed row-level tenancy, composite FKs, allow-listed context setters and scope lifts — see
@@ -123,6 +122,25 @@ BEFORE INSERT trigger (SECURITY DEFINER, advisory lock), UPDATE always rejected,
 - **Tracked debt:** Filament panels (`/admin/b/…`, `/admin/platform/…`; the `/admin` chooser itself keeps the strict CSP) need `'unsafe-inline' 'unsafe-eval'` (Filament 5
   renders inline scripts without nonce and evaluates Alpine expressions). Panels are behind auth + step-up.
 - `no-store` on `/join`, `/login/*`, `/step-up`, downloads, `/admin` and the panels.
+- **nginx owns** `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` and `Referrer-Policy`
+  (`docker/nginx/security.conf`, every response including static files, `add_header_inherit merge`). It hides PHP's
+  copies with `fastcgi_hide_header`, so each header is sent exactly once (production sent HSTS twice before 0.0.34).
+  `SecurityHeaders` still sets the same values for runs without nginx; `SecurityHeadersOnceTest` keeps the two in sync
+  and every `add_header` paired with its `fastcgi_hide_header`. CSP, Permissions-Policy, COOP and `X-App-Version`
+  stay in PHP.
+
+## Error log (A09, OPS-001)
+- Table `app_error_events` (platform, no `building_id`): one row per fingerprint of a REPORTED exception — class,
+  file:line of the first app frame, origin (`http` / `console` / `queue` / `mcp`), count, first / last seen, and a
+  scrubbed message. Never stored: request data, URL, headers, user, building, IP, stack trace. 404s and validation
+  errors are not reported, so they never appear.
+- Scrubbing (`ErrorLogScrubber`, on write and again on read): SQL bindings and PostgreSQL `DETAIL` values, quoted
+  values (identifiers kept), e-mails, IPs, phone numbers, licence plates, long tokens and query strings; then
+  `RedactSecrets`; cut to 500 characters (DB CHECK).
+- Writes are throttled (one per fingerprint per minute, 60 per minute in total) and never throw.
+  `ERROR_LOG_ENABLED=false` switches the recorder off.
+- Grants: `majas_app` INSERT + SELECT and UPDATE of `message, origin, count, last_seen` only (no DELETE);
+  `majas_retention` SELECT + DELETE. **Retention: 30 days** after last seen (`prune:error-events`, daily 05:05).
 
 ## Secrets in URLs and logs (A.6a)
 - Invite codes and login tokens travel only in URL **fragments** or POST bodies; legacy `?c=` / `?t=` /

@@ -518,9 +518,15 @@ function scaleRootText(object $page, int $percent): void
  * $enforceCsp: the plugin opens every context with Playwright's bypassCSP; true makes Chromium ENFORCE the app's
  * Content-Security-Policy like a real phone does (and fire `securitypolicyviolation`, see recordCspViolations()).
  * $locale: the phone's language (e.g. 'ru-RU'; default en-US).
+ * $warm: render the route once through the HTTP kernel before the timed browser load (see warmRender()). Only for a
+ * read-only GET page whose render has no side effects, opened as the user already set with actingAs().
  */
-function phone(string $url, ?string $host = null, bool $enforceCsp = false, ?string $locale = null): object
+function phone(string $url, ?string $host = null, bool $enforceCsp = false, ?string $locale = null, bool $warm = false): object
 {
+    if ($warm) {
+        warmRender($url);
+    }
+
     $open = static function () use ($url, $host, $enforceCsp, $locale): object {
         $pending = visit($url, $enforceCsp ? ['bypassCSP' => false] : []);
         if ($host !== null) {
@@ -560,6 +566,32 @@ function openWithFragment(string $pathWithFragment): object
     waitForBoot($page);
 
     return $page;
+}
+
+/**
+ * Render a heavy page ONCE per test process through the HTTP kernel, before its first browser load
+ * (HeatingReportSmokeTest flake, round 3).
+ *
+ * The plugin's HTTP server runs inside this single-threaded PHP process. The FIRST render of a route in a process
+ * pays one-off costs: compiling the Blade views it touches (on a clean checkout), declaring the app/vendor classes
+ * it needs, and PHP's stat/realpath caches. Measured for /b/{slug}/heating in Docker Desktop: 17–36 s on a clean
+ * checkout and ~6 s with compiled views, against ~1.7 s TTFB for every later render. All of it lands inside
+ * Playwright's 15 s page-load window, and while that first render runs the event loop cannot answer Playwright, so
+ * the one-shot retry in phone() queued behind it and the first case of the file failed with a page-load timeout.
+ * Warming that exact route through the kernel moves the one-off cost out of the timed window; the browser load then
+ * measures the same warm render as every other case.
+ */
+function warmRender(string $url): void
+{
+    static $warmed = [];
+
+    $path = (string) parse_url($url, PHP_URL_PATH);
+    if (isset($warmed[$path])) {
+        return;
+    }
+
+    test()->get($path)->assertOk();
+    $warmed[$path] = true;
 }
 
 /**

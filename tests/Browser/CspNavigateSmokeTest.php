@@ -13,7 +13,7 @@ it('switches Siltums ↔ Ūdens with wire:navigate without a single CSP violatio
     member($resident, $b, 1);
     $this->actingAs($resident);
 
-    $page = phone('/b/csp-nav/heating', enforceCsp: true);
+    $page = phone('/b/csp-nav/heating', enforceCsp: true, warm: true);
     recordCspViolations($page);
 
     $page->click('a[href*="/b/csp-nav/water"]');

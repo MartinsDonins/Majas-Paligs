@@ -54,6 +54,8 @@
         <env name="SESSION_SECURE_COOKIE" value="true" force="true"/>
         <env name="LOG_STACK" value="single" force="true"/>
         <env name="SENTRY_LARAVEL_DSN" value="" force="true"/>
+        <!-- Operator error log (app_error_events): off by default in tests; tests/Feature/ErrorLog switches it on. -->
+        <env name="ERROR_LOG_ENABLED" value="false" force="true"/>
         <env name="INVITE_KEY" value="base64:aW52aXRlLWtleS10ZXN0LW9ubHktMDAwMDAwMDAwMDA=" force="true"/>
         <env name="PLATE_ENC_KEY" value="base64:cGxhdGUtZW5jLWtleS10ZXN0LW9ubHktMDAwMDAwMDA=" force="true"/>
         <env name="PLATE_INDEX_KEY" value="base64:cGxhdGUtaWR4LWtleS10ZXN0LW9ubHktMDAwMDAwMDA=" force="true"/>

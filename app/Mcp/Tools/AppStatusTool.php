@@ -6,8 +6,8 @@ namespace App\Mcp\Tools;
 
 use App\Console\Commands\OpsHeartbeat;
 use App\Mcp\McpAccess;
-use App\Models\ErrorEvent;
 use App\Models\User;
+use App\Support\ErrorLog\ErrorLogReader;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Cache;
@@ -51,19 +51,29 @@ final class AppStatusTool extends McpTool
             'queue' => $this->queue(),
             'scheduler' => $this->scheduler(),
             'failed_jobs' => $this->failedJobs(),
-            'errors' => [
-                'last_24h' => ErrorEvent::query()->where('last_seen_at', '>=', now()->subDay())->count(),
-                'recent' => ErrorEvent::query()->orderByDesc('last_seen_at')->limit($errors)->get()->map(static fn (ErrorEvent $e): array => [
-                    'exception' => $e->exception_class,
-                    'location' => $e->location,
-                    'summary' => $e->message,
-                    'origin' => $e->origin,
-                    'count' => $e->count,
-                    'first_seen_at' => $e->first_seen_at->toIso8601String(),
-                    'last_seen_at' => $e->last_seen_at->toIso8601String(),
-                ])->values()->all(),
-            ],
+            'errors' => $this->errors($errors),
         ];
+    }
+
+    /**
+     * The operator error log, read only through ErrorLogReader (scrubbed again on the way out). The keys below are
+     * the published app_status contract (docs/MCP.md): add keys, never rename or remove them.
+     *
+     * @return array{last_24h: int, recent: list<array{exception: string, location: string, summary: string, origin: string, count: int, first_seen_at: string, last_seen_at: string}>}
+     */
+    private function errors(int $limit): array
+    {
+        $recent = $limit === 0 ? [] : array_map(static fn (array $row): array => [
+            'exception' => $row['exception_class'],
+            'location' => $row['location'],
+            'summary' => $row['message'],
+            'origin' => $row['origin'],
+            'count' => $row['count'],
+            'first_seen_at' => $row['first_seen'],
+            'last_seen_at' => $row['last_seen'],
+        ], ErrorLogReader::recent($limit));
+
+        return ['last_24h' => ErrorLogReader::seenSince(now()->subDay()), 'recent' => $recent];
     }
 
     /**

@@ -17,7 +17,7 @@ function grantsFor(string $role, string $table): array
 
 const APPEND_ONLY = ['audit_entries', 'plate_lookups'];
 const READ_ONLY_FOR_APP = ['audit_chain_heads', 'audit_chain_anchors'];
-const NO_DELETE_FOR_APP = ['role_invitations'];
+const NO_DELETE_FOR_APP = ['role_invitations', 'app_error_events'];
 
 it('grants majas_app full DML on normal tables', function (): void {
     $tables = collect(DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))->pluck('tablename')
@@ -39,6 +39,17 @@ it('gives majas_app SELECT + INSERT only on append-only tables', function (): vo
 it('never lets majas_app delete team invitations; retention prunes them (ROUND2-SPEC §2.1)', function (): void {
     expect(grantsFor('majas_app', 'role_invitations'))->toBe(['INSERT', 'SELECT', 'UPDATE'])
         ->and(grantsFor('majas_retention', 'role_invitations'))->toBe(['DELETE', 'SELECT']);
+});
+
+it('lets majas_app record and bump error-log events but never rewrite or delete them; retention prunes (OPS-001)', function (): void {
+    expect(grantsFor('majas_app', 'app_error_events'))->toBe(['INSERT', 'SELECT'])
+        ->and(grantsFor('majas_retention', 'app_error_events'))->toBe(['DELETE', 'SELECT']);
+
+    $columns = collect(DB::select(
+        "SELECT column_name FROM information_schema.column_privileges WHERE grantee = 'majas_app' AND privilege_type = 'UPDATE' AND table_name = 'app_error_events'"
+    ))->pluck('column_name')->sort()->values()->all();
+
+    expect($columns)->toBe(['count', 'last_seen', 'message', 'origin']);
 });
 
 it('gives majas_app SELECT only on chain heads and anchors', function (): void {

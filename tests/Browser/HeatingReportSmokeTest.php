@@ -52,7 +52,7 @@ function pressKey(object $page, string $key): void
 
 it('reports heating through the real modal sheet, survives going offline and shows the undo countdown', function (): void {
     $this->actingAs($this->resident);
-    $page = phone('/b/smoke-heat/heating?report=1');
+    $page = phone('/b/smoke-heat/heating?report=1', warm: true);
     $page->waitForText(__('heating.report.same_everywhere'));
     $page->assertNoJavaScriptErrors();
 
@@ -107,7 +107,7 @@ it('reports heating through the real modal sheet, survives going offline and sho
 it('opens the riser summary sheet from the grid as a trapped modal and keeps the "Ziņot" CTA in view', function (): void {
     paintFourStates($this);
     $this->actingAs($this->resident);
-    $page = phone('/b/smoke-heat/heating');
+    $page = phone('/b/smoke-heat/heating', warm: true);
     $page->resize(320, 640);
     $page->waitForText(__('heating.report.cta'));
 
@@ -152,7 +152,7 @@ it('opens the riser summary sheet from the grid as a trapped modal and keeps the
 it('keeps senior mode usable at 320px and at 200 % text (2 × 2 states, 48px targets, no sideways scroll)', function (): void {
     $this->resident->forceFill(['text_size' => 'large'])->save();
     $this->actingAs($this->resident);
-    $page = phone('/b/smoke-heat/heating?report=1');
+    $page = phone('/b/smoke-heat/heating?report=1', warm: true);
     $page->resize(320, 700);
     $page->waitForText(__('heating.report.same_everywhere'));
 
@@ -186,7 +186,7 @@ it('keeps senior mode usable at 320px and at 200 % text (2 × 2 states, 48px tar
 it('keeps the four heating states distinguishable under deuteranopia and protanopia', function (): void {
     paintFourStates($this);
     $this->actingAs($this->resident);
-    $page = phone('/b/smoke-heat/heating');
+    $page = phone('/b/smoke-heat/heating', warm: true);
     $page->waitForText(__('heating.report.cta'));
 
     $cells = $page->script(<<<'JS'
@@ -277,7 +277,7 @@ function cvdFilterScript(string $vision): string
 
 it('updates the map right after saving: no "be the first", no ?report=1 left in the address bar (FIX-007.1)', function (): void {
     $this->actingAs($this->resident);
-    $page = phone('/b/smoke-heat/heating?report=1');
+    $page = phone('/b/smoke-heat/heating?report=1', warm: true);
     $page->waitForText(__('heating.report.same_everywhere'));
     $page->assertSee(__('heating.empty.section'));
 

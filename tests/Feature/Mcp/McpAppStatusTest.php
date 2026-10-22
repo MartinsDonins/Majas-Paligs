@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 use App\Console\Commands\OpsHeartbeat;
-use App\Models\ErrorEvent;
-use App\Support\ErrorEventRecorder;
+use App\Support\ErrorLog\ErrorLogRecorder;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -49,53 +48,41 @@ it('reports a missing scheduler heartbeat as unhealthy', function (): void {
     expect(mcpTool($this->token, 'app_status')['data']['scheduler'])->toBe(['last_beat_at' => null, 'age_seconds' => null, 'healthy' => false]);
 });
 
-it('records reported exceptions as scrubbed fingerprints with a count', function (): void {
+it('serves reported exceptions through the error-log reader, scrubbed, with origin and count', function (): void {
+    config(['errorlog.enabled' => true]);
     $e = new RuntimeException('Mail to janis.berzins@example.test failed for apartment 145, phone +371 2'.'0000000'.', token "abc123" ?t=SECRET');
 
     report($e);
-    report($e);
-
-    $row = ErrorEvent::query()->sole();
-
-    expect($row->count)->toBe(2)
-        ->and($row->exception_class)->toBe(RuntimeException::class)
-        ->and($row->location)->toStartWith('tests/Feature/Mcp/McpAppStatusTest.php:')
-        ->and($row->message)->not->toContain('janis')
-        ->and($row->message)->not->toContain('2'.'0000000')
-        ->and($row->message)->not->toContain('abc123')
-        ->and($row->message)->not->toContain('SECRET')
-        ->and($row->message)->toContain('[email]');
 
     $status = mcpTool($this->token, 'app_status');
-    expect($status['data']['errors']['last_24h'])->toBe(1)
-        ->and($status['data']['errors']['recent'][0]['count'])->toBe(2);
+    $recent = $status['data']['errors']['recent'];
+
+    expect($status['isError'])->toBeFalse($status['text'])
+        ->and($status['data']['errors']['last_24h'])->toBe(1)
+        ->and($recent)->toHaveCount(1)
+        ->and(array_keys($recent[0]))->toBe(['exception', 'location', 'summary', 'origin', 'count', 'first_seen_at', 'last_seen_at'])
+        ->and($recent[0])->toMatchArray(['exception' => RuntimeException::class, 'origin' => 'http', 'count' => 1])
+        ->and($recent[0]['location'])->toStartWith('tests/Feature/Mcp/McpAppStatusTest.php:')
+        ->and($recent[0]['summary'])->toContain('[email]')
+        ->and($status['raw'])->not->toContain('janis')
+        ->and($status['raw'])->not->toContain('2'.'0000000')
+        ->and($status['raw'])->not->toContain('abc123')
+        ->and($status['raw'])->not->toContain('SECRET');
+
+    expect(mcpTool($this->token, 'app_status', ['errors' => 0])['data']['errors']['recent'])->toBe([]);
 });
 
-it('does not record what is never reported (404, validation)', function (): void {
-    $this->get('/no-such-page-mcp')->assertNotFound();
-
-    expect(ErrorEvent::query()->count())->toBe(0);
-});
-
-it('never fails the request when the error log itself cannot be written', function (): void {
-    DB::statement('ALTER TABLE error_events RENAME TO error_events_moved');
+it('never fails the request when the error log table itself cannot be written', function (): void {
+    config(['errorlog.enabled' => true]);
+    DB::statement('ALTER TABLE app_error_events RENAME TO app_error_events_moved');
 
     try {
-        ErrorEventRecorder::record(new RuntimeException('boom'));
+        ErrorLogRecorder::record(new RuntimeException('boom'));
         // The surrounding (test) transaction is still usable.
         expect(DB::selectOne('select 1 AS one')->one)->toBe(1);
     } finally {
-        DB::statement('ALTER TABLE error_events_moved RENAME TO error_events');
+        DB::statement('ALTER TABLE app_error_events_moved RENAME TO app_error_events');
     }
-});
-
-it('prunes error summaries after 30 days', function (): void {
-    ErrorEvent::query()->create(['fingerprint' => str_repeat('a', 64), 'exception_class' => 'X', 'location' => 'a:1', 'message' => '-', 'origin' => 'http', 'count' => 1, 'first_seen_at' => now()->subDays(40), 'last_seen_at' => now()->subDays(31)]);
-    ErrorEvent::query()->create(['fingerprint' => str_repeat('b', 64), 'exception_class' => 'Y', 'location' => 'b:1', 'message' => '-', 'origin' => 'http', 'count' => 1, 'first_seen_at' => now()->subDays(2), 'last_seen_at' => now()->subDay()]);
-
-    $this->artisan('ops:heartbeat')->assertSuccessful();
-
-    expect(ErrorEvent::query()->pluck('exception_class')->all())->toBe(['Y']);
 });
 
 it('schedules the heartbeat every minute', function (): void {

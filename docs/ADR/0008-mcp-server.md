@@ -74,8 +74,10 @@ building access is fail-closed tenancy with allow-listed context setters (§4.2)
    deletions are not available.
 10. **Operations data for `app_status`:**
     - `error_events`: PII-free error fingerprints from the exception handler's report callback. The message is
-      scrubbed. The writer never throws and uses a savepoint inside open transactions.
-    - `ops:heartbeat`: every minute. It writes the scheduler heartbeat and prunes `error_events` after 30 days.
+      scrubbed. The writer never throws and uses a savepoint inside open transactions. **Superseded in 0.0.34:** the
+      table became `app_error_events` (OPS-001, `App\Support\ErrorLog`, stronger scrubber, throttling, no DELETE for
+      `majas_app`); `app_status` reads it through `ErrorLogReader`; `prune:error-events` (majas_retention) prunes it.
+    - `ops:heartbeat`: every minute. It writes the scheduler heartbeat.
 
 ## Consequences
 - The owner can see from Claude Code what exists and what blocks a house. He can make himself `building_admin` of

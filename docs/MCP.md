@@ -106,12 +106,17 @@ like an e-mail address or a phone number, the whole answer is withheld: the call
 
 ## 5. Error summaries and the scheduler heartbeat
 
-- `error_events` holds one row per reported exception fingerprint (`sha256(class | file | line)`), with a count, first
-  and last seen, origin (`http`, `console`, `queue` or `mcp`), and a **scrubbed** one-line message. E-mails, quoted
-  values, digit runs, tokens and query strings are replaced. There is no request data, user or IP. Not-found pages and
-  validation errors are never reported, so they never appear here. GlitchTip still gets the full event.
-- `ops:heartbeat` runs every minute in the `scheduler` service. It writes the cache key `ops:scheduler:heartbeat` and
-  deletes `error_events` rows older than 30 days.
+- `app_error_events` (OPS-001; `error_events` until 0.0.33, renamed by migration 2026_10_23_000200) holds one row per
+  reported exception fingerprint (class + first app frame + message shape), with a count, first and last seen, origin
+  (`http`, `console`, `queue` or `mcp`), file:line and a **scrubbed** message (`App\Support\ErrorLog\ErrorLogScrubber`:
+  SQL bindings, quoted values, e-mails, IPs, phones, plates, tokens and query strings are replaced; max 500
+  characters). There is no request data, user or IP. Not-found pages and validation errors are never reported, so they
+  never appear here. Writes are throttled per fingerprint and capped per minute. GlitchTip still gets the full event.
+- `app_status` reads it only through `App\Support\ErrorLog\ErrorLogReader`, which scrubs again on the way out. The
+  `errors` keys (`exception`, `location`, `summary`, `origin`, `count`, `first_seen_at`, `last_seen_at`) are unchanged.
+- `prune:error-events` (daily 05:05, `majas_retention`) deletes rows not seen for 30 days. `majas_app` can insert and
+  bump a row but never delete or rewrite one.
+- `ops:heartbeat` runs every minute in the `scheduler` service. It writes the cache key `ops:scheduler:heartbeat`.
 
 ## 6. Security model (short)
 
