@@ -17,6 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
  * Filament panels (/admin/b/…, /admin/platform/…): Filament 5 renders inline scripts without a nonce and Alpine
  * expressions that need eval → 'unsafe-inline' 'unsafe-eval' for those paths only. TRACKED DEBT (docs/SECURITY.md).
  * Everywhere: HSTS, frame-ancestors none, Permissions-Policy, Referrer-Policy no-referrer, X-App-Version.
+ * Behind the container nginx, HSTS / X-Frame-Options / X-Content-Type-Options / Referrer-Policy are owned by
+ * docker/nginx/security.conf (it hides these copies with fastcgi_hide_header, so each is sent once); the values here
+ * must stay identical to it (tests/Feature/Security/SecurityHeadersOnceTest.php) for runs without nginx.
  */
 final class SecurityHeaders
 {
