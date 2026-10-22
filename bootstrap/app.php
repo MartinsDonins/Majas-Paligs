@@ -15,6 +15,7 @@ use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SessionLifetime;
 use App\Http\Middleware\SetCurrentBuilding;
 use App\Http\Middleware\SetLocale;
+use App\Support\ErrorEventRecorder;
 use App\Tenancy\Exceptions\BuildingContextAlreadySet;
 use App\Tenancy\Exceptions\MissingBuildingContext;
 use Filament\Http\Middleware\IdentifyTenant;
@@ -87,6 +88,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(fn (CoreGateClosed $e, Request $request) => $request->expectsJson()
             ? response()->json(['message' => __('gate.core.closed_short')], 409)
             : response()->view('errors.409', [], 409));
+
+        // PII-free error summaries for the MCP `app_status` tool (round 3). Reported exceptions only; never throws.
+        $exceptions->report(static function (Throwable $e): void {
+            ErrorEventRecorder::record($e);
+        });
 
         $exceptions->dontFlash(['c', 't', 'token', 'code', 'pin', 'new_pin', 'temp_code', 'signature']);
 

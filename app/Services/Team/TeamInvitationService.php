@@ -145,13 +145,15 @@ final class TeamInvitationService
     }
 
     /**
-     * New token + 7 more days (the old link stops working at once). Max 3 times.
+     * New token + 7 more days (the old link stops working at once). Max 3 times. $platformBootstrap: a platform_admin
+     * re-sending a building_admin invitation (platform panel / MCP, inside PlatformBuildingContext) — building_admin
+     * invitations only, like invite().
      *
      * @throws TeamInvitationRefused|AuthorizationException
      */
-    public function resend(User $actor, RoleInvitation $invitation): void
+    public function resend(User $actor, RoleInvitation $invitation, bool $platformBootstrap = false): void
     {
-        $this->authorise($actor, 'resend', false, $invitation->role, $invitation);
+        $this->authorise($actor, 'resend', $platformBootstrap, $invitation->role, $invitation);
 
         DB::transaction(function () use ($actor, $invitation): void {
             /** @var RoleInvitation $row */

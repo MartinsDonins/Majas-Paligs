@@ -179,4 +179,10 @@ return [
         'name_max' => 120,
         'comment_max' => 280,
     ],
+
+    /* Round 3 — the in-app MCP server (docs/MCP.md, ADR 0008). */
+    'mcp' => [
+        'per_ip_per_minute' => 120,
+        'per_token_per_minute' => 60,
+    ],
 ];

@@ -6,6 +6,7 @@ namespace App\Auth;
 
 use App\Enums\BuildingRoleType;
 use App\Enums\LoginTokenPurpose;
+use App\Mcp\McpAccess;
 use App\Models\LoginToken;
 use App\Models\User;
 use App\Notifications\StepUpCode;
@@ -82,6 +83,10 @@ class StepUpService
      */
     public function hasFreshMfa(User $user): bool
     {
+        if ($this->mcpWriteElevated($user)) {
+            return true;
+        }
+
         $state = $this->state($user);
 
         if ($state !== null && in_array($state['method'], self::MFA_METHODS, true)) {
@@ -97,6 +102,10 @@ class StepUpService
      */
     public function hasFreshStrongMfa(User $user): bool
     {
+        if ($this->mcpWriteElevated($user)) {
+            return true;
+        }
+
         $state = $this->state($user);
 
         return $state !== null && in_array($state['method'], self::STRONG_METHODS, true);
@@ -239,6 +248,17 @@ class StepUpService
     public function hasFreshFor(User $user): bool
     {
         return $this->requiresMfa($user) ? $this->hasFreshMfa($user) : $this->hasFresh($user);
+    }
+
+    /**
+     * MCP (round 3, ADR 0008): inside a CONFIRMED write tool of a `write` token of this very user (McpAccess::elevated),
+     * the token stands in for the session step-up — the token itself was created behind a strong step-up, expires within
+     * 30 days, is bound to the user's auth epoch, and every call is audited. Never true for a read token, outside a write
+     * tool, or for anyone else.
+     */
+    private function mcpWriteElevated(User $user): bool
+    {
+        return app()->bound(McpAccess::class) && app(McpAccess::class)->authorisesWrite($user);
     }
 
     public function markFresh(User $user, string $method): void

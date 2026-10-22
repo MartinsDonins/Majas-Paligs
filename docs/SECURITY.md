@@ -74,6 +74,31 @@ reports / audit / logs carry row numbers and codes only, commit needs a fresh dr
 MFA step-up. The manager list never contains plates; apartment numbers only with `include_apartments` after
 `parking_rules_adopted_at` (DB CHECK manager-only + policy + service).
 
+## MCP server (round 3, MCP-001, `docs/ADR/0008-mcp-server.md`, `docs/MCP.md`)
+- `POST /mcp` (laravel/mcp, outside the `web` group: no session, cookie or CSRF). Only `Authorization: Bearer kmcp_…`
+  personal access tokens of a **platform_admin** are accepted. A token is created on `/admin/platform/mcp` behind a
+  **strong** step-up and shown once. Only SHA-256(secret) and a 4-character hint are stored. A token stops working when
+  it is revoked, it expires, its owner loses platform_admin, or its owner's `auth_epoch` changes (any credential
+  change). Every one of these cases gets the same 401.
+- Scopes: `read`, or `read` + `write`. A write token expires within 30 days (DB CHECK). A write tool needs the `write`
+  scope **and** `confirm: true`. Only then does `McpAccess::elevated()` let the token stand in for the session step-up,
+  for its own user. The existing strong / mfa backstops (`BuildingRoleService::grant`, `TeamInvitationService`,
+  `PlatformBuildingContext`) accept it there and nowhere else.
+- Building access only through `PlatformBuildingContext` (new purposes `mcp_read` / `mcp_write`, unreachable from a
+  session). No new context setter and no new scope lift.
+- Privacy: results carry counts, statuses, ids, apartment and stairwell numbers and masked e-mail hints only.
+  `McpPrivacy::assertClean()` withholds a result that has a personal-data key or an e-mail- or phone-shaped value.
+  Audit `data` is shown only for code or number values. `reason_text` is never shown.
+- Audit: `mcp.call` (tool, token, building, scope, outcome; never the arguments) on the platform chain, plus
+  `platform.building_context` per building entered, plus the services' own building-chain rows.
+- Throttles:
+  - 10 failed authentications per 15 minutes per client bucket → 429;
+  - 120 calls per minute per bucket;
+  - 60 calls per minute per token;
+  - 30 writes per hour per token.
+- `error_events` (for `app_status`): PII-free fingerprints of REPORTED exceptions with a scrubbed message (no e-mails,
+  quoted values, digit runs, tokens or query strings), no request data. Pruned after 30 days by `ops:heartbeat`.
+
 ## Tenancy (A01)
 Fail-closed row-level tenancy, composite FKs, allow-listed context setters and scope lifts — see
 `docs/ADR/0003-row-level-tenancy.md`. Non-members get **404** on every `/b/{slug}` route.

@@ -11,6 +11,7 @@ use App\Http\Middleware\EnsureModule;
 use App\Http\Middleware\EnsurePinChanged;
 use App\Http\Middleware\RequireStepUp;
 use App\Http\Middleware\SetCurrentBuilding;
+use App\Mcp\McpAccess;
 use App\Models;
 use App\Policies;
 use App\Support\Identifiers;
@@ -38,6 +39,8 @@ final class AppServiceProvider extends ServiceProvider
     {
         // Per-unit-of-work tenant context (flushed by queue workers between jobs).
         $this->app->scoped(CurrentBuildingState::class);
+        // Per-request MCP bearer authorisation (round 3, ADR 0008): never shared between requests or jobs.
+        $this->app->scoped(McpAccess::class);
     }
 
     public function boot(): void
@@ -55,8 +58,10 @@ final class AppServiceProvider extends ServiceProvider
         Model::preventSilentlyDiscardingAttributes(! $this->app->isProduction());
 
         // The tenant context never outlives a request (the test client re-uses the application instance).
-        $this->app->terminating(static function (): void {
+        $this->app->terminating(function (): void {
             CurrentBuilding::endRequest();
+            // An MCP bearer authorisation never outlives its request (long-lived workers, the test client).
+            $this->app->forgetInstance(McpAccess::class);
         });
 
         // Admin panel strings live in lang/admin/{lv,ru}.json (same parity check as the resident strings).
@@ -159,6 +164,11 @@ final class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login-code', static fn (Request $r) => [
             Limit::perMinutes(15, 10)->by('login-code:'.$ip($r)),
         ]);
+
+        // MCP (round 3, docs/MCP.md): per client bucket before authentication, per token after it.
+        RateLimiter::for('mcp-ip', static fn (Request $r) => Limit::perMinute((int) config('majas.mcp.per_ip_per_minute', 120))->by('mcp-ip:'.$ip($r)));
+        RateLimiter::for('mcp', static fn (Request $r) => Limit::perMinute((int) config('majas.mcp.per_token_per_minute', 60))
+            ->by('mcp-token:'.(string) $r->attributes->get('mcp_token_id', $ip($r))));
 
         // /livewire/update: 120/min per session (MVP-SPEC §0).
         RateLimiter::for('livewire', static fn (Request $r) => Limit::perMinute((int) config('majas.livewire_throttle_per_minute', 120))

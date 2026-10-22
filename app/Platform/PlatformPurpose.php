@@ -24,4 +24,20 @@ enum PlatformPurpose: string
 
     /** "Atvēršanas pieprasījumi": read a house's sent DPA / annex (PDF preview) and record it (ROUND2-SPEC §3.6). */
     case OpeningReview = 'opening_review';
+
+    /** MCP read tools (round 3, ADR 0008): counts, statuses and masked hints of one building — never raw PII. */
+    case McpRead = 'mcp_read';
+
+    /** MCP write tools (role grant / revoke, invitations, whitelisted settings, recompute): write token + confirm. */
+    case McpWrite = 'mcp_write';
+
+    /** Purposes an MCP bearer token may use instead of a session step-up (PlatformBuildingContext). */
+    public function mcpLevel(): ?string
+    {
+        return match ($this) {
+            self::McpRead, self::StructureView => 'read',
+            self::McpWrite, self::Generate, self::RoleBootstrap => 'write',
+            default => null,
+        };
+    }
 }
