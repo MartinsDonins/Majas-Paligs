@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Platform\Widgets;
 
+use App\Enums\DocumentKind;
 use App\Enums\PrivacyNoticeKind;
 use App\Filament\Platform\Pages\OpeningRequestsPage;
+use App\Filament\Platform\Resources\DocumentTemplateResource;
 use App\Filament\Platform\Resources\PrivacyNoticeResource;
+use App\Models\DocumentTemplate;
 use App\Models\PrivacyNoticeVersion;
 use App\Models\User;
 use App\Platform\PlatformHouses;
@@ -15,7 +18,9 @@ use Filament\Widgets\Widget;
 /**
  * "Sākt šeit" on the platform dashboard (FIRSTRUN-001) — it used to be just the heading "Panelis". Two parts:
  * - the platform checklist: CoreDigify account notice published (without it /join shows "Paziņojums tiek gatavots"),
- *   the house notice template published, DPA requests waiting for CoreDigify;
+ *   the house privacy-notice MASTER published in LV and RU (DocumentTemplate privacy_notice — what the opening wizard
+ *   prepares a house's notice from, DocumentService::prepare; the legacy PrivacyNoticeKind::BuildingTemplate is read by
+ *   nothing), DPA requests waiting for CoreDigify;
  * - one row per house (PlatformHouses::overview, no resident data): opening status (L-core x of 4, roster, parking),
  *   "Jūsu loma", "Jūsu dzīvoklis" and the next action — "Atvērt mājas paneli" or "Kļūt par administratoru" (on the
  *   platform house page, behind a strong step-up).
@@ -52,7 +57,7 @@ final class PlatformStartWidget extends Widget
         return [
             'checklist' => [
                 ['key' => 'account_notice', 'done' => PrivacyNoticeVersion::current(PrivacyNoticeKind::PlatformAccount) !== null, 'url' => $notices],
-                ['key' => 'house_template', 'done' => PrivacyNoticeVersion::current(PrivacyNoticeKind::BuildingTemplate) !== null, 'url' => $notices],
+                ['key' => 'house_notice_master', 'done' => DocumentTemplate::publishedPair(DocumentKind::PrivacyNotice) !== null, 'url' => DocumentTemplateResource::getUrl('index')],
                 ['key' => 'requests', 'done' => $requests === 0, 'url' => OpeningRequestsPage::getUrl()],
             ],
             'houses' => $houses,

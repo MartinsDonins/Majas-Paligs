@@ -83,4 +83,19 @@ class DocumentTemplate extends Model
     {
         return $this->published_at !== null;
     }
+
+    /**
+     * The master a house document is prepared from: the newest published LV version and its published RU sibling of
+     * the same version (DocumentService::prepare). Null when either language is missing — then a house cannot prepare
+     * that document in the opening wizard.
+     *
+     * @return array{lv: self, ru: self}|null
+     */
+    public static function publishedPair(DocumentKind $kind): ?array
+    {
+        $lv = self::latest($kind, Locale::Lv);
+        $ru = $lv?->sibling(Locale::Ru);
+
+        return $lv !== null && $ru !== null && $ru->isPublished() ? ['lv' => $lv, 'ru' => $ru] : null;
+    }
 }

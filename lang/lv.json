@@ -497,6 +497,8 @@
     "audit.actor.parking_officer": "Stāvvietas atbildīgais",
     "audit.actor.volunteer": "Brīvprātīgais",
     "audit.actor.platform_admin": "Platformas administrators",
+    "audit.actor.platform_admin_mcp": "Platformas administrators (MCP)",
+    "audit.actor.manager_viewer": "Pārvaldnieka skatītājs",
     "audit.action.platform.building_context": "Platformas darbība mājā",
     "audit.action.platform.break_glass": "Ārkārtas piekļuve žurnālam",
     "audit.action.platform.pin_pause": "PIN ieeja apturēta",

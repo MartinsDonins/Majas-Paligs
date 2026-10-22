@@ -9,7 +9,6 @@ use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
 use App\Enums\DocumentKind;
 use App\Enums\DocumentStatus;
-use App\Enums\Locale;
 use App\Enums\PlatformRole;
 use App\Gdpr\CoreGate;
 use App\Gdpr\CoreGateMonitor;
@@ -68,11 +67,11 @@ final class DocumentService
         $building = CurrentBuilding::get();
         $meta = $this->validMeta($building, $kind, $meta);
 
-        $lv = DocumentTemplate::latest($kind, Locale::Lv);
-        $ru = $lv?->sibling(Locale::Ru);
-        if ($lv === null || $ru === null || ! $ru->isPublished()) {
+        $pair = DocumentTemplate::publishedPair($kind);
+        if ($pair === null) {
             throw new DocumentRefused('template_missing');
         }
+        ['lv' => $lv, 'ru' => $ru] = $pair;
 
         return DB::transaction(function () use ($actor, $kind, $meta, $lv, $ru): BuildingDocument {
             DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', ['building-document:'.CurrentBuilding::id().':'.$kind->value]);

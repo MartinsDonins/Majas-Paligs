@@ -497,6 +497,8 @@
     "audit.actor.parking_officer": "Ответственный за парковку",
     "audit.actor.volunteer": "Волонтёр",
     "audit.actor.platform_admin": "Администратор платформы",
+    "audit.actor.platform_admin_mcp": "Администратор платформы (MCP)",
+    "audit.actor.manager_viewer": "Наблюдатель от управляющего",
     "audit.action.platform.building_context": "Действие платформы в доме",
     "audit.action.platform.break_glass": "Экстренный доступ к журналу",
     "audit.action.platform.pin_pause": "Вход по PIN приостановлен",

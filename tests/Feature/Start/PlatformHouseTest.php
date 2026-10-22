@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 use App\Auth\StepUpService;
 use App\Enums\BuildingRoleType;
+use App\Enums\DocumentKind;
+use App\Enums\Locale;
 use App\Enums\MembershipRole;
 use App\Enums\MembershipStatus;
 use App\Livewire\Admin\PlatformHouse;
 use App\Models\ApartmentMembership;
 use App\Models\AuditEntry;
 use App\Models\BuildingRole;
+use App\Models\DocumentTemplate;
+use App\Models\PrivacyNoticeVersion;
 use App\Models\User;
 use App\Notifications\TeamMemberJoined;
 use App\Services\Memberships\SelfLinkService;
+use Database\Seeders\DocumentTemplateSeeder;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
@@ -193,4 +198,27 @@ it('fills the empty platform dashboard with "Sākt šeit": platform checklist an
         ->assertSee('data-testid="platform-house-first-house"', false)
         ->assertSee(__('start.house.claim_button'))
         ->assertSee('data-testid="panel-view-switch"', false);
+});
+
+it('ticks the house privacy-notice item from the LV + RU privacy_notice masters the wizard uses, not the legacy template', function (): void {
+    steppedUp($this->platform, 'totp');
+    $page = fn (): string => (string) $this->actingAs($this->platform)->get('/admin/platform')->assertOk()->getContent();
+
+    // No masters yet: the item is open and points at the document masters.
+    expect($page())->toContain('data-testid="platform-house_notice_master" data-done="0"')
+        ->toContain(e(__('start.platform.item.house_notice_master.todo')));
+
+    // The seeded masters (what DocumentService::prepare reads) are published in both languages → done. The legacy
+    // PrivacyNoticeKind::BuildingTemplate stays unpublished and no longer matters.
+    (new DocumentTemplateSeeder)->run();
+    expect(PrivacyNoticeVersion::query()->where('kind', 'building_template')->whereNotNull('published_at')->exists())->toBeFalse()
+        ->and($page())->toContain('data-testid="platform-house_notice_master" data-done="1"')
+        ->toContain(e(__('start.platform.item.house_notice_master.done')))
+        ->not->toContain(e(__('start.platform.item.house_notice_master.todo')));
+
+    // A newer LV master without its RU sibling: a house could not prepare the notice → open again (same rule as prepare).
+    $lv = DocumentTemplate::latest(DocumentKind::PrivacyNotice, Locale::Lv);
+    DocumentTemplate::query()->create(DocumentTemplateSeeder::attributes(DocumentKind::PrivacyNotice, Locale::Lv, (string) $lv->body) + ['version' => $lv->version + 1, 'published_at' => now()]);
+    expect(DocumentTemplate::publishedPair(DocumentKind::PrivacyNotice))->toBeNull()
+        ->and($page())->toContain('data-testid="platform-house_notice_master" data-done="0"');
 });
